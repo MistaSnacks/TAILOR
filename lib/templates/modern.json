@@ -1,0 +1,44 @@
+{
+  "name": "Modern",
+  "description": "Clean, contemporary design with accent colors",
+  "sections": [
+    {
+      "type": "header",
+      "fields": ["name", "email", "phone", "location", "linkedin"]
+    },
+    {
+      "type": "summary",
+      "title": "Professional Summary",
+      "maxLength": 300
+    },
+    {
+      "type": "experience",
+      "title": "Work Experience",
+      "format": "detailed",
+      "showDates": true,
+      "showLocation": true
+    },
+    {
+      "type": "skills",
+      "title": "Skills",
+      "format": "categories"
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "showGPA": false
+    },
+    {
+      "type": "certifications",
+      "title": "Certifications",
+      "optional": true
+    }
+  ],
+  "styling": {
+    "font": "Inter",
+    "headerFont": "Outfit",
+    "accentColor": "#4FD1C5",
+    "spacing": "comfortable"
+  }
+}
+

@@ -1,0 +1,44 @@
+{
+  "name": "Classic",
+  "description": "Traditional, professional format",
+  "sections": [
+    {
+      "type": "header",
+      "fields": ["name", "email", "phone", "location"]
+    },
+    {
+      "type": "objective",
+      "title": "Objective",
+      "maxLength": 200
+    },
+    {
+      "type": "experience",
+      "title": "Professional Experience",
+      "format": "standard",
+      "showDates": true,
+      "showLocation": true
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "showGPA": true
+    },
+    {
+      "type": "skills",
+      "title": "Technical Skills",
+      "format": "list"
+    },
+    {
+      "type": "certifications",
+      "title": "Certifications & Awards",
+      "optional": true
+    }
+  ],
+  "styling": {
+    "font": "Times New Roman",
+    "headerFont": "Times New Roman",
+    "accentColor": "#000000",
+    "spacing": "compact"
+  }
+}
+

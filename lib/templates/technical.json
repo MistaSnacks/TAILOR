@@ -1,0 +1,47 @@
+{
+  "name": "Technical",
+  "description": "Optimized for technical roles with skills emphasis",
+  "sections": [
+    {
+      "type": "header",
+      "fields": ["name", "email", "github", "linkedin", "portfolio"]
+    },
+    {
+      "type": "skills",
+      "title": "Technical Skills",
+      "format": "categories",
+      "categories": ["Languages", "Frameworks", "Tools", "Cloud/DevOps"]
+    },
+    {
+      "type": "experience",
+      "title": "Professional Experience",
+      "format": "technical",
+      "showDates": true,
+      "emphasizeTech": true
+    },
+    {
+      "type": "projects",
+      "title": "Key Projects",
+      "optional": true,
+      "showTechStack": true
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "showGPA": false,
+      "showCoursework": true
+    },
+    {
+      "type": "certifications",
+      "title": "Certifications",
+      "optional": true
+    }
+  ],
+  "styling": {
+    "font": "Roboto Mono",
+    "headerFont": "Roboto",
+    "accentColor": "#00D9FF",
+    "spacing": "comfortable"
+  }
+}
+
