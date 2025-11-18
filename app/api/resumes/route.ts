@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth-utils';
+
+// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
+console.log('📄 Resumes API - Environment check:', {
+  supabase: !!supabaseAdmin ? '✅' : '❌',
+});
 
 export async function GET(request: NextRequest) {
+  console.log('📄 Resumes API - GET request received');
+  
   try {
-    const userId = 'placeholder-user-id';
+    const userId = await requireAuth();
+    console.log('🔐 Resumes API - User authenticated:', userId ? '✅' : '❌');
 
     const { data: resumes, error } = await supabaseAdmin
       .from('resume_versions')
@@ -30,8 +39,16 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ resumes: formattedResumes });
-  } catch (error) {
-    console.error('Fetch error:', error);
+  } catch (error: any) {
+    console.error('❌ Fetch error:', error);
+    
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

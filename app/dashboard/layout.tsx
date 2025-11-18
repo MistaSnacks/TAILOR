@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/components/auth-provider';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function DashboardLayout({
   children,
@@ -16,8 +16,10 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <aside className="w-64 min-h-screen border-r border-border bg-card/50 backdrop-blur-sm">
           <div className="p-6">
-            <Link href="/" className="font-display text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              T-AI-LOR
+            <Link href="/" className="font-display text-2xl font-bold">
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                T-<span className="text-accent font-extrabold">AI</span>-LOR
+              </span>
             </Link>
           </div>
           <nav className="px-4 space-y-2">

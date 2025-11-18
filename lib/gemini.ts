@@ -1,7 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { logSecretUsage } from './env-logger';
+import { writeFileSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
-const apiKey = process.env.GOOGLE_API_KEY || '';
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+
+// Log Gemini API key status (REMOVE IN PRODUCTION)
+logSecretUsage('GEMINI_API_KEY', !!apiKey);
+
 export const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null as any;
+export const fileManager = apiKey ? new GoogleAIFileManager(apiKey) : null as any;
 
 // Create or update a user's File Search store
 export async function createOrUpdateFileSearchStore(
@@ -20,20 +30,50 @@ export async function createOrUpdateFileSearchStore(
   }
 }
 
-// Upload a file to Gemini File Search
+// Upload a file buffer to Gemini Files API
 export async function uploadFileToGemini(
-  filePath: string,
+  buffer: Buffer,
   mimeType: string,
   displayName: string
-): Promise<any> {
+): Promise<{ uri: string; name: string }> {
   try {
-    // TODO: Implement file upload using Gemini Files API
-    // This requires the @google/generative-ai SDK to support file uploads
-    // For now, return a placeholder
-    console.log('File upload placeholder:', { filePath, mimeType, displayName });
-    return { uri: 'placeholder-file-uri' };
+    if (!fileManager) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    console.log('📤 Uploading file to Gemini:', displayName);
+
+    // Create a temporary file
+    const tempFilePath = join(tmpdir(), `upload-${Date.now()}-${displayName}`);
+    writeFileSync(tempFilePath, buffer);
+
+    try {
+      // Upload to Gemini Files API
+      const uploadResult = await fileManager.uploadFile(tempFilePath, {
+        mimeType,
+        displayName,
+      });
+
+      console.log('✅ File uploaded to Gemini:', {
+        name: uploadResult.file.name,
+        uri: uploadResult.file.uri,
+        mimeType: uploadResult.file.mimeType,
+      });
+
+      return {
+        uri: uploadResult.file.uri,
+        name: uploadResult.file.name,
+      };
+    } finally {
+      // Clean up temporary file
+      try {
+        unlinkSync(tempFilePath);
+      } catch (e) {
+        console.warn('Failed to delete temp file:', e);
+      }
+    }
   } catch (error) {
-    console.error('Error uploading file to Gemini:', error);
+    console.error('❌ Error uploading file to Gemini:', error);
     throw error;
   }
 }
@@ -42,17 +82,36 @@ export async function uploadFileToGemini(
 export async function generateTailoredResume(
   jobDescription: string,
   fileUris: string[],
-  template: string
+  template: string,
+  parsedDocuments?: string[]
 ): Promise<string> {
   try {
+    if (!genAI) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    console.log('⚡ Generating tailored resume:', {
+      hasJobDescription: !!jobDescription,
+      fileCount: fileUris.length,
+      template,
+      hasParsedDocs: !!parsedDocuments,
+    });
+
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
     });
+
+    // Build context from parsed documents if available
+    let documentContext = '';
+    if (parsedDocuments && parsedDocuments.length > 0) {
+      documentContext = '\n\nUser\'s Resume Content:\n' + parsedDocuments.join('\n\n---\n\n');
+    }
 
     const prompt = `You are an expert resume writer and ATS optimization specialist.
 
 Job Description:
 ${jobDescription}
+${documentContext}
 
 Task: Create a tailored, ATS-optimized resume based on the user's documents and the job description above.
 
@@ -72,15 +131,31 @@ Structure:
 - Education
 - Certifications (if relevant)
 
-Return the resume in a structured JSON format with sections.`;
+Return the resume in a structured JSON format with sections like:
+{
+  "summary": "...",
+  "experience": [...],
+  "skills": [...],
+  "education": [...],
+  "certifications": [...]
+}`;
+
+    // If we have file URIs from Gemini Files API, use them
+    const parts: any[] = [{ text: prompt }];
+    
+    // Note: File URIs from Gemini Files API would be used here
+    // but the current SDK version may not support file references in generation
+    // For now, we rely on the parsed content
 
     const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts }],
     });
 
-    return result.response.text();
+    const response = result.response.text();
+    console.log('✅ Resume generated successfully');
+    return response;
   } catch (error) {
-    console.error('Error generating tailored resume:', error);
+    console.error('❌ Error generating tailored resume:', error);
     throw error;
   }
 }

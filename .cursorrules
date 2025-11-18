@@ -1,0 +1,100 @@
+# TAILOR Project Rules
+
+## Environment Variables & Secrets Logging
+
+### On Startup - Log All Environment Variables
+When the application starts (in any entry point file like `layout.tsx`, `middleware.ts`, or API routes), add console logs to verify environment variables are loaded:
+
+```typescript
+// Log environment variables on startup (REMOVE IN PRODUCTION)
+console.log('🔑 Environment Check:', {
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing',
+  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+  supabaseServiceRole: process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ Set' : '❌ Missing',
+  googleClientId: process.env.GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? '✅ Set' : '❌ Missing',
+  geminiApiKey: process.env.GEMINI_API_KEY ? '✅ Set' : '❌ Missing',
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'Not set',
+});
+```
+
+### When Adding New Environment Variables
+Whenever a new environment variable is added to the codebase:
+
+1. **Add to `.env.example`** with placeholder value
+2. **Add to documentation** (`QUICKSTART.md`, `DEPLOYMENT.md`)
+3. **Add to logging** in the startup console log above
+4. **Add validation** to check if it exists
+
+Example:
+```typescript
+// When adding NEW_SECRET_KEY
+if (!process.env.NEW_SECRET_KEY) {
+  console.error('❌ NEW_SECRET_KEY is not set');
+}
+```
+
+### API Route Logging
+In every API route, log when secrets are being used:
+
+```typescript
+export async function POST(request: NextRequest) {
+  console.log('🔐 API Route:', request.url);
+  console.log('🔑 Using:', {
+    supabase: !!supabaseAdmin,
+    gemini: !!genAI,
+  });
+  
+  // ... rest of code
+}
+```
+
+### Client-Side Logging
+In client components that use auth or API calls:
+
+```typescript
+useEffect(() => {
+  console.log('🌐 Client Environment:', {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌',
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅' : '❌',
+  });
+}, []);
+```
+
+### Security Rules
+- ✅ **DO** log whether a secret exists (✅/❌)
+- ✅ **DO** log the first 4 characters of public keys for debugging
+- ❌ **NEVER** log full secret values
+- ❌ **NEVER** log service role keys or API keys
+- ⚠️ **ALWAYS** add comment: `// REMOVE IN PRODUCTION`
+
+### Example Pattern
+```typescript
+// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
+console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...');
+console.log('Gemini API Key:', process.env.GEMINI_API_KEY ? '✅ Set' : '❌ Missing');
+```
+
+## Code Style
+- Use TypeScript for all files
+- Use 'use client' directive for client components
+- Use async/await for async operations
+- Add proper error handling with try/catch
+- Log errors with context
+
+## Naming Conventions
+- Environment variables: SCREAMING_SNAKE_CASE
+- Components: PascalCase
+- Functions: camelCase
+- Files: kebab-case.tsx
+
+## Git Commit Messages
+When adding environment variable logging:
+```
+feat: add environment variable logging for [VARIABLE_NAME]
+
+- Add console logs to verify [VARIABLE_NAME] is loaded
+- Add validation check
+- Update documentation
+```
+

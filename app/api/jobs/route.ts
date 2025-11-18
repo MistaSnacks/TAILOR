@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth-utils';
+
+// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
+console.log('💼 Jobs API - Environment check:', {
+  supabase: !!supabaseAdmin ? '✅' : '❌',
+});
 
 export async function POST(request: NextRequest) {
+  console.log('💼 Jobs API - POST request received');
+  
   try {
+    // Get authenticated user
+    const userId = await requireAuth();
+    console.log('🔐 Jobs API - User authenticated:', userId ? '✅' : '❌');
+
     const body = await request.json();
     const { title, company, description } = body;
 
@@ -12,9 +24,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Get user from session (placeholder for now)
-    const userId = 'placeholder-user-id';
 
     // Extract skills from description (simple keyword extraction)
     const skillKeywords = [
@@ -47,8 +56,16 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ job });
-  } catch (error) {
-    console.error('Job creation error:', error);
+  } catch (error: any) {
+    console.error('❌ Job creation error:', error);
+    
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -57,8 +74,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  console.log('💼 Jobs API - GET request received');
+  
   try {
-    const userId = 'placeholder-user-id';
+    const userId = await requireAuth();
+    console.log('🔐 Jobs API - User authenticated:', userId ? '✅' : '❌');
 
     const { data: jobs, error } = await supabaseAdmin
       .from('jobs')
@@ -75,8 +95,16 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ jobs });
-  } catch (error) {
-    console.error('Fetch error:', error);
+  } catch (error: any) {
+    console.error('❌ Fetch error:', error);
+    
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

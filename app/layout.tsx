@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/components/auth-provider";
+import { AuthProvider } from "@/components/auth-provider-nextauth";
+import { EnvChecker } from "@/components/env-checker";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -14,7 +15,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "TAILOR - AI-Powered Resume Tailoring",
+  title: "T-AI-LOR - AI-Powered Resume Tailoring",
   description: "Tailor your resume to every job in minutes — powered by AI",
 };
 
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${outfit.variable} font-sans antialiased`}
       >
+        <EnvChecker />
         <AuthProvider>
           {children}
         </AuthProvider>

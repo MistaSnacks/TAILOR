@@ -10,9 +10,12 @@
      - `http://localhost:3000/dashboard` (development)
      - `https://your-domain.vercel.app/dashboard` (production)
 
-2. **Google AI API Key**
-   - Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Enable Gemini API access
+2. **Google Credentials**
+   - **OAuth**: Get Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com)
+     - Enable Google+ API
+     - Create OAuth 2.0 Client ID
+     - Add Supabase callback URL
+   - **Gemini AI**: Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 3. **Vercel Account**
    - Sign up at [vercel.com](https://vercel.com)
@@ -27,8 +30,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Google Gemini
-GOOGLE_API_KEY=your_google_api_key
+# Google OAuth (for Supabase Auth)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Google Gemini AI
+GEMINI_API_KEY=your_gemini_api_key
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000

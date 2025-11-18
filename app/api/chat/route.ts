@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { chatWithDocuments } from '@/lib/gemini';
+import { requireAuth } from '@/lib/auth-utils';
+
+// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
+console.log('💬 Chat API - Environment check:', {
+  supabase: !!supabaseAdmin ? '✅' : '❌',
+  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
+});
 
 export async function POST(request: NextRequest) {
+  console.log('💬 Chat API - POST request received');
+  
   try {
+    // Get authenticated user
+    const userId = await requireAuth();
+    console.log('🔐 Chat API - User authenticated:', userId ? '✅' : '❌');
+
     const body = await request.json();
     const { message, history = [] } = body;
 
@@ -13,8 +26,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const userId = 'placeholder-user-id';
 
     // Fetch user documents for context
     const { data: documents, error: docsError } = await supabaseAdmin
@@ -50,8 +61,16 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({ response });
-  } catch (error) {
-    console.error('Chat error:', error);
+  } catch (error: any) {
+    console.error('❌ Chat error:', error);
+    
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

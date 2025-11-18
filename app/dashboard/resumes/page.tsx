@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 function ResumesContent() {
   const [resumes, setResumes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('id');
 
@@ -24,6 +25,42 @@ function ResumesContent() {
       console.error('Failed to fetch resumes:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownload = async (resumeId: string) => {
+    try {
+      setDownloading(resumeId);
+      console.log('📥 Downloading resume:', resumeId);
+
+      const response = await fetch(`/api/resumes/${resumeId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : 'resume.docx';
+
+      // Download file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      console.log('✅ Resume downloaded');
+    } catch (error) {
+      console.error('❌ Download error:', error);
+      alert('Failed to download resume');
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -95,11 +132,18 @@ function ResumesContent() {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 px-4 py-2 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors text-sm">
+                <button 
+                  className="flex-1 px-4 py-2 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors text-sm"
+                  onClick={() => alert('View functionality coming soon!')}
+                >
                   View
                 </button>
-                <button className="flex-1 px-4 py-2 bg-secondary/10 text-secondary rounded hover:bg-secondary/20 transition-colors text-sm">
-                  Download
+                <button 
+                  onClick={() => handleDownload(resume.id)}
+                  disabled={downloading === resume.id}
+                  className="flex-1 px-4 py-2 bg-secondary/10 text-secondary rounded hover:bg-secondary/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {downloading === resume.id ? 'Downloading...' : 'Download'}
                 </button>
               </div>
             </div>

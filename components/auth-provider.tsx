@@ -26,7 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
+    // Log client-side Supabase status (REMOVE IN PRODUCTION)
+    console.log('🔐 Auth Provider - Supabase client:', supabase ? '✅ Initialized' : '❌ Not initialized');
+    console.log('🔐 Auth Provider - Env check:', {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌',
+      anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅' : '❌',
+    });
+    
     if (!supabase) {
+      console.error('❌ Cannot initialize Supabase client - check environment variables');
       setLoading(false);
       return;
     }
@@ -49,6 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const signIn = async () => {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return;
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -59,6 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return;
+    }
+    
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Sign out error:', error);
   };

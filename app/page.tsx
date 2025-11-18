@@ -1,16 +1,23 @@
 'use client';
 
-import { useAuth } from '@/components/auth-provider';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { AuthModal } from '@/components/auth-modal';
 
 export default function Home() {
-  const { user, signIn } = useAuth();
+  const { user, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  console.log('🏠 Landing Page - User:', user, 'Loading:', loading);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
-          <h1 className="font-display text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-            T-AI-LOR
+          <h1 className="font-display text-6xl md:text-8xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              T-<span className="text-accent font-extrabold">AI</span>-LOR
+            </span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl">
             Tailor your resume to every job in minutes — powered by AI
@@ -25,10 +32,10 @@ export default function Home() {
               </a>
             ) : (
               <button
-                onClick={signIn}
+                onClick={() => setShowAuthModal(true)}
                 className="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-slate-950 font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
-                Sign In with Google
+                Sign In
               </button>
             )}
             <a
@@ -64,6 +71,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }

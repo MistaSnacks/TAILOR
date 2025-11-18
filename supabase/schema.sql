@@ -2,10 +2,72 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
--- Profiles table
+-- ============================================================
+-- NextAuth Adapter Tables
+-- Required for NextAuth authentication with Supabase adapter
+-- ============================================================
+
+-- Users table (NextAuth)
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT,
+  email TEXT UNIQUE,
+  email_verified TIMESTAMPTZ,
+  image TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Accounts table (NextAuth - stores OAuth provider info)
+CREATE TABLE IF NOT EXISTS accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_account_id TEXT NOT NULL,
+  refresh_token TEXT,
+  access_token TEXT,
+  expires_at BIGINT,
+  token_type TEXT,
+  scope TEXT,
+  id_token TEXT,
+  session_state TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(provider, provider_account_id)
+);
+
+-- Sessions table (NextAuth)
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_token TEXT UNIQUE NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Verification tokens table (NextAuth - for email verification)
+CREATE TABLE IF NOT EXISTS verification_tokens (
+  identifier TEXT NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  expires TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (identifier, token)
+);
+
+-- Indexes for NextAuth tables
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_session_token ON sessions(session_token);
+
+-- ============================================================
+-- Application Tables
+-- ============================================================
+
+-- Profiles table (links to NextAuth users)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT,
   gemini_store_name TEXT,
@@ -16,7 +78,7 @@ CREATE TABLE profiles (
 -- Documents table
 CREATE TABLE documents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   file_name TEXT NOT NULL,
   file_type TEXT NOT NULL,
   file_size INTEGER NOT NULL,
@@ -31,7 +93,7 @@ CREATE TABLE documents (
 -- Jobs table
 CREATE TABLE jobs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   company TEXT,
   description TEXT NOT NULL,
@@ -43,7 +105,7 @@ CREATE TABLE jobs (
 -- Resume versions table
 CREATE TABLE resume_versions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   template TEXT NOT NULL CHECK (template IN ('modern', 'classic', 'technical')),
   content JSONB NOT NULL,
@@ -67,7 +129,7 @@ CREATE TABLE ats_scores (
 -- Chat threads table
 CREATE TABLE chat_threads (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -94,105 +156,97 @@ CREATE INDEX idx_ats_scores_resume_version_id ON ats_scores(resume_version_id);
 CREATE INDEX idx_chat_threads_user_id ON chat_threads(user_id);
 CREATE INDEX idx_chat_messages_thread_id ON chat_messages(thread_id);
 
--- Row Level Security (RLS) policies
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resume_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ats_scores ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+-- ============================================================
+-- Row Level Security (RLS) Policies
+-- NOTE: With NextAuth, auth.uid() is not available
+-- Authorization should be handled in API routes using NextAuth session
+-- RLS is DISABLED for now - enable after implementing custom auth function
+-- ============================================================
 
--- Profiles policies
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = user_id);
+-- Uncomment these when implementing custom RLS with NextAuth
+-- ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE resume_versions ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE ats_scores ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = user_id);
+-- Profiles policies (DISABLED - auth.uid() not available with NextAuth)
+-- CREATE POLICY "Users can view own profile" ON profiles
+--   FOR SELECT USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own profile" ON profiles
+--   FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own profile" ON profiles
+--   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own profile" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Documents policies (DISABLED)
+-- CREATE POLICY "Users can view own documents" ON documents
+--   FOR SELECT USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own documents" ON documents
+--   FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own documents" ON documents
+--   FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete own documents" ON documents
+--   FOR DELETE USING (auth.uid() = user_id);
 
--- Documents policies
-CREATE POLICY "Users can view own documents" ON documents
-  FOR SELECT USING (auth.uid() = user_id);
+-- Jobs policies (DISABLED)
+-- CREATE POLICY "Users can view own jobs" ON jobs
+--   FOR SELECT USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own jobs" ON jobs
+--   FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own jobs" ON jobs
+--   FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete own jobs" ON jobs
+--   FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own documents" ON documents
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Resume versions policies (DISABLED)
+-- CREATE POLICY "Users can view own resume versions" ON resume_versions
+--   FOR SELECT USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own resume versions" ON resume_versions
+--   FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own resume versions" ON resume_versions
+--   FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete own resume versions" ON resume_versions
+--   FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own documents" ON documents
-  FOR UPDATE USING (auth.uid() = user_id);
+-- ATS scores policies (DISABLED)
+-- CREATE POLICY "Users can view ats scores for own resumes" ON ats_scores
+--   FOR SELECT USING (
+--     EXISTS (
+--       SELECT 1 FROM resume_versions
+--       WHERE resume_versions.id = ats_scores.resume_version_id
+--       AND resume_versions.user_id = auth.uid()
+--     )
+--   );
 
-CREATE POLICY "Users can delete own documents" ON documents
-  FOR DELETE USING (auth.uid() = user_id);
+-- Chat threads policies (DISABLED)
+-- CREATE POLICY "Users can view own chat threads" ON chat_threads
+--   FOR SELECT USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own chat threads" ON chat_threads
+--   FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own chat threads" ON chat_threads
+--   FOR UPDATE USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete own chat threads" ON chat_threads
+--   FOR DELETE USING (auth.uid() = user_id);
 
--- Jobs policies
-CREATE POLICY "Users can view own jobs" ON jobs
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own jobs" ON jobs
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own jobs" ON jobs
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own jobs" ON jobs
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Resume versions policies
-CREATE POLICY "Users can view own resume versions" ON resume_versions
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own resume versions" ON resume_versions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own resume versions" ON resume_versions
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own resume versions" ON resume_versions
-  FOR DELETE USING (auth.uid() = user_id);
-
--- ATS scores policies (read-only for users, scores are generated by system)
-CREATE POLICY "Users can view ats scores for own resumes" ON ats_scores
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM resume_versions
-      WHERE resume_versions.id = ats_scores.resume_version_id
-      AND resume_versions.user_id = auth.uid()
-    )
-  );
-
--- Chat threads policies
-CREATE POLICY "Users can view own chat threads" ON chat_threads
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own chat threads" ON chat_threads
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own chat threads" ON chat_threads
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own chat threads" ON chat_threads
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Chat messages policies
-CREATE POLICY "Users can view messages in own threads" ON chat_messages
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM chat_threads
-      WHERE chat_threads.id = chat_messages.thread_id
-      AND chat_threads.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Users can insert messages in own threads" ON chat_messages
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM chat_threads
-      WHERE chat_threads.id = chat_messages.thread_id
-      AND chat_threads.user_id = auth.uid()
-    )
-  );
+-- Chat messages policies (DISABLED)
+-- CREATE POLICY "Users can view messages in own threads" ON chat_messages
+--   FOR SELECT USING (
+--     EXISTS (
+--       SELECT 1 FROM chat_threads
+--       WHERE chat_threads.id = chat_messages.thread_id
+--       AND chat_threads.user_id = auth.uid()
+--     )
+--   );
+-- CREATE POLICY "Users can insert messages in own threads" ON chat_messages
+--   FOR INSERT WITH CHECK (
+--     EXISTS (
+--       SELECT 1 FROM chat_threads
+--       WHERE chat_threads.id = chat_messages.thread_id
+--       AND chat_threads.user_id = auth.uid()
+--     )
+--   );
 
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -222,28 +276,14 @@ CREATE TRIGGER update_chat_threads_updated_at BEFORE UPDATE ON chat_threads
 -- Storage bucket for resumes
 INSERT INTO storage.buckets (id, name, public) VALUES ('resumes', 'resumes', false);
 
--- Storage policies
-CREATE POLICY "Users can upload own files" ON storage.objects
-  FOR INSERT WITH CHECK (
-    bucket_id = 'resumes' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
-
-CREATE POLICY "Users can view own files" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'resumes' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
-
-CREATE POLICY "Users can update own files" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'resumes' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
-
-CREATE POLICY "Users can delete own files" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'resumes' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+-- Storage policies (DISABLED - auth.uid() not available with NextAuth)
+-- Handle storage authorization in API routes
+-- CREATE POLICY "Users can upload own files" ON storage.objects
+--   FOR INSERT WITH CHECK (bucket_id = 'resumes');
+-- CREATE POLICY "Users can view own files" ON storage.objects
+--   FOR SELECT USING (bucket_id = 'resumes');
+-- CREATE POLICY "Users can update own files" ON storage.objects
+--   FOR UPDATE USING (bucket_id = 'resumes');
+-- CREATE POLICY "Users can delete own files" ON storage.objects
+--   FOR DELETE USING (bucket_id = 'resumes');
 

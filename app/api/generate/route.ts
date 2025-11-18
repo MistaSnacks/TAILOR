@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateTailoredResume, calculateAtsScore } from '@/lib/gemini';
+import { requireAuth } from '@/lib/auth-utils';
+
+// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
+console.log('⚡ Generate API - Environment check:', {
+  supabase: !!supabaseAdmin ? '✅' : '❌',
+  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
+});
 
 export async function POST(request: NextRequest) {
+  console.log('⚡ Generate API - POST request received');
+  
   try {
+    // Get authenticated user
+    const userId = await requireAuth();
+    console.log('🔐 Generate API - User authenticated:', userId ? '✅' : '❌');
+
     const body = await request.json();
     const { jobId, template = 'modern' } = body;
 
@@ -13,8 +26,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const userId = 'placeholder-user-id';
 
     // Fetch job details
     const { data: job, error: jobError } = await supabaseAdmin
@@ -53,16 +64,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Collect file URIs for Gemini
+    // Collect file URIs and parsed content
     const fileUris = documents
       .filter((doc: any) => doc.gemini_file_uri)
       .map((doc: any) => doc.gemini_file_uri);
+    
+    const parsedDocuments = documents
+      .filter((doc: any) => doc.parsed_content?.text)
+      .map((doc: any) => doc.parsed_content.text);
+
+    console.log('📄 Using documents:', {
+      fileUris: fileUris.length,
+      parsedDocs: parsedDocuments.length,
+    });
 
     // Generate tailored resume
     const resumeContent = await generateTailoredResume(
       job.description,
       fileUris,
-      template
+      template,
+      parsedDocuments
     );
 
     // Parse the generated content (expecting JSON)
@@ -118,8 +139,16 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ resumeVersion });
-  } catch (error) {
-    console.error('Generation error:', error);
+  } catch (error: any) {
+    console.error('❌ Generation error:', error);
+    
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

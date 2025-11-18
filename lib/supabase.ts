@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { logSecretUsage } from './env-logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// Log Supabase credentials status (REMOVE IN PRODUCTION)
+logSecretUsage('SUPABASE_URL', !!supabaseUrl);
+logSecretUsage('SUPABASE_ANON_KEY', !!supabaseAnonKey);
+logSecretUsage('SUPABASE_SERVICE_ROLE_KEY', !!supabaseServiceRoleKey);
 
 // Client-side Supabase client
 export const supabase = supabaseUrl && supabaseAnonKey 
