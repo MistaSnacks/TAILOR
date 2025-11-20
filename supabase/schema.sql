@@ -86,8 +86,23 @@ CREATE TABLE documents (
   parsed_content JSONB,
   parse_status TEXT NOT NULL DEFAULT 'pending' CHECK (parse_status IN ('pending', 'processing', 'completed', 'failed')),
   gemini_file_uri TEXT,
+  chunk_count INTEGER DEFAULT 0,
+  last_chunked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Document chunks table (for File Search + embeddings)
+CREATE TABLE document_chunks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  chunk_index INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  chunk_size INTEGER NOT NULL,
+  chunk_mime_type TEXT DEFAULT 'text/plain',
+  gemini_file_uri TEXT,
+  embedding vector(768),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Jobs table
@@ -149,6 +164,10 @@ CREATE TABLE chat_messages (
 -- Indexes for better query performance
 CREATE INDEX idx_documents_user_id ON documents(user_id);
 CREATE INDEX idx_documents_parse_status ON documents(parse_status);
+CREATE INDEX idx_document_chunks_document_id ON document_chunks(document_id);
+-- Vector similarity index (requires pgvector extension)
+CREATE INDEX idx_document_chunks_embedding ON document_chunks
+USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 CREATE INDEX idx_resume_versions_user_id ON resume_versions(user_id);
 CREATE INDEX idx_resume_versions_job_id ON resume_versions(job_id);
@@ -263,6 +282,45 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
 
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_document_chunks_updated_at BEFORE UPDATE ON document_chunks
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Helper function for semantic search over document chunks
+CREATE OR REPLACE FUNCTION match_document_chunks(
+  query_embedding vector(768),
+  user_uuid UUID,
+  match_count INTEGER DEFAULT 5
+)
+RETURNS TABLE (
+  document_id UUID,
+  chunk_id UUID,
+  chunk_index INTEGER,
+  content TEXT,
+  similarity DOUBLE PRECISION,
+  gemini_file_uri TEXT,
+  chunk_mime_type TEXT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    dc.document_id,
+    dc.id AS chunk_id,
+    dc.chunk_index,
+    dc.content,
+    1 - (dc.embedding <=> query_embedding) AS similarity,
+    dc.gemini_file_uri,
+    dc.chunk_mime_type
+  FROM document_chunks dc
+  JOIN documents d ON dc.document_id = d.id
+  WHERE d.user_id = user_uuid
+    AND dc.embedding IS NOT NULL
+  ORDER BY dc.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
 
 CREATE TRIGGER update_jobs_updated_at BEFORE UPDATE ON jobs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

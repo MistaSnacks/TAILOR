@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { parseDocument } from '@/lib/parse';
-import { uploadFileToGemini } from '@/lib/gemini';
+import { parseDocument, chunkText } from '@/lib/parse';
+import { uploadFileToGemini, uploadTextChunkToGemini, embedText } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
+import { MAX_CHUNK_SIZE, MAX_CHUNKS_PER_DOCUMENT, MIN_CHUNK_LENGTH } from '@/lib/chunking';
 
 // 🔑 Environment variable logging (REMOVE IN PRODUCTION)
 console.log('📤 Upload API - Environment check:', {
@@ -98,6 +99,15 @@ export async function POST(request: NextRequest) {
       const parsed = await parseDocument(buffer, file.type);
       console.log('✅ Document parsed, text length:', parsed.text.length);
 
+      const chunks = chunkText(parsed.text, MAX_CHUNK_SIZE)
+        .filter(chunk => chunk.trim().length >= MIN_CHUNK_LENGTH)
+        .slice(0, MAX_CHUNKS_PER_DOCUMENT);
+      console.log('✂️ Chunking document:', {
+        chunkCount: chunks.length,
+        maxChunks: MAX_CHUNKS_PER_DOCUMENT,
+        chunkSize: MAX_CHUNK_SIZE,
+      });
+
       // Upload to Gemini Files API
       let geminiFileUri = null;
       let geminiFileName = null;
@@ -113,20 +123,58 @@ export async function POST(request: NextRequest) {
         // We still have the parsed content
       }
 
-      // Update document with parsed content
+      // Build chunk payloads with embeddings + Gemini chunk files
+      const chunkRecords: any[] = [];
+      for (const [index, chunk] of chunks.entries()) {
+        try {
+          const embedding = await embedText(chunk);
+          let chunkFile: { uri: string; mimeType: string } | null = null;
+
+          try {
+            const uploadedChunk = await uploadTextChunkToGemini(
+              chunk,
+              `${file.name}-chunk-${index + 1}.txt`
+            );
+            chunkFile = { uri: uploadedChunk.uri, mimeType: uploadedChunk.mimeType };
+          } catch (chunkUploadError) {
+            console.error('❌ Gemini chunk upload error:', chunkUploadError);
+          }
+
+          chunkRecords.push({
+            document_id: document.id,
+            chunk_index: index,
+            content: chunk,
+            chunk_size: chunk.length,
+            gemini_file_uri: chunkFile?.uri || null,
+            chunk_mime_type: chunkFile?.mimeType || 'text/plain',
+            embedding,
+          });
+        } catch (embeddingError) {
+          console.error('❌ Chunk embedding error:', embeddingError);
+        }
+      }
+
+      if (chunkRecords.length > 0) {
+        await supabaseAdmin.from('document_chunks').insert(chunkRecords);
+      }
+
+      // Update document with parsed content + chunk metadata
       await supabaseAdmin
         .from('documents')
         .update({
           parsed_content: {
             text: parsed.text,
             metadata: parsed.metadata,
+            chunk_count: chunkRecords.length,
           },
           parse_status: 'completed',
           gemini_file_uri: geminiFileUri,
+          chunk_count: chunkRecords.length,
+          last_chunked_at: new Date().toISOString(),
         })
         .eq('id', document.id);
       
-      console.log('✅ Document updated in database');
+      console.log('✅ Document updated in database with chunks');
     } catch (parseError) {
       console.error('❌ Parse error:', parseError);
       await supabaseAdmin

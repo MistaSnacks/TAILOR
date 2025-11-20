@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { chatWithDocuments } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
+import { getRelevantChunks, mapChunksToFileRefs } from '@/lib/chunking';
 
 // 🔑 Environment variable logging (REMOVE IN PRODUCTION)
 console.log('💬 Chat API - Environment check:', {
@@ -43,9 +44,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Collect file URIs for Gemini
-    const fileUris = documents
+    const documentFileRefs = documents
       ?.filter((doc: any) => doc.gemini_file_uri)
-      .map((doc: any) => doc.gemini_file_uri) || [];
+      .map((doc: any) => ({
+        uri: doc.gemini_file_uri,
+        mimeType: doc.file_type || 'application/octet-stream',
+      })) || [];
+
+    const { chunks: relevantChunks } = await getRelevantChunks(userId, message, 6);
+    console.log('🔍 Chat chunk hits:', relevantChunks.length);
+    const chunkTexts = relevantChunks.map((chunk) => chunk.content);
+    const chunkFileRefs = mapChunksToFileRefs(relevantChunks);
 
     // Format conversation history
     const conversationHistory = history.map((msg: any) => ({
@@ -54,11 +63,11 @@ export async function POST(request: NextRequest) {
     }));
 
     // Get response from Gemini
-    const response = await chatWithDocuments(
-      message,
-      conversationHistory,
-      fileUris
-    );
+    const response = await chatWithDocuments(message, conversationHistory, {
+      documentFiles: documentFileRefs,
+      chunkTexts,
+      chunkFileReferences: chunkFileRefs,
+    });
 
     return NextResponse.json({ response });
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateTailoredResume, calculateAtsScore } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
+import { getRelevantChunks, mapChunksToFileRefs } from '@/lib/chunking';
 
 // 🔑 Environment variable logging (REMOVE IN PRODUCTION)
 console.log('⚡ Generate API - Environment check:', {
@@ -65,25 +66,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Collect file URIs and parsed content
-    const fileUris = documents
+    const documentFileRefs = documents
       .filter((doc: any) => doc.gemini_file_uri)
-      .map((doc: any) => doc.gemini_file_uri);
+      .map((doc: any) => ({
+        uri: doc.gemini_file_uri,
+        mimeType: doc.file_type || 'application/octet-stream',
+      }));
     
     const parsedDocuments = documents
       .filter((doc: any) => doc.parsed_content?.text)
       .map((doc: any) => doc.parsed_content.text);
 
     console.log('📄 Using documents:', {
-      fileUris: fileUris.length,
+      fileRefs: documentFileRefs.length,
       parsedDocs: parsedDocuments.length,
     });
+
+    // Retrieve most relevant chunks using embeddings
+    const { chunks: relevantChunks } = await getRelevantChunks(
+      userId,
+      job.description,
+      8
+    );
+    console.log('🔍 Chunk retrieval:', {
+      chunkHits: relevantChunks.length,
+    });
+
+    const chunkTexts = relevantChunks.map((chunk) => chunk.content);
+    const chunkFileRefs = mapChunksToFileRefs(relevantChunks);
 
     // Generate tailored resume
     const resumeContent = await generateTailoredResume(
       job.description,
-      fileUris,
       template,
-      parsedDocuments
+      {
+        documentFiles: documentFileRefs,
+        parsedDocuments,
+        chunkTexts,
+        chunkFileReferences: chunkFileRefs,
+      }
     );
 
     // Parse the generated content (expecting JSON)

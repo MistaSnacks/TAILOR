@@ -13,6 +13,22 @@ logSecretUsage('GEMINI_API_KEY', !!apiKey);
 export const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null as any;
 export const fileManager = apiKey ? new GoogleAIFileManager(apiKey) : null as any;
 
+export type GeminiFileReference = {
+  uri: string;
+  mimeType: string;
+};
+
+function buildFileParts(references: GeminiFileReference[] = []) {
+  return references
+    .filter(ref => ref.uri)
+    .map(ref => ({
+      fileData: {
+        fileUri: ref.uri,
+        mimeType: ref.mimeType,
+      },
+    }));
+}
+
 // Create or update a user's File Search store
 export async function createOrUpdateFileSearchStore(
   userId: string,
@@ -78,23 +94,65 @@ export async function uploadFileToGemini(
   }
 }
 
+// Upload plain text chunk content to Gemini
+export async function uploadTextChunkToGemini(
+  content: string,
+  displayName: string
+): Promise<{ uri: string; name: string; mimeType: string }> {
+  const buffer = Buffer.from(content, 'utf-8');
+  const upload = await uploadFileToGemini(buffer, 'text/plain', displayName);
+  return { ...upload, mimeType: 'text/plain' };
+}
+
+// Generate embeddings for semantic search / chunk ranking
+export async function embedText(text: string): Promise<number[]> {
+  if (!genAI) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const embedModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+  const result = await embedModel.embedContent(text);
+  const embedding = result.embedding?.values;
+
+  if (!embedding || embedding.length === 0) {
+    throw new Error('Failed to generate embedding');
+  }
+
+  return embedding;
+}
+
 // Generate tailored resume using File Search
+export type ChunkContext = {
+  documentFiles?: GeminiFileReference[];
+  parsedDocuments?: string[];
+  chunkTexts?: string[];
+  chunkFileReferences?: GeminiFileReference[];
+};
+
 export async function generateTailoredResume(
   jobDescription: string,
-  fileUris: string[],
   template: string,
-  parsedDocuments?: string[]
+  context: ChunkContext = {}
 ): Promise<string> {
   try {
     if (!genAI) {
       throw new Error('Gemini API key not configured');
     }
 
+    const {
+      documentFiles = [],
+      parsedDocuments = [],
+      chunkTexts = [],
+      chunkFileReferences = [],
+    } = context;
+
     console.log('⚡ Generating tailored resume:', {
       hasJobDescription: !!jobDescription,
-      fileCount: fileUris.length,
+      fileCount: documentFiles.length,
+      chunkFileCount: chunkFileReferences.length,
+      chunkTextCount: chunkTexts.length,
       template,
-      hasParsedDocs: !!parsedDocuments,
+      hasParsedDocs: parsedDocuments.length > 0,
     });
 
     const model = genAI.getGenerativeModel({ 
@@ -104,7 +162,13 @@ export async function generateTailoredResume(
     // Build context from parsed documents if available
     let documentContext = '';
     if (parsedDocuments && parsedDocuments.length > 0) {
-      documentContext = '\n\nUser\'s Resume Content:\n' + parsedDocuments.join('\n\n---\n\n');
+      documentContext += '\n\nUser\'s Resume Content:\n' + parsedDocuments.join('\n\n---\n\n');
+    }
+
+    if (chunkTexts && chunkTexts.length > 0) {
+      documentContext += '\n\nMost Relevant Resume Chunks:\n' + chunkTexts
+        .map((chunk, idx) => `Chunk ${idx + 1}:\n${chunk}`)
+        .join('\n\n---\n\n');
     }
 
     const prompt = `You are an expert resume writer and ATS optimization specialist.
@@ -140,12 +204,17 @@ Return the resume in a structured JSON format with sections like:
   "certifications": [...]
 }`;
 
-    // If we have file URIs from Gemini Files API, use them
     const parts: any[] = [{ text: prompt }];
-    
-    // Note: File URIs from Gemini Files API would be used here
-    // but the current SDK version may not support file references in generation
-    // For now, we rely on the parsed content
+
+    // Attach chunk-level file references first (already processed text)
+    if (chunkFileReferences.length > 0) {
+      parts.push(...buildFileParts(chunkFileReferences));
+    }
+
+    // Attach full document references as a fallback
+    if (documentFiles.length > 0) {
+      parts.push(...buildFileParts(documentFiles));
+    }
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts }],
@@ -164,9 +233,15 @@ Return the resume in a structured JSON format with sections like:
 export async function chatWithDocuments(
   message: string,
   conversationHistory: Array<{ role: string; content: string }>,
-  fileUris: string[]
+  context: ChunkContext = {}
 ): Promise<string> {
   try {
+    const {
+      documentFiles = [],
+      chunkTexts = [],
+      chunkFileReferences = [],
+    } = context;
+
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
     });
@@ -178,7 +253,23 @@ export async function chatWithDocuments(
       })),
     });
 
-    const result = await chat.sendMessage(message);
+    const contextPrefix = chunkTexts.length
+      ? `Use the following resume excerpts to ground your answer:\n${chunkTexts
+          .map((chunk, idx) => `Chunk ${idx + 1}:\n${chunk}`)
+          .join('\n\n---\n\n')}\n\nUser question: ${message}`
+      : message;
+
+    const parts: any[] = [{ text: contextPrefix }];
+
+    if (chunkFileReferences.length > 0) {
+      parts.push(...buildFileParts(chunkFileReferences));
+    }
+
+    if (documentFiles.length > 0) {
+      parts.push(...buildFileParts(documentFiles));
+    }
+
+    const result = await chat.sendMessage(parts);
     return result.response.text();
   } catch (error) {
     console.error('Error chatting with documents:', error);

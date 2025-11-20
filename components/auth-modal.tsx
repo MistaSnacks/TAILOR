@@ -22,20 +22,18 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="rounded-lg bg-card border border-border p-8 shadow-2xl">
           {/* Header */}
           <div className="text-center mb-6">
-            <h2 className="font-display text-3xl font-bold mb-2">
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Welcome to T-<span className="text-accent font-extrabold">AI</span>-LOR
-              </span>
+            <h2 className="font-display text-3xl font-bold mb-2 text-foreground">
+              Welcome to T<span className="text-primary">AI</span>LOR
             </h2>
             <p className="text-muted-foreground">
               Sign in to start tailoring your resume with AI
@@ -46,7 +44,7 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-slate-900 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-foreground text-background rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
