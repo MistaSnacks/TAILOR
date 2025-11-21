@@ -82,22 +82,22 @@ export function normalizeResumeContent(content: any): ResumeContent {
         skills: Array.isArray(content.skills)
           ? content.skills.filter(Boolean)
           : typeof content.skills === 'string'
-          ? content.skills.split(/[,•\n]/).map((s: string) => s.trim()).filter(Boolean)
-          : [],
+            ? content.skills.split(/[,•\n]/).map((s: string) => s.trim()).filter(Boolean)
+            : [],
         education: Array.isArray(content.education)
           ? content.education.map((edu: any) => ({
-              degree: edu.degree || '',
-              school: edu.school || '',
-              year: edu.year || '',
-              gpa: edu.gpa || '',
-            }))
+            degree: edu.degree || '',
+            school: edu.school || '',
+            year: edu.year || '',
+            gpa: edu.gpa || '',
+          }))
           : [],
         certifications: Array.isArray(content.certifications)
           ? content.certifications.map((cert: any) => ({
-              name: cert.name || '',
-              issuer: cert.issuer || '',
-              date: cert.date || '',
-            }))
+            name: cert.name || '',
+            issuer: cert.issuer || '',
+            date: cert.date || '',
+          }))
           : [],
         contact: {
           name: content.contact?.name || '',
@@ -109,9 +109,9 @@ export function normalizeResumeContent(content: any): ResumeContent {
         meta:
           experienceValidation.filtered.length || experienceValidation.warnings.length
             ? {
-                warnings: experienceValidation.warnings,
-                filteredExperiences: experienceValidation.filtered,
-              }
+              warnings: experienceValidation.warnings,
+              filteredExperiences: experienceValidation.filtered,
+            }
             : undefined,
       };
     }
@@ -214,20 +214,20 @@ export function validateExperienceRecord(candidate: ExperienceCandidate): Experi
   const description = scrubField(candidate.description);
 
   const bulletSanitizations = Array.isArray(candidate.bullets)
-    ? candidate.bullets.map((bullet) => {
-        if (typeof bullet === 'string') {
-          const cleaned = scrubField(bullet);
-          return { ...cleaned, sourceIds: [] as string[] };
-        }
-        if (bullet && typeof bullet === 'object') {
-          const cleaned = scrubField(typeof bullet.text === 'string' ? bullet.text : '');
-          const sourceIds = Array.isArray((bullet as any).source_ids)
-            ? (bullet as any).source_ids.filter((id: unknown) => typeof id === 'string')
-            : [];
-          return { ...cleaned, sourceIds };
-        }
-        return scrubField('');
-      })
+    ? (candidate.bullets as any[]).map((bullet) => {
+      if (typeof bullet === 'string') {
+        const cleaned = scrubField(bullet);
+        return { ...cleaned, sourceIds: [] as string[] };
+      }
+      if (bullet && typeof bullet === 'object') {
+        const cleaned = scrubField(typeof bullet.text === 'string' ? bullet.text : '');
+        const sourceIds = Array.isArray((bullet as any).source_ids)
+          ? (bullet as any).source_ids.filter((id: unknown) => typeof id === 'string')
+          : [];
+        return { ...cleaned, sourceIds };
+      }
+      return { ...scrubField(''), sourceIds: [] };
+    })
     : [];
 
   const bullets: string[] = [];

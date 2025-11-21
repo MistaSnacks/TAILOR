@@ -31,7 +31,7 @@ type EnrichmentRequest = {
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
 
     const body: EnrichmentRequest = await request.json();
     const { canonicalExperienceId, promotedBullet } = body;
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
     const { searchParams } = new URL(request.url);
     const experienceId = searchParams.get('experienceId');
 
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       .eq('canonical_experience_id', experienceId);
 
     const existingTexts = new Set(
-      (existingBullets || []).map((b) => b.content.toLowerCase().trim())
+      (existingBullets || []).map((b: { content: string }) => b.content.toLowerCase().trim())
     );
 
     // Find recent resume versions for this user
