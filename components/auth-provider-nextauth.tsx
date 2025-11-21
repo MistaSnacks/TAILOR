@@ -7,3 +7,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <SessionProvider>{children}</SessionProvider>;
 }
 
+

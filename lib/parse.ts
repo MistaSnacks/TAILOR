@@ -1,27 +1,42 @@
 import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
 import { createWorker } from 'tesseract.js';
+import { inspectDocumentText, DocumentAnalysis } from '@/lib/document-analysis';
+
+export type DocumentMetadata = {
+  pageCount?: number;
+  rawWordCount: number;
+  sanitizedWordCount: number;
+  hasImages: boolean;
+};
 
 export type ParsedDocument = {
   text: string;
+  rawText: string;
+  metadata: DocumentMetadata;
+  analysis: DocumentAnalysis;
+};
+
+type RawParseResult = {
+  rawText: string;
   metadata: {
     pageCount?: number;
-    wordCount: number;
+    rawWordCount: number;
     hasImages: boolean;
   };
 };
 
 // Parse DOCX files
-export async function parseDocx(buffer: Buffer): Promise<ParsedDocument> {
+export async function parseDocx(buffer: Buffer): Promise<RawParseResult> {
   try {
     const result = await mammoth.extractRawText({ buffer });
-    const text = result.value;
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    const rawText = result.value;
+    const rawWordCount = rawText.split(/\s+/).filter(Boolean).length;
 
     return {
-      text,
+      rawText,
       metadata: {
-        wordCount,
+        rawWordCount,
         hasImages: false,
       },
     };
@@ -32,17 +47,17 @@ export async function parseDocx(buffer: Buffer): Promise<ParsedDocument> {
 }
 
 // Parse PDF files
-export async function parsePdf(buffer: Buffer): Promise<ParsedDocument> {
+export async function parsePdf(buffer: Buffer): Promise<RawParseResult> {
   try {
     const data = await pdf(buffer);
-    const text = data.text;
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    const rawText = data.text;
+    const rawWordCount = rawText.split(/\s+/).filter(Boolean).length;
 
     return {
-      text,
+      rawText,
       metadata: {
         pageCount: data.numpages,
-        wordCount,
+        rawWordCount,
         hasImages: false,
       },
     };
@@ -71,20 +86,22 @@ export async function parseDocument(
   fileType: string
 ): Promise<ParsedDocument> {
   try {
+    let baseResult: RawParseResult;
+
     if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      return await parseDocx(buffer);
+      baseResult = await parseDocx(buffer);
     } else if (fileType === 'application/pdf') {
-      const result = await parsePdf(buffer);
-      
+      baseResult = await parsePdf(buffer);
+
       // If PDF has very little text, try OCR
-      if (result.text.length < 100) {
+      if (baseResult.rawText.length < 100) {
         try {
           const ocrText = await performOcr(buffer);
-          if (ocrText.length > result.text.length) {
-            return {
-              text: ocrText,
+          if (ocrText.length > baseResult.rawText.length) {
+            baseResult = {
+              rawText: ocrText,
               metadata: {
-                ...result.metadata,
+                ...baseResult.metadata,
                 hasImages: true,
               },
             };
@@ -93,11 +110,23 @@ export async function parseDocument(
           console.warn('OCR fallback failed:', ocrError);
         }
       }
-      
-      return result;
     } else {
       throw new Error(`Unsupported file type: ${fileType}`);
     }
+
+    const { sanitizedText, analysis } = inspectDocumentText(baseResult.rawText);
+
+    return {
+      text: sanitizedText,
+      rawText: baseResult.rawText,
+      metadata: {
+        pageCount: baseResult.metadata.pageCount,
+        rawWordCount: baseResult.metadata.rawWordCount,
+        sanitizedWordCount: analysis.placeholder.sanitizedWordCount,
+        hasImages: baseResult.metadata.hasImages,
+      },
+      analysis,
+    };
   } catch (error) {
     console.error('Error parsing document:', error);
     throw error;

@@ -46,7 +46,7 @@ export default function GeneratePage() {
       }
 
       const { resumeVersion } = await generateResponse.json();
-      
+
       // Redirect to resumes page
       window.location.href = `/dashboard/resumes?id=${resumeVersion.id}`;
     } catch (error) {
@@ -115,11 +115,10 @@ export default function GeneratePage() {
                     key={t}
                     type="button"
                     onClick={() => setTemplate(t)}
-                    className={`p-4 rounded-lg border-2 transition-colors ${
-                      template === t
+                    className={`p-4 rounded-lg border-2 transition-colors ${template === t
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50'
-                    }`}
+                      }`}
                   >
                     <div className="font-semibold capitalize">{t}</div>
                   </button>

@@ -5,6 +5,11 @@ export const MAX_CHUNK_SIZE = 800;
 export const MAX_CHUNKS_PER_DOCUMENT = 24;
 export const MIN_CHUNK_LENGTH = 120;
 
+// Canonical profile tuning
+export const MAX_CANONICAL_BULLETS = 20;
+export const MAX_CANONICAL_SKILLS = 12;
+export const BULLET_SIMILARITY_THRESHOLD = 0.82;
+
 export type RetrievedChunk = {
   document_id: string;
   chunk_id: string;
@@ -44,4 +49,5 @@ export function mapChunksToFileRefs(chunks: RetrievedChunk[]): GeminiFileReferen
       mimeType: chunk.chunk_mime_type || 'text/plain',
     }));
 }
+
 

@@ -70,6 +70,10 @@ CREATE TABLE profiles (
   user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT,
+  phone_number TEXT,
+  address TEXT,
+  linkedin_url TEXT,
+  portfolio_url TEXT,
   gemini_store_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -84,6 +88,9 @@ CREATE TABLE documents (
   file_size INTEGER NOT NULL,
   storage_path TEXT NOT NULL,
   parsed_content JSONB,
+  document_type TEXT NOT NULL DEFAULT 'unknown' CHECK (document_type IN ('resume', 'job_description', 'template', 'unknown')),
+  has_placeholder_content BOOLEAN NOT NULL DEFAULT false,
+  placeholder_summary JSONB DEFAULT '{}'::jsonb,
   parse_status TEXT NOT NULL DEFAULT 'pending' CHECK (parse_status IN ('pending', 'processing', 'completed', 'failed')),
   gemini_file_uri TEXT,
   chunk_count INTEGER DEFAULT 0,
@@ -267,6 +274,154 @@ CREATE INDEX idx_chat_messages_thread_id ON chat_messages(thread_id);
 --     )
 --   );
 
+-- ============================================================
+-- Atomic RAG Tables (Experiences, Skills, Bullets)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS experiences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  company TEXT NOT NULL,
+  title TEXT NOT NULL,
+  location TEXT,
+  start_date TEXT,
+  end_date TEXT,
+  is_current BOOLEAN DEFAULT false,
+  source_count INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_experiences_user_id ON experiences(user_id);
+
+CREATE TABLE IF NOT EXISTS experience_sources (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  original_text TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_experience_sources_experience_id ON experience_sources(experience_id);
+CREATE INDEX IF NOT EXISTS idx_experience_sources_document_id ON experience_sources(document_id);
+
+CREATE TABLE IF NOT EXISTS experience_bullets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  embedding vector(768),
+  importance_score INTEGER DEFAULT 0,
+  source_count INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_experience_bullets_experience_id ON experience_bullets(experience_id);
+CREATE INDEX IF NOT EXISTS idx_experience_bullets_embedding
+  ON experience_bullets USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE TABLE IF NOT EXISTS experience_bullet_sources (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  bullet_id UUID NOT NULL REFERENCES experience_bullets(id) ON DELETE CASCADE,
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_experience_bullet_sources_bullet_id ON experience_bullet_sources(bullet_id);
+
+CREATE TABLE IF NOT EXISTS skills (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  canonical_name TEXT NOT NULL,
+  embedding vector(768),
+  source_count INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, canonical_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_user_id ON skills(user_id);
+CREATE INDEX IF NOT EXISTS idx_skills_embedding
+  ON skills USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE TABLE IF NOT EXISTS skill_aliases (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+  alias TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(skill_id, alias)
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_aliases_alias ON skill_aliases(alias);
+
+CREATE TABLE IF NOT EXISTS experience_skills (
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+  relevance_score DOUBLE PRECISION DEFAULT 1.0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (experience_id, skill_id)
+);
+
+-- ============================================================
+-- Canonical Profile Layer (Phase 2)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS canonical_experiences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  normalized_company TEXT NOT NULL,
+  display_company TEXT NOT NULL,
+  primary_title TEXT,
+  title_progression TEXT[] DEFAULT '{}'::TEXT[],
+  primary_location TEXT,
+  locations TEXT[] DEFAULT '{}'::TEXT[],
+  start_date TEXT,
+  end_date TEXT,
+  is_current BOOLEAN DEFAULT false,
+  source_experience_ids UUID[] DEFAULT '{}'::UUID[],
+  source_count INTEGER DEFAULT 0,
+  bullet_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_experiences_user_id ON canonical_experiences(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_experiences_key
+  ON canonical_experiences(user_id, normalized_company, start_date, end_date);
+
+CREATE TABLE IF NOT EXISTS canonical_experience_bullets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  canonical_experience_id UUID NOT NULL REFERENCES canonical_experiences(id) ON DELETE CASCADE,
+  representative_bullet_id UUID REFERENCES experience_bullets(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  source_bullet_ids UUID[] DEFAULT '{}'::UUID[],
+  source_count INTEGER DEFAULT 1,
+  avg_similarity DOUBLE PRECISION DEFAULT 1,
+  embedding vector(768),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_experience_bullets_user_id
+  ON canonical_experience_bullets(user_id);
+CREATE INDEX IF NOT EXISTS idx_canonical_experience_bullets_exp_id
+  ON canonical_experience_bullets(canonical_experience_id);
+
+CREATE TABLE IF NOT EXISTS canonical_skills (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  controlled_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL,
+  source_skill_ids UUID[] DEFAULT '{}'::UUID[],
+  source_count INTEGER DEFAULT 0,
+  weight DOUBLE PRECISION DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, controlled_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_skills_user_id ON canonical_skills(user_id);
+
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -283,6 +438,24 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_document_chunks_updated_at BEFORE UPDATE ON document_chunks
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_experiences_updated_at BEFORE UPDATE ON experiences
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_experience_bullets_updated_at BEFORE UPDATE ON experience_bullets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_skills_updated_at BEFORE UPDATE ON skills
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_canonical_experiences_updated_at BEFORE UPDATE ON canonical_experiences
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_canonical_experience_bullets_updated_at BEFORE UPDATE ON canonical_experience_bullets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_canonical_skills_updated_at BEFORE UPDATE ON canonical_skills
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Helper function for semantic search over document chunks

@@ -11,18 +11,18 @@ logSecretUsage('SUPABASE_ANON_KEY', !!supabaseAnonKey);
 logSecretUsage('SUPABASE_SERVICE_ROLE_KEY', !!supabaseServiceRoleKey);
 
 // Client-side Supabase client
-export const supabase = supabaseUrl && supabaseAnonKey 
+export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null as any;
 
 // Server-side Supabase client with service role (for admin operations)
 export const supabaseAdmin = supabaseUrl && supabaseServiceRoleKey
   ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
   : null as any;
 
 // Database types (will be generated from Supabase schema)
@@ -31,6 +31,10 @@ export type Profile = {
   user_id: string;
   email: string;
   full_name: string | null;
+  phone_number: string | null;
+  address: string | null;
+  linkedin_url: string | null;
+  portfolio_url: string | null;
   gemini_store_name: string | null;
   created_at: string;
   updated_at: string;

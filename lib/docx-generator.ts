@@ -1,50 +1,20 @@
 // 📄 DOCX Resume Generator
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx';
-
-interface ResumeData {
-  summary?: string;
-  experience?: Array<{
-    title: string;
-    company: string;
-    location?: string;
-    startDate?: string;
-    endDate?: string;
-    bullets?: string[];
-    description?: string;
-  }>;
-  skills?: string[];
-  education?: Array<{
-    degree: string;
-    school: string;
-    year?: string;
-    gpa?: string;
-  }>;
-  certifications?: Array<{
-    name: string;
-    issuer?: string;
-    date?: string;
-  }>;
-  contact?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    location?: string;
-    linkedin?: string;
-  };
-}
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { ResumeContent, normalizeResumeContent } from './resume-content';
 
 export async function generateResumeDocx(
-  resumeData: ResumeData,
+  resumeData: ResumeContent,
   template: string = 'modern'
 ): Promise<Buffer> {
   try {
     console.log('📄 Generating DOCX resume with template:', template);
 
+    const data = normalizeResumeContent(resumeData);
     const sections: any[] = [];
 
     // Contact Information (if available)
-    if (resumeData.contact) {
-      const contact = resumeData.contact;
+    if (data.contact) {
+      const contact = data.contact;
       sections.push(
         new Paragraph({
           text: contact.name || 'Your Name',
@@ -72,7 +42,7 @@ export async function generateResumeDocx(
     }
 
     // Professional Summary
-    if (resumeData.summary) {
+    if (data.summary) {
       sections.push(
         new Paragraph({
           text: 'PROFESSIONAL SUMMARY',
@@ -81,14 +51,14 @@ export async function generateResumeDocx(
           thematicBreak: true,
         }),
         new Paragraph({
-          text: resumeData.summary,
+          text: data.summary,
           spacing: { after: 200 },
         })
       );
     }
 
     // Work Experience
-    if (resumeData.experience && resumeData.experience.length > 0) {
+    if (data.experience && data.experience.length > 0) {
       sections.push(
         new Paragraph({
           text: 'WORK EXPERIENCE',
@@ -98,7 +68,7 @@ export async function generateResumeDocx(
         })
       );
 
-      resumeData.experience.forEach((exp) => {
+      data.experience.forEach((exp) => {
         // Job title and company
         sections.push(
           new Paragraph({
@@ -164,7 +134,7 @@ export async function generateResumeDocx(
     }
 
     // Skills
-    if (resumeData.skills && resumeData.skills.length > 0) {
+    if (data.skills && data.skills.length > 0) {
       sections.push(
         new Paragraph({
           text: 'SKILLS',
@@ -173,14 +143,14 @@ export async function generateResumeDocx(
           thematicBreak: true,
         }),
         new Paragraph({
-          text: resumeData.skills.join(' • '),
+          text: data.skills.join(' • '),
           spacing: { after: 200 },
         })
       );
     }
 
     // Education
-    if (resumeData.education && resumeData.education.length > 0) {
+    if (data.education && data.education.length > 0) {
       sections.push(
         new Paragraph({
           text: 'EDUCATION',
@@ -190,7 +160,7 @@ export async function generateResumeDocx(
         })
       );
 
-      resumeData.education.forEach((edu) => {
+      data.education.forEach((edu) => {
         sections.push(
           new Paragraph({
             children: [
@@ -222,7 +192,7 @@ export async function generateResumeDocx(
     }
 
     // Certifications
-    if (resumeData.certifications && resumeData.certifications.length > 0) {
+    if (data.certifications && data.certifications.length > 0) {
       sections.push(
         new Paragraph({
           text: 'CERTIFICATIONS',
@@ -232,7 +202,7 @@ export async function generateResumeDocx(
         })
       );
 
-      resumeData.certifications.forEach((cert) => {
+      data.certifications.forEach((cert) => {
         const certText = [cert.name, cert.issuer, cert.date].filter(Boolean).join(' | ');
         sections.push(
           new Paragraph({
@@ -267,37 +237,4 @@ export async function generateResumeDocx(
   }
 }
 
-// Parse resume content from various formats
-export function parseResumeContent(content: any): ResumeData {
-  try {
-    // If content is already structured
-    if (typeof content === 'object' && !Array.isArray(content)) {
-      return content as ResumeData;
-    }
-
-    // If content is a string (JSON or raw text)
-    if (typeof content === 'string') {
-      try {
-        // Try to parse as JSON
-        const parsed = JSON.parse(content);
-        return parsed as ResumeData;
-      } catch {
-        // If not JSON, create basic structure from raw text
-        return {
-          summary: content.substring(0, 500),
-        };
-      }
-    }
-
-    // Default empty structure
-    return {
-      summary: 'Resume content not available',
-    };
-  } catch (error) {
-    console.error('Error parsing resume content:', error);
-    return {
-      summary: 'Error parsing resume content',
-    };
-  }
-}
-
+export { normalizeResumeContent as parseResumeContent } from './resume-content';

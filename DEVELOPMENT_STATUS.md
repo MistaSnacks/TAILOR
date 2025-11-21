@@ -48,6 +48,7 @@
 - ✅ Account information display
 - ✅ AI & document settings overview
 - ✅ Form validation and error handling
+- ✅ Profile enrichment system with provenance tracking
 
 ### 7. UI/UX Improvements ✅
 - ✅ Loading states on all pages
@@ -83,6 +84,8 @@
 | `/api/resumes` | GET | ✅ | ✅ |
 | `/api/resumes/[id]/download` | GET | ✅ | ✅ |
 | `/api/chat` | POST | ✅ | ✅ |
+| `/api/profile/enrich` | POST | ✅ | ✅ |
+| `/api/profile/enrich` | GET | ✅ | ✅ |
 
 All API routes now:
 - ✅ Use `requireAuth()` for authentication
@@ -323,4 +326,5 @@ The application is now in a **fully functional state** with all core features wo
 **Next Step: TEST the end-to-end workflow!**
 
 Run `npm run dev` and go through the complete user journey from sign-in to resume download.
+
 

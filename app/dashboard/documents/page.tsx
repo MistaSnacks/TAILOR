@@ -16,7 +16,7 @@ export default function DocumentsPage() {
     try {
       console.log('📄 Fetching documents...');
       const response = await fetch('/api/upload');
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('📄 Documents fetched:', data.documents?.length || 0);
@@ -36,7 +36,7 @@ export default function DocumentsPage() {
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    
+
     try {
       for (const file of Array.from(files)) {
         console.log('📤 Uploading file:', file.name);
@@ -68,25 +68,42 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleDelete = async (docId: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) {
+  const handleDelete = async (docId: string, fileName: string) => {
+    const confirmMessage = `Delete "${fileName}"? This will also remove all processed data from this document. This action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      // TODO: Implement delete endpoint
-      console.log('Deleting document:', docId);
-      alert('Delete functionality coming soon!');
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete document');
+      setLoading(true);
+      console.log('🗑️ Deleting document:', docId);
+
+      const response = await fetch(`/api/upload?id=${docId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Delete failed');
+      }
+
+      console.log('✅ Document deleted successfully');
+
+      // Remove from local state immediately
+      setDocuments(documents.filter(d => d.id !== docId));
+    } catch (error: any) {
+      console.error('❌ Delete error:', error);
+      alert(error.message || 'Failed to delete document');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div>
       <h1 className="font-display text-4xl font-bold mb-6">Documents</h1>
-      
+
       {/* Upload area */}
       <div className="mb-8">
         <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors">
@@ -135,13 +152,12 @@ export default function DocumentsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
                     <h3 className="font-semibold">{doc.file_name}</h3>
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      doc.parse_status === 'completed' 
-                        ? 'bg-green-500/20 text-green-400'
-                        : doc.parse_status === 'processing'
+                    <span className={`px-2 py-1 text-xs rounded ${doc.parse_status === 'completed'
+                      ? 'bg-green-500/20 text-green-400'
+                      : doc.parse_status === 'processing'
                         ? 'bg-yellow-500/20 text-yellow-400'
                         : 'bg-red-500/20 text-red-400'
-                    }`}>
+                      }`}>
                       {doc.parse_status}
                     </span>
                   </div>
@@ -149,8 +165,8 @@ export default function DocumentsPage() {
                     {doc.file_type} • {(doc.file_size / 1024).toFixed(1)} KB • {new Date(doc.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <button 
-                  onClick={() => handleDelete(doc.id)}
+                <button
+                  onClick={() => handleDelete(doc.id, doc.file_name)}
                   className="px-4 py-2 text-sm text-destructive hover:bg-destructive/10 rounded transition-colors"
                 >
                   Delete
