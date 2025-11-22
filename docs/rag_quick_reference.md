@@ -400,3 +400,5 @@ curl http://localhost:3000/api/profile/enrich?experienceId=uuid
 - Original plan: `tailor_rag_plan.md`
 - Development status: `DEVELOPMENT_STATUS.md`
 
+
+

@@ -176,3 +176,5 @@ The enrichment feature uses the existing `canonical_bullets` table with these ke
 - **Analytics**: Track which types of merges users prefer to improve the writer agent
 - **Collaborative Filtering**: Suggest promotions based on what similar users have promoted
 
+
+

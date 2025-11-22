@@ -68,3 +68,5 @@ CREATE TRIGGER update_canonical_experience_bullets_updated_at BEFORE UPDATE ON c
 CREATE TRIGGER update_canonical_skills_updated_at BEFORE UPDATE ON canonical_skills
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+
+

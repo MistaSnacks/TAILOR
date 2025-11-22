@@ -29,3 +29,5 @@ export type TargetedProfilePayload = {
   parsedJD: ParsedJobDescription;
 };
 
+
+

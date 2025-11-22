@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useProfileEnrichment, type EnrichmentCandidate } from '@/hooks/use-profile-enrichment';
 
 type ProfileEnrichmentPanelProps = {
@@ -27,16 +27,16 @@ export function ProfileEnrichmentPanel({
   const [candidates, setCandidates] = useState<EnrichmentCandidate[]>([]);
   const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadCandidates();
-  }, [canonicalExperienceId]);
-
-  const loadCandidates = async () => {
+  const loadCandidates = useCallback(async () => {
     const result = await fetchCandidates(canonicalExperienceId);
     if (result) {
       setCandidates(result.candidates);
     }
-  };
+  }, [canonicalExperienceId, fetchCandidates]);
+
+  useEffect(() => {
+    loadCandidates();
+  }, [loadCandidates]);
 
   const handlePromote = async (candidate: EnrichmentCandidate) => {
     const success = await promoteBullet(canonicalExperienceId, {
@@ -143,4 +143,6 @@ export function ProfileEnrichmentPanel({
     </div>
   );
 }
+
+
 

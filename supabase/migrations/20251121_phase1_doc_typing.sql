@@ -9,3 +9,5 @@ ALTER TABLE documents
 ALTER TABLE documents
     ADD COLUMN IF NOT EXISTS placeholder_summary JSONB DEFAULT '{}'::jsonb;
 
+
+
