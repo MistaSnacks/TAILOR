@@ -180,7 +180,22 @@ export function selectTargetAwareProfile(
   });
 
   const sorted = scoredExperiences.sort((a, b) => b.score - a.score);
+  
+  // First, get experiences meeting the minimum score threshold
   let selected = sorted.filter((entry) => entry.score >= minScore).slice(0, maxExperiences);
+
+  // If we have fewer than maxExperiences, include lower-scoring ones too
+  // This ensures we don't produce a "thin" resume when semantic match is low
+  if (selected.length < maxExperiences && sorted.length > selected.length) {
+    const remaining = sorted
+      .filter((entry) => entry.score < minScore)
+      .slice(0, maxExperiences - selected.length);
+    selected = [...selected, ...remaining];
+    
+    if (remaining.length > 0) {
+      console.log(`📊 Added ${remaining.length} below-threshold experiences to reach ${selected.length} total`);
+    }
+  }
 
   if (selected.length === 0 && sorted.length > 0) {
     selected = sorted.slice(0, Math.min(maxExperiences, sorted.length));
@@ -332,18 +347,26 @@ function determineBulletBudget(
   orderIndex: number,
   experience?: RetrievedExperience
 ): number {
+  // More generous bullet budgets to produce fuller resumes
   if (orderIndex <= 1) {
-    return 6;
+    return 6;  // Most recent: 6 bullets
   }
-  if (orderIndex <= 3) {
-    return 4;
+  if (orderIndex === 2) {
+    return 5;  // Second: 5 bullets
+  }
+  if (orderIndex <= 4) {
+    return 4;  // Third/Fourth: 4 bullets
   }
 
+  // Older experiences: base on tenure
   const tenureMonths = experience?.tenureMonths ?? 12;
   if (tenureMonths >= 48) {
-    return 3;
+    return 4;  // 4+ years: 4 bullets
   }
-  return 2;
+  if (tenureMonths >= 24) {
+    return 3;  // 2-4 years: 3 bullets
+  }
+  return 2;  // <2 years: 2 bullets
 }
 
 function buildWriterContext(
@@ -383,40 +406,87 @@ function buildJobKeywords(
   job: TargetJobContext,
   parsedJob: ParsedJobDescription
 ): string[] {
-  const tokens: string[] = [];
+  const keywords: string[] = [];
+  const seen = new Set<string>();
 
+  const addKeyword = (keyword: string) => {
+    const normalized = keyword.toLowerCase().trim();
+    if (normalized && normalized.length >= 2 && !seen.has(normalized)) {
+      seen.add(normalized);
+      keywords.push(normalized);
+    }
+  };
+
+  // Add hard skills (now includes multi-word phrases)
+  parsedJob.hardSkills?.forEach((skill) => addKeyword(skill));
+
+  // Add soft skills
+  parsedJob.softSkills?.forEach((skill) => addKeyword(skill));
+
+  // Add key phrases (multi-word phrases from JD)
+  parsedJob.keyPhrases?.forEach((phrase) => addKeyword(phrase));
+
+  // Add responsibilities keywords
+  parsedJob.responsibilities?.forEach((resp) => {
+    // Keep full phrase for matching
+    addKeyword(resp);
+    // Also tokenize for individual word matching
+    tokenize(resp).forEach(addKeyword);
+  });
+
+  // Add title keywords
   if (job.title) {
-    tokens.push(...tokenize(job.title));
+    tokenize(job.title).forEach(addKeyword);
   }
 
   if (parsedJob.normalizedTitle) {
-    tokens.push(...tokenize(parsedJob.normalizedTitle));
+    tokenize(parsedJob.normalizedTitle).forEach(addKeyword);
   }
 
-  parsedJob.responsibilities?.slice(0, 6).forEach((resp) => tokens.push(...tokenize(resp)));
-  parsedJob.hardSkills?.forEach((skill) => tokens.push(skill.toLowerCase()));
-
-  if (job.description) {
-    tokens.push(...tokenize(job.description));
-  }
-
+  // Add required skills
   if (Array.isArray(job.requiredSkills)) {
-    job.requiredSkills.forEach((skill) => {
-      tokens.push(...tokenize(skill, { allowShort: true }));
-    });
+    job.requiredSkills.forEach((skill) => addKeyword(skill));
   }
 
-  const uniqueTokens: string[] = [];
-  const seen = new Set<string>();
+  // Extract additional n-grams from job description (2-3 word phrases)
+  if (job.description) {
+    extractKeyPhrases(job.description).forEach(addKeyword);
+  }
 
-  tokens.forEach((token) => {
-    if (!seen.has(token)) {
-      seen.add(token);
-      uniqueTokens.push(token);
+  return keywords.slice(0, 150); // Increased from 80 to 150
+}
+
+// Extract important multi-word phrases from text
+function extractKeyPhrases(text: string): string[] {
+  const phrases: string[] = [];
+  const words = text.toLowerCase().split(/\s+/);
+
+  // Common ATS-relevant phrase patterns
+  const phrasePatterns = [
+    /\b(cross[- ]functional|data[- ]driven|client[- ]facing|detail[- ]oriented|self[- ]starter)\b/gi,
+    /\b(process improvement|stakeholder management|project management|risk management)\b/gi,
+    /\b(problem solving|analytical skills|communication skills|organizational skills)\b/gi,
+    /\b(high[- ]growth|fast[- ]paced|team collaboration|time management)\b/gi,
+    /\b(financial services|billing systems|contract management|account management)\b/gi,
+    /\b(attention to detail|customer success|business operations|technical support)\b/gi,
+  ];
+
+  phrasePatterns.forEach((pattern) => {
+    const matches = text.match(pattern);
+    if (matches) {
+      matches.forEach((match) => phrases.push(match.toLowerCase()));
     }
   });
 
-  return uniqueTokens.slice(0, 80);
+  // Extract 2-word phrases that appear multiple times
+  for (let i = 0; i < words.length - 1; i++) {
+    const bigram = `${words[i]} ${words[i + 1]}`.replace(/[^a-z\s]/g, '').trim();
+    if (bigram.length >= 6) {
+      phrases.push(bigram);
+    }
+  }
+
+  return [...new Set(phrases)];
 }
 
 function tokenize(
@@ -463,13 +533,46 @@ function computeKeywordScore(
     .toLowerCase();
 
   let hits = 0;
+  let totalWeight = 0;
+
   keywords.forEach((keyword) => {
-    if (keyword && haystack.includes(keyword)) {
-      hits += 1;
+    if (!keyword) return;
+
+    // Multi-word phrases are worth more (they're more specific)
+    const isPhrase = keyword.includes(' ');
+    const weight = isPhrase ? 2 : 1;
+    totalWeight += weight;
+
+    // Check for exact match
+    if (haystack.includes(keyword)) {
+      hits += weight;
+      return;
+    }
+
+    // For single words, also check word boundaries
+    if (!isPhrase) {
+      const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'i');
+      if (wordBoundaryRegex.test(haystack)) {
+        hits += weight;
+        return;
+      }
+    }
+
+    // For phrases, check if all words are present (even if not adjacent)
+    if (isPhrase) {
+      const words = keyword.split(/\s+/);
+      const allWordsPresent = words.every((word) => haystack.includes(word));
+      if (allWordsPresent) {
+        hits += weight * 0.5; // Partial credit for non-adjacent matches
+      }
     }
   });
 
-  return clamp(hits / keywords.length);
+  return clamp(hits / Math.max(totalWeight, 1));
+}
+
+function escapeRegex(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function computeRecencyScore(experience: ResumeExperience): number {
@@ -516,7 +619,7 @@ function prioritizeSkills(skills: RetrievedSkill[], requiredSkills?: string[]): 
   if (!skills?.length) return [];
 
   if (!requiredSkills?.length) {
-    return skills.slice(0, 12);
+    return skills.slice(0, 30); // Increased from 12
   }
 
   const requiredSet = new Set(
@@ -539,7 +642,7 @@ function prioritizeSkills(skills: RetrievedSkill[], requiredSkills?: string[]): 
     }
   });
 
-  return unique.slice(0, 12);
+  return unique.slice(0, 30); // Increased from 12
 }
 
 function matchHardSkills(text: string, hardSkills: Set<string>): string[] {

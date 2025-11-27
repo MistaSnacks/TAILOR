@@ -153,9 +153,10 @@ export async function getCanonicalProfile(userId: string): Promise<CanonicalProf
     throw new Error('Supabase admin client is not configured');
   }
 
+  // Use explicit FK name to avoid ambiguity (there are 2 FKs to canonical_experiences)
   const experiencesQuery = await supabaseAdmin
     .from('canonical_experiences')
-    .select('*, canonical_experience_bullets(*)')
+    .select('*, canonical_experience_bullets!canonical_experience_bullets_experience_id_fkey(*)')
     .eq('user_id', userId)
     .order('is_current', { ascending: false })
     .order('end_date', { ascending: false, nullsFirst: true });
@@ -169,7 +170,6 @@ export async function getCanonicalProfile(userId: string): Promise<CanonicalProf
     .from('canonical_skills')
     .select('*')
     .eq('user_id', userId)
-    .order('weight', { ascending: false })
     .order('label', { ascending: true });
 
   if (skillsQuery.error) {
@@ -455,21 +455,27 @@ async function persistCanonicalProfile(
   await supabaseAdmin.from('canonical_skills').delete().eq('user_id', userId);
 
   if (experiences.length) {
+    // Populate both legacy columns (company, title, location) AND Phase-2 columns
     const canonicalExperiencePayload = experiences.map((experience) => ({
       id: experience.id,
       user_id: userId,
+      // Legacy columns (NOT NULL)
+      company: experience.displayCompany || experience.normalizedCompany,
+      title: experience.primaryTitle || experience.titleProgression?.[0] || '',
+      location: experience.primaryLocation || experience.locations?.[0] || null,
+      // Phase-2 columns
       normalized_company: experience.normalizedCompany,
       display_company: experience.displayCompany,
       primary_title: experience.primaryTitle,
-      title_progression: experience.titleProgression,
+      title_progression: experience.titleProgression || [],
       primary_location: experience.primaryLocation,
-      locations: experience.locations,
+      locations: experience.locations || [],
       start_date: experience.startDate,
       end_date: experience.endDate,
       is_current: experience.isCurrent,
       source_experience_ids: experience.sourceExperienceIds,
-      source_count: experience.sourceExperienceIds.length,
-      bullet_count: experience.bullets.length,
+      source_count: experience.sourceExperienceIds?.length || 0,
+      bullet_count: experience.bullets?.length || 0,
     }));
 
     const insertExperiences = await supabaseAdmin
@@ -481,6 +487,7 @@ async function persistCanonicalProfile(
       throw insertExperiences.error;
     }
 
+    // Populate both legacy columns (experience_id, text) AND Phase-2 columns
     const bulletPayload = await Promise.all(
       experiences.flatMap((experience) =>
         experience.bullets.map(async (bullet) => {
@@ -499,21 +506,27 @@ async function persistCanonicalProfile(
             }
           }
 
+          const sourceBulletIds = bullet.sourceIds && bullet.sourceIds.length
+            ? bullet.sourceIds
+            : [
+              bullet.representativeBulletId,
+              ...bullet.supportingBulletIds,
+            ].filter((value): value is string => Boolean(value));
+
           return {
             id: bullet.id,
+            // Legacy columns (NOT NULL)
+            experience_id: experience.id,
+            text: bullet.content,
+            // Phase-2 columns
             user_id: userId,
             canonical_experience_id: experience.id,
             representative_bullet_id: bullet.representativeBulletId || null,
             content: bullet.content,
-            source_bullet_ids:
-              bullet.sourceIds && bullet.sourceIds.length
-                ? bullet.sourceIds
-                : [
-                  bullet.representativeBulletId,
-                  ...bullet.supportingBulletIds,
-                ].filter((value): value is string => Boolean(value)),
-            source_count: bullet.sourceCount,
-            avg_similarity: bullet.averageSimilarity,
+            source_bullet_ids: sourceBulletIds,
+            source_count: bullet.sourceCount || sourceBulletIds.length || 1,
+            avg_similarity: bullet.averageSimilarity || 1,
+            origin: 'canonical',
             embedding: embedding || null,
           };
         })
@@ -533,15 +546,21 @@ async function persistCanonicalProfile(
   }
 
   if (skills.length) {
+    // Populate both legacy columns (name, canonical_name, frequency) AND Phase-2 columns
     const skillPayload = skills.map((skill) => ({
       id: skill.id,
       user_id: userId,
+      // Legacy columns (NOT NULL)
+      name: skill.label,
+      canonical_name: skill.controlledKey || skill.label,
+      frequency: skill.sourceCount || 1,
+      // Phase-2 columns
       controlled_key: skill.controlledKey,
       label: skill.label,
-      category: skill.category,
-      source_skill_ids: skill.sourceSkillIds,
-      source_count: skill.sourceCount,
-      weight: skill.weight,
+      category: skill.category || 'Other',
+      source_skill_ids: skill.sourceSkillIds || [],
+      source_count: skill.sourceCount || 1,
+      weight: skill.weight || 0,
     }));
 
     const insertSkills = await supabaseAdmin.from('canonical_skills').insert(skillPayload);

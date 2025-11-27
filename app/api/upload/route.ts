@@ -138,64 +138,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      /* 
+      // Skip chunk processing for now to prevent timeouts on legacy schema
       const chunks = chunkText(parsed.text, MAX_CHUNK_SIZE)
         .filter(chunk => chunk.trim().length >= MIN_CHUNK_LENGTH)
         .slice(0, MAX_CHUNKS_PER_DOCUMENT);
-      console.log('✂️ Chunking document:', {
-        chunkCount: chunks.length,
-        maxChunks: MAX_CHUNKS_PER_DOCUMENT,
-        chunkSize: MAX_CHUNK_SIZE,
-      });
-
-      // Upload to Gemini Files API
-      let geminiFileUri = null;
-      let geminiFileName = null;
-      try {
-        console.log('📤 Uploading to Gemini Files API...');
-        const geminiFile = await uploadFileToGemini(buffer, file.type, file.name);
-        geminiFileUri = geminiFile.uri;
-        geminiFileName = geminiFile.name;
-        console.log('✅ File uploaded to Gemini:', geminiFile.name);
-      } catch (geminiError) {
-        console.error('❌ Gemini upload error:', geminiError);
-        // Don't fail the upload if Gemini upload fails
-        // We still have the parsed content
-      }
-
-      // Build chunk payloads with embeddings + Gemini chunk files
+      
+      // ... removed heavy Gemini loop ...
+      */
       const chunkRecords: any[] = [];
-      for (const [index, chunk] of chunks.entries()) {
-        try {
-          const embedding = await embedText(chunk);
-          let chunkFile: { uri: string; mimeType: string } | null = null;
-
-          try {
-            const uploadedChunk = await uploadTextChunkToGemini(
-              chunk,
-              `${file.name}-chunk-${index + 1}.txt`
-            );
-            chunkFile = { uri: uploadedChunk.uri, mimeType: uploadedChunk.mimeType };
-          } catch (chunkUploadError) {
-            console.error('❌ Gemini chunk upload error:', chunkUploadError);
-          }
-
-          chunkRecords.push({
-            document_id: document.id,
-            chunk_index: index,
-            content: chunk,
-            chunk_size: chunk.length,
-            gemini_file_uri: chunkFile?.uri || null,
-            chunk_mime_type: chunkFile?.mimeType || 'text/plain',
-            embedding,
-          });
-        } catch (embeddingError) {
-          console.error('❌ Chunk embedding error:', embeddingError);
-        }
-      }
-
-      if (chunkRecords.length > 0) {
-        await supabaseAdmin.from('document_chunks').insert(chunkRecords);
-      }
+      const geminiFileUri = null;
 
       // Update document with parsed content + chunk metadata
       await supabaseAdmin
@@ -205,33 +157,30 @@ export async function POST(request: NextRequest) {
             sanitizedText: parsed.text,
             metadata: parsed.metadata,
             analysis: parsed.analysis,
-            chunk_count: chunkRecords.length,
           },
           parse_status: 'completed',
           gemini_file_uri: geminiFileUri,
-          chunk_count: chunkRecords.length,
-          last_chunked_at: new Date().toISOString(),
           document_type: parsed.analysis.type,
           has_placeholder_content: parsed.analysis.placeholder.flagged,
           placeholder_summary: parsed.analysis.placeholder,
         })
         .eq('id', document.id);
 
-      console.log('✅ Document updated in database with chunks');
+      console.log('✅ Document updated in database (chunks skipped)');
 
-      // Trigger Atomic RAG ingestion
+      // Trigger Atomic RAG ingestion (separate try-catch to not revert parse_status)
+      console.log('🚀 Triggering Atomic RAG ingestion...');
       try {
-        console.log('🚀 Triggering Atomic RAG ingestion...');
         await ingestDocument(document.id, parsed.text, userId, {
           metadata: parsed.metadata,
           analysis: parsed.analysis,
-          chunkCount: chunkRecords.length,
+          chunkCount: 0,
+          structuredData: parsed.analysis?.structured || null,
         });
         console.log('✅ Atomic RAG ingestion completed');
       } catch (ingestError) {
-        console.error('❌ Ingestion error:', ingestError);
-        // Don't fail the upload if ingestion fails
-        // The document is still stored and can be re-ingested later
+        // Don't revert parse_status - document was parsed successfully
+        console.error('❌ Ingestion error (document still marked completed):', ingestError);
       }
     } catch (parseError) {
       console.error('❌ Parse error:', parseError);

@@ -14,6 +14,7 @@ export type ParsedJobDescription = {
   hardSkills: string[];
   softSkills: string[];
   queries: string[];
+  keyPhrases: string[]; // Multi-word phrases important for ATS matching
 };
 
 export const DEFAULT_PARSED_JOB_DESCRIPTION: ParsedJobDescription = {
@@ -24,6 +25,7 @@ export const DEFAULT_PARSED_JOB_DESCRIPTION: ParsedJobDescription = {
   hardSkills: [],
   softSkills: [],
   queries: [],
+  keyPhrases: [],
 };
 
 export function ensureParsedJobDescription(
@@ -44,6 +46,9 @@ export function ensureParsedJobDescription(
       : [],
     queries: Array.isArray(partial?.queries)
       ? partial!.queries!.map((item) => String(item).trim()).filter(Boolean)
+      : [],
+    keyPhrases: Array.isArray(partial?.keyPhrases)
+      ? partial!.keyPhrases!.map((item) => String(item).trim()).filter(Boolean)
       : [],
   };
 }

@@ -14,7 +14,10 @@ export interface ResumeExperience {
 export interface ResumeEducation {
   degree: string;
   school: string;
-  year?: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+  year?: string; // Legacy fallback for graduation date
   gpa?: string;
 }
 
@@ -28,8 +31,9 @@ export interface ResumeContact {
   name?: string;
   email?: string;
   phone?: string;
-  location?: string;
   linkedin?: string;
+  portfolio?: string;
+  // Note: address/location intentionally excluded from resume output
 }
 
 export interface ResumeContent {
@@ -53,7 +57,13 @@ export const emptyResumeContent: ResumeContent = {
   skills: [],
   education: [],
   certifications: [],
-  contact: {},
+  contact: {
+    name: '',
+    email: '',
+    phone: '',
+    linkedin: '',
+    portfolio: '',
+  },
 };
 
 export function normalizeResumeContent(content: any): ResumeContent {
@@ -87,8 +97,12 @@ export function normalizeResumeContent(content: any): ResumeContent {
         education: Array.isArray(content.education)
           ? content.education.map((edu: any) => ({
             degree: edu.degree || '',
-            school: edu.school || '',
-            year: edu.year || '',
+            school: edu.school || edu.institution || '', // Support both field names
+            field: edu.field || edu.fieldOfStudy || '',
+            // Support start/end dates or graduation date
+            startDate: edu.startDate || '',
+            endDate: edu.endDate || '',
+            year: edu.year || edu.graduationDate || edu.endDate || '', // Fallback for legacy
             gpa: edu.gpa || '',
           }))
           : [],
@@ -99,12 +113,14 @@ export function normalizeResumeContent(content: any): ResumeContent {
             date: cert.date || '',
           }))
           : [],
+        // Support both contactInfo (from generator) and contact (legacy)
         contact: {
-          name: content.contact?.name || '',
-          email: content.contact?.email || '',
-          phone: content.contact?.phone || '',
-          location: content.contact?.location || '',
-          linkedin: content.contact?.linkedin || '',
+          name: content.contactInfo?.name || content.contact?.name || '',
+          email: content.contactInfo?.email || content.contact?.email || '',
+          phone: content.contactInfo?.phone || content.contact?.phone || '',
+          linkedin: content.contactInfo?.linkedin || content.contact?.linkedin || '',
+          portfolio: content.contactInfo?.portfolio || content.contact?.portfolio || '',
+          // Note: address/location is intentionally excluded from resume output
         },
         meta:
           experienceValidation.filtered.length || experienceValidation.warnings.length

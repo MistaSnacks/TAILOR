@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../supabase';
 import { embedText } from '../gemini';
-import { parseResumeToJSON, ParsedExperience } from './parser';
+import { parseResumeToJSON, ParsedExperience, ParsedEducation, ParsedCertification } from './parser';
 import { sanitizeField, sanitizeTextBlock } from '../document-analysis';
 import { canonicalizeProfile } from '../profile-canonicalizer';
 import type { DocumentAnalysis } from '../document-analysis';
@@ -22,14 +22,59 @@ type SanitizedExperience = Omit<ParsedExperience, 'company' | 'title' | 'bullets
 };
 
 export async function ingestDocument(documentId: string, text: string, userId: string, options?: IngestDocumentOptions) {
-    console.log(`🚀 Starting ingestion for document ${documentId}`);
+    console.log(`🚀 Starting ingestion for document ${documentId} (User: ${userId})`);
+
+    // CRITICAL: Ensure user exists to prevent Foreign Key errors
+    // First check if user exists
+    const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('id, email')
+        .eq('id', userId)
+        .maybeSingle();
+    
+    if (!existingUser) {
+        console.log('📝 User not found, creating...');
+        const { data: newUser, error: insertError } = await supabaseAdmin
+            .from('users')
+            .insert({
+                id: userId,
+                email: `user_${userId.slice(0, 8)}@placeholder.com`,
+                email_verified: new Date().toISOString()
+            })
+            .select()
+            .single();
+            
+        if (insertError || !newUser) {
+            console.error('❌ CRITICAL: Failed to create user:', insertError);
+            throw new Error(`User creation failed: ${insertError?.message || 'Unknown error'} (code: ${insertError?.code || 'UNKNOWN'})`);
+        }
+        
+        // Verify the insert actually worked
+        const { data: verifyUser } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('id', userId)
+            .single();
+            
+        if (!verifyUser) {
+            throw new Error(`User was created but verification failed - transaction issue?`);
+        }
+        
+        console.log('✅ User created and verified:', verifyUser.id);
+    } else {
+        console.log('✅ User already exists:', existingUser.id, existingUser.email);
+    }
 
     // 1. Parse the document
     const parsedData = await parseResumeToJSON(text);
-    console.log(`✅ Parsed ${parsedData.experiences.length} experiences and ${parsedData.skills.length} skills`);
+    console.log(`✅ Parsed ${parsedData.experiences.length} experiences, ${parsedData.skills.length} skills, ${parsedData.education?.length || 0} education, ${parsedData.certifications?.length || 0} certifications`);
 
     const sanitizedExperiences = sanitizeExperiences(parsedData.experiences, documentId);
     const sanitizedSkills = sanitizeSkills(parsedData.skills, documentId);
+    const education = parsedData.education || [];
+    const certifications = parsedData.certifications || [];
+    const contactInfo = parsedData.contactInfo;
+    const summary = parsedData.summary;
 
     // REMOVE IN PRODUCTION
     console.log('🧼 Sanitized ingestion payload', {
@@ -38,24 +83,121 @@ export async function ingestDocument(documentId: string, text: string, userId: s
         experiencesOut: sanitizedExperiences.length,
         skillsIn: parsedData.skills.length,
         skillsOut: sanitizedSkills.length,
+        education: education.length,
+        certifications: certifications.length,
+        hasContactInfo: !!contactInfo?.name,
+        hasSummary: !!summary,
     });
 
     // 2. Process Experiences
+    let processedExperiences = 0;
+    let failedExperiences = 0;
     for (const exp of sanitizedExperiences) {
-        await processExperience(userId, documentId, exp);
+        try {
+            await processExperience(userId, documentId, exp);
+            processedExperiences++;
+        } catch (error: any) {
+            failedExperiences++;
+            console.error(`❌ Failed to process experience: ${exp.company} - ${exp.title}`, error);
+            console.error('Error details:', {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+            });
+        }
     }
+    console.log(`📊 Processed ${processedExperiences}/${sanitizedExperiences.length} experiences (${failedExperiences} failed)`);
 
     // 3. Process Skills
+    let processedSkills = 0;
+    let failedSkills = 0;
     for (const skill of sanitizedSkills) {
-        await processSkill(userId, skill);
+        try {
+            await processSkill(userId, skill);
+            processedSkills++;
+        } catch (error: any) {
+            failedSkills++;
+            console.error(`❌ Failed to process skill: ${skill}`, error);
+            console.error('Error details:', {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+            });
+        }
+    }
+    console.log(`📊 Processed ${processedSkills}/${sanitizedSkills.length} skills (${failedSkills} failed)`);
+
+    // 4. Process Education
+    let processedEducation = 0;
+    let failedEducation = 0;
+    for (const edu of education) {
+        try {
+            await processEducation(userId, edu);
+            processedEducation++;
+        } catch (error: any) {
+            failedEducation++;
+            console.error(`❌ Failed to process education: ${edu.institution}`, error.message);
+        }
+    }
+    if (education.length > 0) {
+        console.log(`📊 Processed ${processedEducation}/${education.length} education entries (${failedEducation} failed)`);
     }
 
-    // 4. Update document status
+    // 5. Process Certifications
+    let processedCerts = 0;
+    let failedCerts = 0;
+    for (const cert of certifications) {
+        try {
+            await processCertification(userId, cert);
+            processedCerts++;
+        } catch (error: any) {
+            failedCerts++;
+            console.error(`❌ Failed to process certification: ${cert.name}`, error.message);
+        }
+    }
+    if (certifications.length > 0) {
+        console.log(`📊 Processed ${processedCerts}/${certifications.length} certifications (${failedCerts} failed)`);
+    }
+
+    // 6. Update profile with contact info (if available)
+    if (contactInfo && (contactInfo.name || contactInfo.email || contactInfo.phone || contactInfo.linkedin || contactInfo.portfolio)) {
+        try {
+            const profileUpdate: Record<string, string | undefined> = {};
+            
+            // Only update fields that have values - don't overwrite existing data with empty values
+            if (contactInfo.name) profileUpdate.full_name = contactInfo.name;
+            if (contactInfo.phone) profileUpdate.phone_number = contactInfo.phone;
+            if (contactInfo.linkedin) profileUpdate.linkedin_url = contactInfo.linkedin;
+            if (contactInfo.portfolio) profileUpdate.portfolio_url = contactInfo.portfolio;
+            // Note: We intentionally do NOT save address to the profile
+            
+            if (Object.keys(profileUpdate).length > 0) {
+                const { error: profileError } = await supabaseAdmin
+                    .from('profiles')
+                    .update(profileUpdate)
+                    .eq('user_id', userId);
+                
+                if (profileError) {
+                    console.warn('⚠️ Failed to update profile with contact info:', profileError.message);
+                } else {
+                    console.log('✅ Updated profile with contact info:', Object.keys(profileUpdate).join(', '));
+                }
+            }
+        } catch (error: any) {
+            console.warn('⚠️ Error updating profile with contact info:', error.message);
+        }
+    }
+
+    // 7. Update document status
     const parsedContentPayload: Record<string, unknown> = {
         sanitizedText: text,
         structured: {
             experiences: sanitizedExperiences,
             skills: sanitizedSkills,
+            education,
+            certifications,
+            contactInfo,
+            summary,
         },
     };
 
@@ -71,19 +213,27 @@ export async function ingestDocument(documentId: string, text: string, userId: s
         parsedContentPayload.analysis = options.analysis;
     }
 
-    await supabaseAdmin
+    // Always save structured data, even if processing had errors
+    const { error: updateError } = await supabaseAdmin
         .from('documents')
         .update({
             parse_status: 'completed',
             parsed_content: parsedContentPayload
         })
         .eq('id', documentId);
-
-    try {
-        await canonicalizeProfile(userId);
-    } catch (error) {
-        console.error('❌ Canonicalization error:', error);
+    
+    if (updateError) {
+        console.error('❌ Failed to update document with structured data:', updateError);
+        throw updateError;
     }
+    
+    console.log('✅ Saved structured data to document:', {
+        experiences: sanitizedExperiences.length,
+        skills: sanitizedSkills.length,
+    });
+
+    // Canonicalize profile (fail loudly if this breaks)
+    await canonicalizeProfile(userId);
 
     console.log(`✨ Ingestion complete for document ${documentId}`);
 }
@@ -96,19 +246,14 @@ async function processExperience(userId: string, documentId: string, exp: Saniti
 
     const { data: existingExp } = await supabaseAdmin
         .from('experiences')
-        .select('id, source_count')
+        .select('id')
         .eq('user_id', userId)
         .ilike('company', exp.company)
         .ilike('title', exp.title)
-        .single();
+        .maybeSingle();
 
     if (existingExp) {
         experienceId = existingExp.id;
-        // Increment source count
-        await supabaseAdmin
-            .from('experiences')
-            .update({ source_count: existingExp.source_count + 1 })
-            .eq('id', experienceId);
     } else {
         const { data: newExp, error } = await supabaseAdmin
             .from('experiences')
@@ -128,13 +273,18 @@ async function processExperience(userId: string, documentId: string, exp: Saniti
         experienceId = newExp.id;
     }
 
-    // Link source
-    await supabaseAdmin
-        .from('experience_sources')
-        .insert({
-            experience_id: experienceId,
-            document_id: documentId,
-        });
+    // Link source (if table exists)
+    try {
+        await supabaseAdmin
+            .from('experience_sources')
+            .insert({
+                experience_id: experienceId,
+                document_id: documentId,
+            });
+    } catch (e) {
+        // Table might not exist in old schema, skip silently
+        console.log('⚠️ experience_sources table not found, skipping');
+    }
 
     // Process Bullets
     for (const bulletText of exp.bullets) {
@@ -142,8 +292,72 @@ async function processExperience(userId: string, documentId: string, exp: Saniti
     }
 }
 
+/**
+ * Calculate importance score for a bullet based on its content
+ * Score is 0-100 based on:
+ * - Contains metrics/numbers (up to 40 points)
+ * - Contains action verbs (up to 20 points)
+ * - Contains specific tools/technologies (up to 20 points)
+ * - Bullet length/detail (up to 20 points)
+ */
+function calculateBulletImportanceScore(bulletText: string): number {
+    let score = 0;
+    
+    // Check for metrics/numbers (up to 40 points)
+    const metricPatterns = [
+        /\d+%/,           // Percentages
+        /\$[\d,]+/,       // Dollar amounts
+        /\d+[xX]\s/,      // Multipliers (e.g., "3x faster")
+        /\d+\+?\s*(users?|customers?|clients?|team|employees?|members?)/i, // People counts
+        /\d+\s*(million|billion|thousand|k|m|b)/i, // Large numbers
+        /increased|decreased|reduced|improved|grew|saved/i, // Impact verbs with implied metrics
+    ];
+    
+    let metricScore = 0;
+    for (const pattern of metricPatterns) {
+        if (pattern.test(bulletText)) {
+            metricScore += 10;
+        }
+    }
+    score += Math.min(metricScore, 40);
+    
+    // Check for strong action verbs (up to 20 points)
+    const actionVerbs = /^(led|managed|developed|implemented|designed|created|built|launched|optimized|streamlined|automated|analyzed|delivered|achieved|spearheaded|orchestrated|established|transformed|pioneered)/i;
+    if (actionVerbs.test(bulletText.trim())) {
+        score += 20;
+    }
+    
+    // Check for specific tools/technologies (up to 20 points)
+    const techPatterns = [
+        /\b(python|javascript|typescript|java|sql|react|aws|azure|gcp|kubernetes|docker|tableau|excel|salesforce|jira|confluence)\b/i,
+        /\b(api|etl|ci\/cd|ml|ai|machine learning|data pipeline|microservices)\b/i,
+    ];
+    for (const pattern of techPatterns) {
+        if (pattern.test(bulletText)) {
+            score += 10;
+            break; // Only count once
+        }
+    }
+    if (/\b(compliance|regulatory|audit|risk|security|governance)\b/i.test(bulletText)) {
+        score += 10;
+    }
+    
+    // Bullet length/detail (up to 20 points)
+    const wordCount = bulletText.split(/\s+/).length;
+    if (wordCount >= 15 && wordCount <= 40) {
+        score += 20; // Optimal length
+    } else if (wordCount >= 10 && wordCount < 15) {
+        score += 15;
+    } else if (wordCount >= 8) {
+        score += 10;
+    }
+    
+    return Math.min(score, 100);
+}
+
 async function processBullet(experienceId: string, documentId: string, bulletText: string) {
     const embedding = await embedText(bulletText);
+    const importanceScore = calculateBulletImportanceScore(bulletText);
 
     // Check for semantic duplicates within this experience
     const { data: similarBullets } = await supabaseAdmin.rpc('match_experience_bullets', {
@@ -157,8 +371,21 @@ async function processBullet(experienceId: string, documentId: string, bulletTex
 
     if (similarBullets && similarBullets.length > 0) {
         bulletId = similarBullets[0].id;
-        // Increment source count/importance
-        await supabaseAdmin.rpc('increment_bullet_source_count', { bullet_id: bulletId });
+        // Increment source count and update importance score if higher
+        const newSourceCount = (similarBullets[0].source_count || 1) + 1;
+        const existingScore = similarBullets[0].importance_score || 0;
+        const { error: updateError } = await supabaseAdmin
+            .from('experience_bullets')
+            .update({ 
+                source_count: newSourceCount,
+                // Keep the higher importance score
+                importance_score: Math.max(existingScore, importanceScore)
+            })
+            .eq('id', bulletId);
+        
+        if (updateError) {
+            console.warn('⚠️ Failed to update bullet:', updateError.message);
+        }
     } else {
         const { data: newBullet, error } = await supabaseAdmin
             .from('experience_bullets')
@@ -166,6 +393,7 @@ async function processBullet(experienceId: string, documentId: string, bulletTex
                 experience_id: experienceId,
                 content: bulletText,
                 embedding: embedding,
+                importance_score: importanceScore,
             })
             .select('id')
             .single();
@@ -184,30 +412,139 @@ async function processBullet(experienceId: string, documentId: string, bulletTex
 }
 
 async function processSkill(userId: string, skillName: string) {
-    const normalizedName = skillName.trim(); // In real app, use LLM to normalize to canonical name
-    const embedding = await embedText(normalizedName);
+    const normalizedName = skillName.trim();
+    
+    if (!normalizedName || normalizedName.length === 0) {
+        console.warn('⚠️ Skipping empty skill name');
+        return;
+    }
 
-    // Check for existing skill
-    const { data: existingSkill } = await supabaseAdmin
-        .from('skills')
+    try {
+        // Check for existing skill
+        const { data: existingSkill } = await supabaseAdmin
+            .from('skills')
+            .select('id, source_count')
+            .eq('user_id', userId)
+            .ilike('canonical_name', normalizedName)
+            .maybeSingle();
+
+        if (existingSkill) {
+            // Skill exists, increment source_count if it has the column
+            if (typeof existingSkill.source_count === 'number') {
+                await supabaseAdmin
+                    .from('skills')
+                    .update({ source_count: existingSkill.source_count + 1 })
+                    .eq('id', existingSkill.id);
+            }
+        } else {
+            // Insert new skill (no embedding column in current schema)
+            const { error: insertError } = await supabaseAdmin
+                .from('skills')
+                .insert({
+                    user_id: userId,
+                    canonical_name: normalizedName,
+                });
+
+            if (insertError) {
+                console.error(`❌ Failed to insert skill "${normalizedName}":`, insertError);
+                throw insertError;
+            }
+        }
+    } catch (error: any) {
+        console.error(`❌ Error processing skill "${skillName}":`, error);
+        throw error;
+    }
+}
+
+async function processEducation(userId: string, edu: ParsedEducation) {
+    if (!edu.institution?.trim()) {
+        console.warn('⚠️ Skipping education with no institution');
+        return;
+    }
+
+    // Determine dates - prefer explicit start/end dates, fall back to graduation date
+    const startDate = edu.startDate?.trim() || null;
+    const endDate = edu.endDate?.trim() || edu.graduationDate?.trim() || null;
+
+    // Check for existing education entry
+    const { data: existing } = await supabaseAdmin
+        .from('canonical_education')
         .select('id, source_count')
         .eq('user_id', userId)
-        .ilike('canonical_name', normalizedName)
-        .single();
+        .ilike('institution', edu.institution)
+        .maybeSingle();
 
-    if (existingSkill) {
+    if (existing) {
+        // Update source_count and potentially fill in missing dates
+        const updateData: Record<string, unknown> = { 
+            source_count: (existing.source_count || 1) + 1 
+        };
+        // Update dates if we have them and they're not already set
+        if (startDate) updateData.start_date = startDate;
+        if (endDate) updateData.end_date = endDate;
+        
         await supabaseAdmin
-            .from('skills')
-            .update({ source_count: existingSkill.source_count + 1 })
-            .eq('id', existingSkill.id);
+            .from('canonical_education')
+            .update(updateData)
+            .eq('id', existing.id);
     } else {
-        await supabaseAdmin
-            .from('skills')
+        // Insert new education
+        const { error } = await supabaseAdmin
+            .from('canonical_education')
             .insert({
                 user_id: userId,
-                canonical_name: normalizedName,
-                embedding: embedding,
+                institution: edu.institution.trim(),
+                degree: edu.degree?.trim() || null,
+                field_of_study: edu.field?.trim() || null,
+                start_date: startDate,
+                end_date: endDate,
+                source_count: 1,
             });
+
+        if (error) {
+            console.error(`❌ Failed to insert education "${edu.institution}":`, error);
+            throw error;
+        }
+    }
+}
+
+async function processCertification(userId: string, cert: ParsedCertification) {
+    if (!cert.name?.trim()) {
+        console.warn('⚠️ Skipping certification with no name');
+        return;
+    }
+
+    // Check for existing certification
+    const { data: existing } = await supabaseAdmin
+        .from('canonical_certifications')
+        .select('id, source_count')
+        .eq('user_id', userId)
+        .ilike('name', cert.name)
+        .maybeSingle();
+
+    if (existing) {
+        // Update source_count
+        await supabaseAdmin
+            .from('canonical_certifications')
+            .update({ source_count: (existing.source_count || 1) + 1 })
+            .eq('id', existing.id);
+    } else {
+        // Insert new certification
+        const { error } = await supabaseAdmin
+            .from('canonical_certifications')
+            .insert({
+                user_id: userId,
+                name: cert.name.trim(),
+                issuer: cert.issuer?.trim() || null,
+                issue_date: cert.date?.trim() || null,
+                expiry_date: cert.expirationDate?.trim() || null,
+                source_count: 1,
+            });
+
+        if (error) {
+            console.error(`❌ Failed to insert certification "${cert.name}":`, error);
+            throw error;
+        }
     }
 }
 

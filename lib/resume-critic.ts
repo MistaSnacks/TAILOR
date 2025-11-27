@@ -128,7 +128,7 @@ Tasks:
 - Strip any placeholder text (e.g., "Company Name", "City, State", "N/A", strings containing "YYYY").
 - Keep company/title/location/dates exactly as provided. Never reorder experiences.
 - Skills must stay de-duplicated and relevant to the job description.
-- Summary should reference the target role using verified strengths only.
+- Summary must be 3-4 sentences (minimum 350 characters) that: (1) state years of experience and domain, (2) include 2-3 specific metrics from canonical experiences, (3) mention relevant tools/skills, and (4) connect to the target role. If the summary is too short or generic, rewrite it to meet these requirements using only verified facts.
 - Capture issues per bullet referencing the resume's experience index (1-based) and bullet order (1-based). Flag reasons such as "too_generic", "missing_metric", "jd_gap", "redundant", or "format".
 - Only propose a suggested_rewrite if it strictly reuses verified facts (same companies, tools, metrics) or rephrases for clarity.
 

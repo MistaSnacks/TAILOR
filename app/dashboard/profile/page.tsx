@@ -11,20 +11,21 @@ type Experience = {
   start_date?: string;
   end_date?: string;
   is_current: boolean;
-  source_count: number;
+  source_count?: number; // Optional for legacy schema
   experience_bullets?: Bullet[];
 };
 
 type Bullet = {
   id: string;
-  content: string;
-  importance_score: number;
+  content?: string;
+  text?: string; // Legacy schema
+  importance_score?: number;
 };
 
 type Skill = {
   id: string;
   canonical_name: string;
-  source_count: number;
+  source_count?: number; // Optional for legacy schema
 };
 
 type PersonalInfo = {
@@ -58,7 +59,17 @@ export default function ProfilePage() {
       setSuccessMessage(null);
       const res = await fetch('/api/profile');
       if (!res.ok) {
-        throw new Error('Failed to fetch profile');
+        let errorMessage = 'Failed to fetch profile';
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.details) {
+            errorMessage += `: ${errorData.details}`;
+          }
+        } catch {
+          errorMessage = `Failed to fetch profile (${res.status}: ${res.statusText})`;
+        }
+        throw new Error(errorMessage);
       }
       const data = await res.json();
       setExperiences(data.experiences || []);
@@ -414,9 +425,11 @@ export default function ProfilePage() {
                       {exp.location && `${exp.location} • `}
                       {exp.start_date} - {exp.is_current ? 'Present' : exp.end_date}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}
-                    </p>
+                    {exp.source_count !== undefined && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => deleteExperience(exp.id, exp.title, exp.company)}
@@ -439,10 +452,12 @@ export default function ProfilePage() {
                           className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
                         >
                           <span className="text-primary mt-1">•</span>
-                          <span className="flex-1">{bullet.content}</span>
-                          <span className="text-xs text-muted-foreground">
-                            Score: {bullet.importance_score}
-                          </span>
+                          <span className="flex-1">{bullet.content || bullet.text || 'No content available'}</span>
+                          {bullet.importance_score !== undefined && (
+                            <span className="text-xs text-muted-foreground">
+                              Score: {bullet.importance_score}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -479,9 +494,11 @@ export default function ProfilePage() {
                   className="group flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
                 >
                   <span className="font-medium">{skill.canonical_name}</span>
-                  <span className="text-xs text-primary/60">
-                    ({skill.source_count})
-                  </span>
+                  {skill.source_count !== undefined && (
+                    <span className="text-xs text-primary/60">
+                      ({skill.source_count})
+                    </span>
+                  )}
                   <button
                     onClick={() => deleteSkill(skill.id, skill.canonical_name)}
                     disabled={deleting === skill.id}

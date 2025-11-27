@@ -15,9 +15,39 @@ export type ParsedExperience = {
     bullets: string[];
 };
 
+export type ParsedEducation = {
+    institution: string;
+    degree: string;
+    field?: string;
+    startDate?: string;
+    endDate?: string;
+    graduationDate?: string;
+    gpa?: string;
+    honors?: string[];
+};
+
+export type ParsedCertification = {
+    name: string;
+    issuer?: string;
+    date?: string;
+    expirationDate?: string;
+    credentialId?: string;
+};
+
 export type ParsedResumeData = {
     experiences: ParsedExperience[];
     skills: string[];
+    education: ParsedEducation[];
+    certifications: ParsedCertification[];
+    summary?: string;
+    contactInfo?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        linkedin?: string;
+        portfolio?: string;
+        location?: string; // Extracted but NOT used in resume output
+    };
 };
 
 export async function parseResumeToJSON(text: string): Promise<ParsedResumeData> {
@@ -32,13 +62,22 @@ export async function parseResumeToJSON(text: string): Promise<ParsedResumeData>
         }
     });
 
-    const prompt = `You are an expert resume parser. Your task is to extract structured data from the provided resume text.
+    const prompt = `You are an expert resume parser. Extract ALL structured data from the provided resume text.
 
 Resume Text:
 ${text}
 
-Output JSON with the following structure:
+Output JSON with this COMPLETE structure:
 {
+  "contactInfo": {
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "phone number",
+    "linkedin": "linkedin URL or username",
+    "portfolio": "portfolio/website URL if present",
+    "location": "City, State (for internal use only)"
+  },
+  "summary": "Professional summary paragraph if present",
   "experiences": [
     {
       "company": "Company Name",
@@ -50,6 +89,27 @@ Output JSON with the following structure:
       "bullets": ["list of bullet points"]
     }
   ],
+  "education": [
+    {
+      "institution": "University/College Name",
+      "degree": "Bachelor of Science, Master of Arts, etc.",
+      "field": "Major/Field of Study",
+      "startDate": "YYYY-MM or YYYY (if available)",
+      "endDate": "YYYY-MM or YYYY or Present (if available)",
+      "graduationDate": "YYYY-MM or YYYY or 'Expected YYYY' (use if start/end not available)",
+      "gpa": "GPA if mentioned",
+      "honors": ["Dean's List", "Cum Laude", etc.]
+    }
+  ],
+  "certifications": [
+    {
+      "name": "Certification Name",
+      "issuer": "Issuing Organization",
+      "date": "YYYY-MM or YYYY",
+      "expirationDate": "YYYY-MM if applicable",
+      "credentialId": "ID if mentioned"
+    }
+  ],
   "skills": ["list of skill phrases"]
 }
 
@@ -58,6 +118,10 @@ Rules:
 2. If a job is current, set isCurrent to true and endDate to "Present".
 3. Extract skills as individual phrases (e.g., "React", "Project Management").
 4. Clean up bullet points (remove leading bullets/dashes).
+5. Extract ALL education entries, even partial (bootcamps, courses count).
+6. Extract ALL certifications, licenses, and professional credentials.
+7. If summary/objective exists, extract it; otherwise leave empty string.
+8. Return empty arrays for sections with no data, not null.
 `;
 
     try {
@@ -75,16 +139,29 @@ type JobParsingInput = {
     description: string;
 };
 
-const JOB_CONTEXT_PROMPT = `You are a hiring analyst. Read the job description and summarize the core signals.
+const JOB_CONTEXT_PROMPT = `You are an expert ATS keyword analyst. Extract ALL keywords and phrases that an ATS system would scan for.
 
 Return tight JSON with:
 - normalizedTitle: concise role title (no company, no level words like "Lead" unless crucial)
 - level: one of ["IC","Senior IC","Manager","Director","VP","Executive"]
 - domain: dominant problem space (e.g. "fintech fraud", "trust & safety", "non-profit ops")
-- responsibilities: up to 10 action items capturing scope/outcomes
-- hardSkills: tools, platforms, regulations, methodologies (max 15, single tokens)
-- softSkills: collaboration/leadership/communication traits (max 8)
-- queries: 3-5 short semantic search phrases (<80 chars) the retriever can embed`;
+- responsibilities: up to 12 action items capturing scope/outcomes (use exact phrasing from JD)
+- hardSkills: array of 30-50 technical keywords including:
+  * Tools & software (SQL, Python, Excel, Tableau, Salesforce, etc.)
+  * Platforms & systems (AWS, Stripe, billing systems, CRM, etc.)
+  * Methodologies (Agile, Six Sigma, process improvement, etc.)
+  * Regulations & compliance (SOX, GDPR, PCI, KYC, AML, etc.)
+  * Technical concepts (data analysis, ETL, API, automation, etc.)
+  * Include BOTH single words AND multi-word phrases (e.g., "cross-functional collaboration", "data-driven")
+  * Include common variations (e.g., both "MS Excel" and "Excel")
+- softSkills: array of 15-20 soft skill keywords including:
+  * Communication traits (written communication, verbal communication, presentation skills)
+  * Collaboration (cross-functional, stakeholder management, team collaboration)
+  * Leadership (mentoring, coaching, leading teams)
+  * Problem-solving (analytical thinking, critical thinking, troubleshooting)
+  * Work style (detail-oriented, self-starter, fast-paced environment)
+- queries: 5-8 semantic search phrases (<80 chars) for retrieval
+- keyPhrases: array of 10-15 exact multi-word phrases from the JD that are important (e.g., "attention to detail", "client-facing", "high-growth environment")`;
 
 export async function parseJobDescriptionToContext(
     job: JobParsingInput

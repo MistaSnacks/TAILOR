@@ -26,7 +26,8 @@ export default function GeneratePage() {
       });
 
       if (!jobResponse.ok) {
-        throw new Error('Failed to create job');
+        const jobError = await jobResponse.json().catch(() => ({}));
+        throw new Error(jobError.error || 'Failed to create job');
       }
 
       const { job } = await jobResponse.json();
@@ -42,16 +43,18 @@ export default function GeneratePage() {
       });
 
       if (!generateResponse.ok) {
-        throw new Error('Failed to generate resume');
+        const generateError = await generateResponse.json().catch(() => ({}));
+        console.error('Generate API error:', generateError);
+        throw new Error(generateError.error || 'Failed to generate resume');
       }
 
       const { resumeVersion } = await generateResponse.json();
 
       // Redirect to resumes page
       window.location.href = `/dashboard/resumes?id=${resumeVersion.id}`;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Generation error:', error);
-      alert('Failed to generate resume');
+      alert(error.message || 'Failed to generate resume');
     } finally {
       setGenerating(false);
     }

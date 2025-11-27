@@ -61,10 +61,15 @@ export async function POST(request: NextRequest) {
     // Generate embedding for the new bullet
     const embedding = await embedText(promotedBullet.text);
 
-    // Insert the enriched bullet into canonical_bullets
+    // Insert the enriched bullet into canonical_experience_bullets
+    // Include both legacy columns (experience_id, text) AND Phase-2 columns
     const { data: newBullet, error: insertError } = await supabaseAdmin
-      .from('canonical_bullets')
+      .from('canonical_experience_bullets')
       .insert({
+        // Legacy columns (NOT NULL)
+        experience_id: canonicalExperienceId,
+        text: promotedBullet.text,
+        // Phase-2 columns
         user_id: userId,
         canonical_experience_id: canonicalExperienceId,
         content: promotedBullet.text,
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
         avg_similarity: 1.0, // High confidence since user approved it
         embedding,
         representative_bullet_id: null, // This is a promoted/enriched bullet
-        // Store provenance in metadata if needed
+        origin: 'enrichment',
       })
       .select()
       .single();
@@ -143,7 +148,7 @@ export async function GET(request: NextRequest) {
 
     // Get existing canonical bullets for this experience
     const { data: existingBullets } = await supabaseAdmin
-      .from('canonical_bullets')
+      .from('canonical_experience_bullets')
       .select('content')
       .eq('canonical_experience_id', experienceId);
 

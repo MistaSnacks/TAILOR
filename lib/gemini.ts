@@ -75,7 +75,8 @@ const PLACEHOLDER_SNIPPETS = ['lorem ipsum', 'placeholder', 'sample text', 'dumm
 const MAX_EXPERIENCES_FOR_PROMPT = 5;
 const MAX_BULLET_CONTEXT_PER_ROLE = 8;
 export const MAX_BULLETS_PER_ROLE = 6;
-const MAX_SKILLS_FOR_PROMPT = 12;
+const MAX_SKILLS_FOR_PROMPT = 30; // Increased from 12 to show more skills
+const MAX_INFERENCE_CONTEXT_LINES = 12;
 
 type PreparedWriterProfile = {
   experiences: WriterExperience[];
@@ -83,6 +84,11 @@ type PreparedWriterProfile = {
   bulletCount: number;
   skills: string[];
   parsedJD: TargetedProfilePayload['parsedJD'];
+  education?: TargetedProfilePayload['education'];
+  certifications?: TargetedProfilePayload['certifications'];
+  contactInfo?: TargetedProfilePayload['contactInfo'];
+  canonicalSkillPool?: string[];
+  inferenceContext?: TargetedProfilePayload['inferenceContext'];
 };
 
 function normalizeValue(value: unknown): string {
@@ -180,6 +186,8 @@ function parseDateValue(raw: unknown): number {
   return timestamp;
 }
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatDateLabel(raw: unknown, fallback?: string): string {
   const normalized = normalizeValue(raw);
   if (!normalized && fallback) {
@@ -190,20 +198,38 @@ function formatDateLabel(raw: unknown, fallback?: string): string {
     return 'Present';
   }
 
+  // YYYY-MM format -> "Month Year" (e.g., "Nov 2024")
   if (/^\d{4}-\d{2}$/.test(normalized)) {
+    const [year, month] = normalized.split('-');
+    const monthIndex = parseInt(month, 10) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${MONTH_NAMES[monthIndex]} ${year}`;
+    }
     return normalized;
   }
 
+  // Just year -> return as-is
   if (/^\d{4}$/.test(normalized)) {
     return normalized;
   }
 
+  // YYYY-MM-DD format -> "Month Year"
   if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [year, month] = normalized.split('-');
+    const monthIndex = parseInt(month, 10) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${MONTH_NAMES[monthIndex]} ${year}`;
+    }
     return normalized.slice(0, 7);
   }
 
+  // MM/YYYY format -> "Month Year"
   if (/^\d{2}\/\d{4}$/.test(normalized)) {
     const [month, year] = normalized.split('/');
+    const monthIndex = parseInt(month, 10) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${MONTH_NAMES[monthIndex]} ${year}`;
+    }
     return `${year}-${month.padStart(2, '0')}`;
   }
 
@@ -290,6 +316,11 @@ function prepareWriterProfile(profile: TargetedProfilePayload): PreparedWriterPr
     bulletCount,
     skills,
     parsedJD: profile.parsedJD,
+    education: profile.education,
+    certifications: profile.certifications,
+    contactInfo: profile.contactInfo,
+    canonicalSkillPool: profile.canonicalSkillPool,
+    inferenceContext: profile.inferenceContext,
   };
 }
 
@@ -440,9 +471,74 @@ ${bulletLines || '      (No supporting achievements available)'}`;
       })
       .join('\n\n');
 
-  const skillContext = preparedProfile.skills.length
-    ? preparedProfile.skills.join(', ')
+  const skillSource =
+    (profile.canonicalSkillPool?.length ?? 0) > 0
+      ? profile.canonicalSkillPool!
+      : preparedProfile.skills;
+
+  const skillContext = skillSource.length
+    ? skillSource.join(', ')
     : 'None provided (leave skills array empty)';
+
+  const educationContext = (profile.education?.length ?? 0) > 0
+    ? profile.education!.map((edu, i) => {
+        // Build date string with start/end if available
+        let dateStr = '';
+        if (edu.startDate && edu.endDate) {
+          dateStr = ` (${formatDateLabel(edu.startDate)} - ${formatDateLabel(edu.endDate)})`;
+        } else if (edu.endDate || edu.graduationDate) {
+          dateStr = ` (${formatDateLabel(edu.endDate || edu.graduationDate)})`;
+        } else if (edu.startDate) {
+          dateStr = ` (Started ${formatDateLabel(edu.startDate)})`;
+        }
+        return `${i + 1}. ${edu.degree || 'Degree'} in ${edu.field || 'Field'} - ${edu.institution}${dateStr}`;
+      }).join('\n')
+    : 'None provided (return empty array)';
+
+  const certificationContext = (profile.certifications?.length ?? 0) > 0
+    ? profile.certifications!.map((cert, i) => 
+        `${i + 1}. ${cert.name}${cert.issuer ? ` - ${cert.issuer}` : ''}${cert.date ? ` (${formatDateLabel(cert.date)})` : ''}`
+      ).join('\n')
+    : 'None provided (return empty array)';
+
+  // Build contact info context - only include fields with values
+  const contactFields: string[] = [];
+  const contactInfo = preparedProfile.contactInfo;
+  if (contactInfo?.name) contactFields.push(`Name: ${contactInfo.name}`);
+  if (contactInfo?.email) contactFields.push(`Email: ${contactInfo.email}`);
+  if (contactInfo?.phone) contactFields.push(`Phone: ${contactInfo.phone}`);
+  if (contactInfo?.linkedin) contactFields.push(`LinkedIn: ${contactInfo.linkedin}`);
+  if (contactInfo?.portfolio) contactFields.push(`Portfolio: ${contactInfo.portfolio}`);
+  // Note: address is intentionally excluded - never include in resume
+  
+  const contactInfoContext = contactFields.length > 0
+    ? contactFields.join('\n')
+    : 'None provided (omit contactInfo from output)';
+
+  const inferenceHighlightContext =
+    preparedProfile.inferenceContext?.experienceHighlights?.length
+      ? preparedProfile.inferenceContext.experienceHighlights
+          .slice(0, MAX_INFERENCE_CONTEXT_LINES)
+          .map((highlight, index) => `${index + 1}. ${highlight}`)
+          .join('\n')
+      : profile.inferenceContext?.experienceHighlights?.length
+      ? profile.inferenceContext.experienceHighlights
+          .slice(0, MAX_INFERENCE_CONTEXT_LINES)
+          .map((highlight, index) => `${index + 1}. ${highlight}`)
+          .join('\n')
+      : 'Not provided (limit inference to verified bullets)';
+
+  const inferenceMetricContext =
+    profile.inferenceContext?.metricSignals?.length
+      ? profile.inferenceContext.metricSignals
+          .slice(0, MAX_INFERENCE_CONTEXT_LINES)
+          .map((signal, index) => `${index + 1}. ${signal}`)
+          .join('\n')
+      : 'Not provided (reference explicit metrics when available)';
+
+  const inferenceGuidance =
+    profile.inferenceContext?.instructions ||
+    'Derive new JD-aligned bullets only when the idea is clearly supported by the canonical highlights or metric signals. Reference the supporting company or highlight inside the bullet.';
 
   const droppedExperienceSummary =
     preparedProfile.droppedExperienceIds.length > 0
@@ -454,13 +550,24 @@ ${bulletLines || '      (No supporting achievements available)'}`;
 - Dropped experience IDs (missing fields/placeholders): ${droppedExperienceSummary}
 - Bullet inventory available: ${preparedProfile.bulletCount}`;
 
+  const inferenceSnapshot = `Global Canonical Highlights (available for inference beyond the selected roles):
+${inferenceHighlightContext}
+
+Metric / Impact Signals (use these to justify quantified rewrites):
+${inferenceMetricContext}
+
+Inference Guidance:
+${inferenceGuidance}`;
+
   const atsFormatGuide = `ATS Output Contract (JSON only):
-- Sections (in order): summary, experience, skills, education, certifications.
-- summary: two sentences tying verified impact to the target job using canonical metrics only.
-- experience: array matching the canonical inventory order; each object must include company, title, optional location, startDate (YYYY-MM), endDate (YYYY-MM or Present), and bullets.
+- Sections (in order): contactInfo, summary, experience, skills, education, certifications.
+- contactInfo: Include ONLY the fields that exist in canonical data (name, email, phone, linkedin, portfolio). NEVER include address or location in contact info.
+- summary: 3-4 sentences (minimum 350 characters) that: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics from canonical experiences, (3) mention key tools/skills relevant to the target JD, and (4) close by connecting the candidate's background to the target role's core requirements.
+- experience: array matching the canonical inventory order; each object must include company, title, optional location, startDate ("Month Year" format), endDate ("Month Year" or "Present"), and bullets.
 - bullets: array of objects with "text" and "source_ids". Never exceed the provided bullet_budget per experience and never fabricate source_ids.
 - skills: subset of the normalized pool (max ${MAX_SKILLS_FOR_PROMPT}); never invent new skills or vary casing.
-- education & certifications: include only if canonical data exists, otherwise return empty arrays.`;
+- education: each entry MUST include institution name, degree, field of study, and startDate/endDate or graduationDate if available from canonical data. Use "Month Year" format for dates.
+- certifications: each entry MUST include certification name and issuing organization from the canonical data.`;
 
     const prompt = `You are an expert resume writer and ATS optimization specialist. Your only sources of truth are the canonical blocks below.
 
@@ -471,19 +578,31 @@ ${jobDescriptionSnippet || 'Not provided'}
 
 ${canonicalSnapshot}
 
+${inferenceSnapshot}
+
 Parsed JD Summary:
 - Normalized Title: ${preparedProfile.parsedJD?.normalizedTitle || 'n/a'}
 - Seniority: ${preparedProfile.parsedJD?.level || 'IC'}
 - Domain: ${preparedProfile.parsedJD?.domain || 'general'}
-- Responsibilities: ${preparedProfile.parsedJD?.responsibilities?.slice(0, 6).join('; ') || 'n/a'}
-- Hard Skills: ${preparedProfile.parsedJD?.hardSkills?.join(', ') || 'n/a'}
-- Soft Skills: ${preparedProfile.parsedJD?.softSkills?.join(', ') || 'n/a'}
+- Responsibilities: ${preparedProfile.parsedJD?.responsibilities?.slice(0, 8).join('; ') || 'n/a'}
+- Hard Skills (MUST include these in resume where truthful): ${preparedProfile.parsedJD?.hardSkills?.slice(0, 40).join(', ') || 'n/a'}
+- Soft Skills (weave into bullets naturally): ${preparedProfile.parsedJD?.softSkills?.slice(0, 15).join(', ') || 'n/a'}
+- Key Phrases (use exact phrasing when possible): ${preparedProfile.parsedJD?.keyPhrases?.slice(0, 15).join(', ') || 'n/a'}
 
 Canonical Experience Inventory (reverse chronological order, IDs are stable — do NOT reorder):
 ${experienceContext}
 
 Normalized Skill Pool (deduped, limit ${MAX_SKILLS_FOR_PROMPT}):
 ${skillContext}
+
+Canonical Education:
+${educationContext}
+
+Canonical Certifications:
+${certificationContext}
+
+Canonical Contact Information (only include fields with values, NEVER include address):
+${contactInfoContext}
 
 Quality Guardrails:
 - Use ONLY the canonical experiences and skills supplied above. Never invent new companies, titles, dates, or credentials.
@@ -493,21 +612,29 @@ Quality Guardrails:
 - Each bullet must follow the Action + Context + Result rubric, highlight measurable scope/impact when available, and remain grounded in the supporting achievements for that role.
 - Respect the bullet_budget per experience. If the candidate pool is smaller than the budget, output only the vetted bullets; do not fabricate content.
 - When merging multiple candidate bullets, preserve the strongest metric and union of verified tools/regulations, then log the contributing candidate IDs in "merged_from".
-- Professional summary must be exactly two sentences referencing the target role and at least two verified impact themes from the canonical experiences.
+- Professional summary must be 3-4 impactful sentences (minimum 350 characters) that: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics (percentages, dollar amounts, volume numbers) from canonical experiences, (3) mention 2-3 key tools or skills that match the target JD, and (4) close with a clear connection to the target role's core requirements. Do NOT write a generic summary — make it specific to THIS candidate's verified achievements.
+- You may infer JD-aligned keywords or new bullet framings ONLY when they are obviously supported by the Global Canonical Highlights or Metric Signals above. Reference the supporting company or highlight inside the bullet (e.g., “(leveraging TD Bank AML program)”). If no supporting highlight exists, omit the inference.
 - Skills list must be a deduped subset of the normalized pool ordered by relevance to the target JD.
 
 ${atsFormatGuide}
 
 Return JSON ONLY (no prose) using this schema:
 {
+  "contactInfo": {
+    "name": "Full Name (REQUIRED if available)",
+    "email": "email@example.com (optional)",
+    "phone": "phone number (optional)",
+    "linkedin": "linkedin.com/in/username (optional)",
+    "portfolio": "portfolio URL (optional)"
+  },
   "summary": "...",
   "experience": [
     {
       "company": "...",
       "title": "...",
       "location": "...",
-      "startDate": "YYYY-MM",
-      "endDate": "YYYY-MM or Present",
+      "startDate": "Month Year (e.g., Nov 2024)",
+      "endDate": "Month Year or Present",
       "bullets": [
         {
           "text": "...",
@@ -518,9 +645,26 @@ Return JSON ONLY (no prose) using this schema:
     }
   ],
   "skills": ["..."],
-  "education": [],
-  "certifications": []
-}`;
+  "education": [
+    {
+      "institution": "School/University Name (REQUIRED)",
+      "degree": "Degree Type",
+      "field": "Field of Study",
+      "startDate": "Month Year (optional)",
+      "endDate": "Month Year (optional)",
+      "graduationDate": "Month Year or Year (use if start/end not available)"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "Certification Name",
+      "issuer": "Issuing Organization (REQUIRED)",
+      "date": "Month Year or Year"
+    }
+  ]
+}
+
+IMPORTANT: Only include contactInfo fields that have actual values from canonical data. Omit any empty or missing fields. NEVER include address.`;
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash-exp',

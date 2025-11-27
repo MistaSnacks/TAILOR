@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { calculateAtsScore, generateTailoredResumeAtomic, embedText } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
 import { retrieveProfileForJob } from '@/lib/rag/retriever';
+import type { RetrievedProfile } from '@/lib/rag/retriever';
 import { selectTargetAwareProfile } from '@/lib/rag/selector';
 import { normalizeResumeContent } from '@/lib/resume-content';
 import { runResumeCritic } from '@/lib/resume-critic';
@@ -77,9 +78,10 @@ export async function POST(request: NextRequest) {
         mimeType: doc.file_type || 'application/octet-stream',
       }));
 
+    // Support both sanitizedText (current) and text (legacy) keys
     const parsedDocuments = documents
-      .filter((doc: any) => doc.parsed_content?.text)
-      .map((doc: any) => doc.parsed_content.text);
+      .filter((doc: any) => doc.parsed_content?.sanitizedText || doc.parsed_content?.text)
+      .map((doc: any) => doc.parsed_content.sanitizedText || doc.parsed_content.text);
 
     console.log('📄 Using documents:', {
       fileRefs: documentFileRefs.length,
@@ -108,6 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Retrieve atomic profile
     const profile = await retrieveProfileForJob(userId, job.description);
+    const inferenceSignals = buildInferenceSignals(profile);
 
     // Select most relevant experiences/bullets for this job
     const selection = selectTargetAwareProfile(
@@ -162,6 +165,34 @@ export async function POST(request: NextRequest) {
       experiences: selection.writerExperiences,
       topSkills: selection.skills.map((skill) => skill.canonicalName),
       parsedJD: parsedJob,
+      education: (profile.education || []).map(edu => ({
+        institution: edu.institution,
+        degree: edu.degree,
+        field: edu.fieldOfStudy,
+        startDate: edu.startDate,
+        endDate: edu.endDate,
+        graduationDate: edu.endDate, // Use endDate as graduation date if available
+      })),
+      certifications: (profile.certifications || []).map(cert => ({
+        name: cert.name,
+        issuer: cert.issuer,
+        date: cert.issueDate,
+      })),
+      // Only include contact info fields that have values (optional fields)
+      contactInfo: profile.contactInfo ? {
+        name: profile.contactInfo.name || undefined,
+        email: profile.contactInfo.email || undefined,
+        phone: profile.contactInfo.phone || undefined,
+        linkedin: profile.contactInfo.linkedin || undefined,
+        portfolio: profile.contactInfo.portfolio || undefined,
+        // Note: address is intentionally excluded - never include in resume
+      } : undefined,
+      canonicalSkillPool: inferenceSignals.skillUniverse,
+      inferenceContext: {
+        experienceHighlights: inferenceSignals.experienceHighlights,
+        metricSignals: inferenceSignals.metricSignals,
+        instructions: 'Use these canonical highlights when inferring new ATS-aligned bullets. Only add content when it is logically implied by the supplied highlights or metric signals, and reference the supporting highlight in the bullet text.',
+      },
     };
 
     // Generate tailored resume (Atomic)
@@ -238,6 +269,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ resumeVersion });
   } catch (error: any) {
     console.error('❌ Generation error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack?.split('\n').slice(0, 5),
+    });
 
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -246,10 +281,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Return more specific error message for debugging
+    const errorMessage = error.message || 'Internal server error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n')[0] : undefined,
+      },
       { status: 500 }
     );
   }
+}
+
+const MAX_INFERENCE_HIGHLIGHTS = 12;
+
+function buildInferenceSignals(profile: RetrievedProfile) {
+  const experienceHighlights = profile.experiences
+    .map((experience) => {
+      const bulletSnippets = (experience.bullets || [])
+        .map((bullet) => bullet.text)
+        .filter(Boolean)
+        .slice(0, 2);
+
+      const range = formatExperienceRange(
+        experience.startDate,
+        experience.endDate,
+        experience.isCurrent
+      );
+
+      if (bulletSnippets.length === 0) {
+        return `${experience.title} @ ${experience.company} (${range})`;
+      }
+
+      return `${experience.title} @ ${experience.company} (${range}) — ${bulletSnippets.join(' || ')}`;
+    })
+    .filter(Boolean)
+    .slice(0, MAX_INFERENCE_HIGHLIGHTS);
+
+  const metricSignals = profile.experiences
+    .flatMap((experience) =>
+      (experience.bullets || [])
+        .filter((bullet) => /\d/.test(bullet.text || '') || /%/.test(bullet.text || ''))
+        .map((bullet) => `${experience.company}: ${bullet.text}`)
+    )
+    .filter(Boolean)
+    .slice(0, MAX_INFERENCE_HIGHLIGHTS);
+
+  const skillUniverse = profile.skills.map((skill) => skill.canonicalName);
+
+  return {
+    experienceHighlights,
+    metricSignals,
+    skillUniverse,
+  };
+}
+
+function formatExperienceRange(
+  start?: string | null,
+  end?: string | null,
+  isCurrent?: boolean
+) {
+  const startLabel = start || 'n/a';
+  if (isCurrent || !end) {
+    return `${startLabel} - Present`;
+  }
+  return `${startLabel} - ${end}`;
 }
 

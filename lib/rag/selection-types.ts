@@ -23,10 +23,45 @@ export type WriterExperience = {
   bullet_candidates: WriterBulletCandidate[];
 };
 
+export type WriterEducation = {
+  institution: string;
+  degree?: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+  graduationDate?: string;
+};
+
+export type WriterCertification = {
+  name: string;
+  issuer?: string;
+  date?: string;
+};
+
+export type WriterContactInfo = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  portfolio?: string;
+  // Note: address is intentionally excluded - never include in resume
+};
+
+export type WriterInferenceContext = {
+  experienceHighlights: string[];
+  metricSignals: string[];
+  instructions?: string;
+};
+
 export type TargetedProfilePayload = {
   experiences: WriterExperience[];
   topSkills: string[];
   parsedJD: ParsedJobDescription;
+  education?: WriterEducation[];
+  certifications?: WriterCertification[];
+  contactInfo?: WriterContactInfo;
+  canonicalSkillPool?: string[];
+  inferenceContext?: WriterInferenceContext;
 };
 
 
