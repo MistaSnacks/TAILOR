@@ -33,7 +33,7 @@ export interface ResumeContact {
   phone?: string;
   linkedin?: string;
   portfolio?: string;
-  // Note: address/location intentionally excluded from resume output
+  location?: string;
 }
 
 export interface ResumeContent {
@@ -120,7 +120,7 @@ export function normalizeResumeContent(content: any): ResumeContent {
           phone: content.contactInfo?.phone || content.contact?.phone || '',
           linkedin: content.contactInfo?.linkedin || content.contact?.linkedin || '',
           portfolio: content.contactInfo?.portfolio || content.contact?.portfolio || '',
-          // Note: address/location is intentionally excluded from resume output
+          location: content.contactInfo?.location || content.contact?.location || '',
         },
         meta:
           experienceValidation.filtered.length || experienceValidation.warnings.length
@@ -192,6 +192,16 @@ const PLACEHOLDER_EXACT_MATCHES = [
   '20xx',
   'tbd',
   'n/a',
+  'not provided',
+  'not available',
+  'to be determined',
+  'example company',
+  'example title',
+  'your name',
+  'full name',
+  'email address',
+  'phone number',
+  'address line',
 ];
 
 const PLACEHOLDER_REGEXPS = [
@@ -203,8 +213,8 @@ const PLACEHOLDER_REGEXPS = [
   /\bzz+\b/i,
   /company\s+name/i,
   /job\s+title/i,
-  /insert\s+(company|title|role)/i,
-  /sample\s+(company|title)/i,
+  /insert\s+(company|title|role|your|name)/i,
+  /sample\s+(company|title|text)/i,
   /city,\s*state/i,
   /mm\/yyyy/i,
   /month\s+year/i,
@@ -212,6 +222,17 @@ const PLACEHOLDER_REGEXPS = [
   /\byyyy\b/i,
   /\btbd\b/i,
   /\bn\/a\b/i,
+  /\bnot\s+provided\b/i,
+  /\bnot\s+available\b/i,
+  /\bto\s+be\s+determined\b/i,
+  /\bexample\s+(company|title|name)\b/i,
+  /\byour\s+(company|title|name|email|phone)\b/i,
+  /\bfull\s+name\b/i,
+  /\bemail\s+address\b/i,
+  /\bphone\s+number\b/i,
+  /\baddress\s+line\b/i,
+  /\benter\s+(your|company|title|name)\b/i,
+  /\bfill\s+in\b/i,
 ];
 
 type ExperienceCandidate = Partial<ResumeExperience> & {
@@ -352,6 +373,235 @@ export function filterEligibleExperiences(
   );
 
   return { eligible, filtered, warnings };
+}
+
+/**
+ * Post-process resume content to remove any remaining ghost/placeholder data
+ * This is a final safety check after generation
+ */
+/**
+ * Format resume content as a readable string for ATS scoring
+ * Excludes metadata like critic and validator data
+ */
+export function formatResumeForAts(content: ResumeContent): string {
+  const parts: string[] = [];
+
+  // Contact info
+  if (content.contact) {
+    const contactParts: string[] = [];
+    if (content.contact.name) contactParts.push(`Name: ${content.contact.name}`);
+    if (content.contact.email) contactParts.push(`Email: ${content.contact.email}`);
+    if (content.contact.phone) contactParts.push(`Phone: ${content.contact.phone}`);
+    if (content.contact.linkedin) contactParts.push(`LinkedIn: ${content.contact.linkedin}`);
+    if (content.contact.portfolio) contactParts.push(`Portfolio: ${content.contact.portfolio}`);
+    if (contactParts.length > 0) {
+      parts.push('CONTACT INFORMATION');
+      parts.push(contactParts.join('\n'));
+      parts.push('');
+    }
+  }
+
+  // Summary
+  if (content.summary) {
+    parts.push('PROFESSIONAL SUMMARY');
+    parts.push(content.summary);
+    parts.push('');
+  }
+
+  // Skills
+  if (content.skills && content.skills.length > 0) {
+    parts.push('SKILLS');
+    parts.push(content.skills.join(', '));
+    parts.push('');
+  }
+
+  // Experience
+  if (content.experience && content.experience.length > 0) {
+    parts.push('PROFESSIONAL EXPERIENCE');
+    content.experience.forEach((exp) => {
+      const expParts: string[] = [];
+      expParts.push(`${exp.title} at ${exp.company}`);
+      if (exp.location) expParts.push(`Location: ${exp.location}`);
+      if (exp.startDate || exp.endDate) {
+        const dateRange = `${exp.startDate || ''} - ${exp.endDate || 'Present'}`;
+        expParts.push(`Dates: ${dateRange}`);
+      }
+      if (exp.bullets && exp.bullets.length > 0) {
+        exp.bullets.forEach((bullet) => {
+          // Handle both string and object formats
+          const bulletText = typeof bullet === 'string'
+            ? bullet
+            : (bullet && typeof bullet === 'object' && 'text' in (bullet as any) && typeof (bullet as any).text === 'string')
+              ? (bullet as any).text
+              : '';
+          if (bulletText) {
+            expParts.push(`• ${bulletText}`);
+          }
+        });
+      }
+      parts.push(expParts.join('\n'));
+      parts.push('');
+    });
+  }
+
+  // Education
+  if (content.education && content.education.length > 0) {
+    parts.push('EDUCATION');
+    content.education.forEach((edu) => {
+      const eduParts: string[] = [];
+      if (edu.degree) eduParts.push(edu.degree);
+      if (edu.field) eduParts.push(`in ${edu.field}`);
+      if (edu.school) eduParts.push(`from ${edu.school}`);
+      if (edu.startDate || edu.endDate || edu.year) {
+        const date = edu.endDate || edu.year || '';
+        if (date) eduParts.push(`(${date})`);
+      }
+      parts.push(eduParts.join(' '));
+    });
+    parts.push('');
+  }
+
+  // Certifications
+  if (content.certifications && content.certifications.length > 0) {
+    parts.push('CERTIFICATIONS');
+    content.certifications.forEach((cert) => {
+      const certParts: string[] = [];
+      certParts.push(cert.name);
+      if (cert.issuer) certParts.push(`from ${cert.issuer}`);
+      if (cert.date) certParts.push(`(${cert.date})`);
+      parts.push(certParts.join(' '));
+    });
+    parts.push('');
+  }
+
+  return parts.join('\n');
+}
+
+export function removeGhostData(content: ResumeContent): ResumeContent {
+  if (!content) return content;
+
+  const cleaned: ResumeContent = { ...content };
+
+  // Filter out experiences with placeholder data
+  if (cleaned.experience && Array.isArray(cleaned.experience)) {
+    cleaned.experience = cleaned.experience
+      .map((exp) => {
+        // Check each field for placeholders
+        const title = scrubField(exp.title);
+        const company = scrubField(exp.company);
+        const location = exp.location ? scrubField(exp.location) : { value: '', placeholder: false };
+        const startDate = exp.startDate ? scrubField(exp.startDate) : { value: '', placeholder: false };
+        const endDate = exp.endDate ? scrubField(exp.endDate) : { value: '', placeholder: false };
+
+        // If title or company is placeholder, skip this experience
+        if (title.placeholder || company.placeholder) {
+          return null;
+        }
+
+        // Clean bullets
+        const cleanedBullets = (exp.bullets || [])
+          .map((bullet) => {
+            const cleaned = scrubField(bullet);
+            return cleaned.placeholder ? null : cleaned.value;
+          })
+          .filter((bullet): bullet is string => Boolean(bullet));
+
+        return {
+          ...exp,
+          title: title.value,
+          company: company.value,
+          location: location.placeholder ? undefined : location.value || undefined,
+          startDate: startDate.placeholder ? undefined : startDate.value || undefined,
+          endDate: endDate.placeholder ? undefined : endDate.value || undefined,
+          bullets: cleanedBullets,
+        };
+      })
+      .filter((exp) => exp !== null && Boolean(exp.title && exp.company)) as ResumeExperience[];
+  }
+
+  // Filter out skills with placeholder data
+  if (cleaned.skills && Array.isArray(cleaned.skills)) {
+    cleaned.skills = cleaned.skills
+      .map((skill) => {
+        const cleaned = scrubField(skill);
+        return cleaned.placeholder ? null : cleaned.value;
+      })
+      .filter((skill) => Boolean(skill) && skill!.length > 0) as string[];
+  }
+
+  // Filter out education with placeholder data
+  if (cleaned.education && Array.isArray(cleaned.education)) {
+    cleaned.education = cleaned.education
+      .map((edu) => {
+        const school = scrubField(edu.school);
+        const degree = scrubField(edu.degree);
+
+        if (school.placeholder || degree.placeholder) {
+          return null;
+        }
+
+        const field = edu.field ? scrubField(edu.field) : { value: '', placeholder: false };
+        const startDate = edu.startDate ? scrubField(edu.startDate) : { value: '', placeholder: false };
+        const endDate = edu.endDate ? scrubField(edu.endDate) : { value: '', placeholder: false };
+
+        return {
+          ...edu,
+          school: school.value,
+          degree: degree.value,
+          field: field.placeholder ? undefined : field.value || undefined,
+          startDate: startDate.placeholder ? undefined : startDate.value || undefined,
+          endDate: endDate.placeholder ? undefined : endDate.value || undefined,
+        };
+      })
+      .filter((edu) => edu !== null && Boolean(edu.school && edu.degree)) as ResumeEducation[];
+  }
+
+  // Filter out certifications with placeholder data
+  if (cleaned.certifications && Array.isArray(cleaned.certifications)) {
+    cleaned.certifications = cleaned.certifications
+      .map((cert) => {
+        const name = scrubField(cert.name);
+        if (name.placeholder) {
+          return null;
+        }
+
+        const issuer = cert.issuer ? scrubField(cert.issuer) : { value: '', placeholder: false };
+        const date = cert.date ? scrubField(cert.date) : { value: '', placeholder: false };
+
+        return {
+          ...cert,
+          name: name.value,
+          issuer: issuer.placeholder ? undefined : issuer.value || undefined,
+          date: date.placeholder ? undefined : date.value || undefined,
+        };
+      })
+      .filter((cert) => cert !== null && Boolean(cert.name)) as ResumeCertification[];
+  }
+
+  // Clean contact info
+  if (cleaned.contact) {
+    const name = cleaned.contact.name ? scrubField(cleaned.contact.name) : { value: '', placeholder: false };
+    const email = cleaned.contact.email ? scrubField(cleaned.contact.email) : { value: '', placeholder: false };
+    const phone = cleaned.contact.phone ? scrubField(cleaned.contact.phone) : { value: '', placeholder: false };
+    const linkedin = cleaned.contact.linkedin ? scrubField(cleaned.contact.linkedin) : { value: '', placeholder: false };
+    const portfolio = cleaned.contact.portfolio ? scrubField(cleaned.contact.portfolio) : { value: '', placeholder: false };
+
+    cleaned.contact = {
+      name: name.placeholder ? undefined : name.value || undefined,
+      email: email.placeholder ? undefined : email.value || undefined,
+      phone: phone.placeholder ? undefined : phone.value || undefined,
+      linkedin: linkedin.placeholder ? undefined : linkedin.value || undefined,
+      portfolio: portfolio.placeholder ? undefined : portfolio.value || undefined,
+    };
+  }
+
+  // Clean summary
+  if (cleaned.summary) {
+    const summary = scrubField(cleaned.summary);
+    cleaned.summary = summary.placeholder ? undefined : summary.value || undefined;
+  }
+
+  return cleaned;
 }
 
 function scrubField(value?: string | null): { value: string; placeholder: boolean } {

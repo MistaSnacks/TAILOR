@@ -256,7 +256,7 @@ async function fetchRawProfile(userId: string): Promise<{
   };
 }
 
-async function buildCanonicalExperiences(
+export async function buildCanonicalExperiences(
   experiences: ExperienceRow[]
 ): Promise<CanonicalExperienceRecord[]> {
   if (!experiences.length) {
@@ -628,7 +628,7 @@ function normalizeCompany(company: string): { normalized: string; display: strin
   const normalized = trimmed
     .toLowerCase()
     .replace(/[,\.]/g, ' ')
-    .replace(/\b(inc|llc|corp|co|ltd|limited|company)\b/g, '')
+    .replace(/\b(inc|llc|corp|co|ltd|limited|company|financial|services|solutions|group|holdings|technologies|systems)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 

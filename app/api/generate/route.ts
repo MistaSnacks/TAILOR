@@ -5,8 +5,9 @@ import { requireAuth } from '@/lib/auth-utils';
 import { retrieveProfileForJob } from '@/lib/rag/retriever';
 import type { RetrievedProfile } from '@/lib/rag/retriever';
 import { selectTargetAwareProfile } from '@/lib/rag/selector';
-import { normalizeResumeContent } from '@/lib/resume-content';
+import { normalizeResumeContent, removeGhostData } from '@/lib/resume-content';
 import { runResumeCritic } from '@/lib/resume-critic';
+import { validateAndRefineResume, type ValidatorMetadata } from '@/lib/resume-validator';
 import { parseJobDescriptionToContext } from '@/lib/rag/parser';
 
 // 🔑 Environment variable logging (REMOVE IN PRODUCTION)
@@ -195,6 +196,41 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    const jobKeywordUniverse = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(job.required_skills) ? job.required_skills : []),
+          ...(parsedJob?.hardSkills || []),
+          ...(parsedJob?.softSkills || []),
+          ...(parsedJob?.keyPhrases || []),
+        ]
+          .map((keyword) => (typeof keyword === 'string' ? keyword.trim() : ''))
+          .filter((keyword) => keyword.length > 0)
+      )
+    );
+
+    console.log('🧠 JD keyword universe prepared:', {
+      totalKeywords: jobKeywordUniverse.length,
+      sample: jobKeywordUniverse.slice(0, 8),
+    });
+
+    const candidateSkillUniverse = Array.from(
+      new Set(
+        [
+          ...(targetedProfile.canonicalSkillPool || []),
+          ...(targetedProfile.topSkills || []),
+          ...((selection.skills || []).map((skill) => skill.canonicalName)),
+        ]
+          .map((skill) => (typeof skill === 'string' ? skill.trim() : ''))
+          .filter((skill) => skill.length > 0)
+      )
+    );
+
+    console.log('🧾 Candidate canonical skill universe prepared:', {
+      totalSkills: candidateSkillUniverse.length,
+      sample: candidateSkillUniverse.slice(0, 10),
+    });
+
     // Generate tailored resume (Atomic)
     const rawResumeContent = await generateTailoredResumeAtomic(
       job.description,
@@ -204,28 +240,71 @@ export async function POST(request: NextRequest) {
 
     const normalizedDraft = normalizeResumeContent(rawResumeContent);
 
-    let finalResumeContent = normalizedDraft;
-    let criticMetadata: any = null;
+    // Remove any ghost/placeholder data before critic
+    const cleanedDraft = removeGhostData(normalizedDraft);
 
+    let finalResumeContent = cleanedDraft;
+    let criticMetadata: any = null;
+    let validatorMetadata: ValidatorMetadata | null = null;
+
+    // Step 1: Run critic to improve bullet quality and structure
     try {
       const criticResult = await runResumeCritic({
-        resumeDraft: normalizedDraft,
+        resumeDraft: cleanedDraft,
         jobDescription: job.description,
         parsedJob,
       });
 
       finalResumeContent = criticResult.revisedResume;
       criticMetadata = criticResult.critique;
+      console.log('✅ Critic pass completed:', {
+        issuesFound: criticMetadata?.issues?.length || 0,
+        overallScore: criticMetadata?.score?.overall || 0,
+      });
     } catch (criticError) {
       console.error('❌ Resume critic error:', criticError);
     }
 
-    const storedContent = criticMetadata
-      ? {
-          ...finalResumeContent,
-          critic: criticMetadata,
-        }
-      : finalResumeContent;
+    // Step 2: Run validator micro-agent for final JD alignment pass
+    try {
+      const validatorResult = await validateAndRefineResume({
+        resumeDraft: finalResumeContent,
+        jobDescription: job.description,
+        parsedJob,
+        jobKeywords: jobKeywordUniverse,
+        candidateSkillUniverse,
+        keywordInjectionLimit: 12,
+      });
+
+      finalResumeContent = validatorResult.refinedResume;
+      validatorMetadata = validatorResult.metadata;
+      console.log('✅ Validator pass completed:', {
+        changesCount: validatorMetadata.changes.length,
+        summaryChanged: validatorMetadata.summaryChanged,
+        skillsChanged: validatorMetadata.skillsChanged,
+        jdKeywordsAdded: validatorMetadata.jdKeywordsAdded.length,
+      });
+    } catch (validatorError) {
+      console.error('❌ Resume validator error:', validatorError);
+      // Continue with critic output if validator fails
+    }
+
+    // Final pass: remove any remaining ghost data after all processing
+    const finalCleanedContent = removeGhostData(finalResumeContent);
+
+    const storedContent: any = {
+      ...finalCleanedContent,
+    };
+
+    // Store critic metadata if available
+    if (criticMetadata) {
+      storedContent.critic = criticMetadata;
+    }
+
+    // Store validator metadata if available
+    if (validatorMetadata) {
+      storedContent.validator = validatorMetadata;
+    }
 
     // Create resume version
     const { data: resumeVersion, error: resumeError } = await supabaseAdmin
@@ -249,20 +328,41 @@ export async function POST(request: NextRequest) {
 
     // Calculate ATS score in background
     try {
+      console.log('📊 Calculating ATS score...');
+      // Format resume content for ATS scoring (exclude metadata)
+      const { formatResumeForAts } = await import('@/lib/resume-content');
+      const resumeTextForAts = formatResumeForAts(finalCleanedContent);
+      
       const atsResult = await calculateAtsScore(
         job.description,
-        JSON.stringify(storedContent)
+        resumeTextForAts
       );
 
-      await supabaseAdmin.from('ats_scores').insert({
+      console.log('✅ ATS score calculated:', {
+        score: atsResult.score,
+        keywordMatch: atsResult.keywordMatch,
+        semanticSimilarity: atsResult.semanticSimilarity,
+      });
+
+      const { error: atsInsertError } = await supabaseAdmin.from('ats_scores').insert({
         resume_version_id: resumeVersion.id,
         score: atsResult.score,
         keyword_match: atsResult.keywordMatch,
         semantic_similarity: atsResult.semanticSimilarity,
         analysis: atsResult.analysis,
       });
-    } catch (atsError) {
-      console.error('ATS scoring error:', atsError);
+
+      if (atsInsertError) {
+        console.error('❌ ATS score insert error:', atsInsertError);
+      } else {
+        console.log('✅ ATS score saved to database');
+      }
+    } catch (atsError: any) {
+      console.error('❌ ATS scoring error:', atsError);
+      console.error('ATS error details:', {
+        message: atsError?.message,
+        stack: atsError?.stack?.split('\n').slice(0, 3),
+      });
       // Don't fail the request if ATS scoring fails
     }
 
@@ -284,7 +384,7 @@ export async function POST(request: NextRequest) {
     // Return more specific error message for debugging
     const errorMessage = error.message || 'Internal server error';
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack?.split('\n')[0] : undefined,
       },

@@ -10,6 +10,11 @@ import { supabaseAdmin } from '@/lib/supabase';
  */
 export async function getUserId(): Promise<string | null> {
   try {
+    if (process.env.DEBUG_USER_ID) {
+      console.warn('⚠️ DEBUG_USER_ID override active (REMOVE IN PRODUCTION)');
+      return process.env.DEBUG_USER_ID;
+    }
+
     const session = await getServerSession(authOptions);
     
     console.log('🔐 getUserId check:', {

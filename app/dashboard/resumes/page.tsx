@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, FileText, Download, Edit, CheckCircle } from 'lucide-react';
 import { normalizeResumeContent, type ResumeContent } from '@/lib/resume-content';
+import { TailorLoading } from '@/components/ui/tailor-loader';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ExperienceEntry = NonNullable<ResumeContent['experience']>[number];
 type EducationEntry = NonNullable<ResumeContent['education']>[number];
@@ -413,633 +415,595 @@ function ResumesContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+        <TailorLoading mode="resume" />
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="font-display text-4xl font-bold mb-6">My Resumes</h1>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-4xl font-bold font-display mb-2">My Resumes</h1>
+          <p className="text-muted-foreground">
+            Manage and tailor your resumes for different job applications.
+          </p>
+        </div>
+        <a
+          href="/dashboard/generate"
+          className="px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
+        >
+          <FileText className="w-4 h-4" />
+          New Resume
+        </a>
+      </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center gap-2">
+          <X className="w-4 h-4" />
           {error}
         </div>
       )}
 
       {resumes.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📄</div>
-          <h3 className="font-display text-xl font-semibold mb-2">
-            No resumes yet
-          </h3>
+        <div className="text-center py-16 glass-card rounded-xl border border-dashed border-border">
+          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No resumes yet</h3>
           <p className="text-muted-foreground mb-6">
-            Generate your first tailored resume
+            Create your first tailored resume to get started.
           </p>
           <a
             href="/dashboard/generate"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-primary to-secondary text-slate-950 font-semibold rounded-lg hover:opacity-90 transition-opacity"
+            className="px-6 py-3 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all inline-flex items-center gap-2"
           >
-            Generate Resume
+            Create Resume
           </a>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+        >
           {resumes.map((resume) => (
-            <div
+            <motion.div
               key={resume.id}
-              className={`p-6 rounded-lg bg-card border-2 transition-colors ${highlightId === resume.id
-                ? 'border-primary'
-                : 'border-border hover:border-primary/50'
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 }
+              }}
+              className={`glass-card p-6 rounded-xl border transition-all duration-200 hover:border-primary/50 hover:shadow-lg group ${highlightId === resume.id ? 'ring-2 ring-primary' : 'border-border'
                 }`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 pr-2">
-                  <h3 className="font-display text-lg font-semibold">
-                    {resume.job?.title || 'Untitled'}
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg truncate pr-2" title={resume.job?.title}>
+                    {resume.job?.title || 'Untitled Resume'}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {resume.job?.company || 'No company'}
+                  <p className="text-sm text-muted-foreground truncate" title={resume.job?.company}>
+                    {resume.job?.company || 'No Company'}
                   </p>
                 </div>
-                <div className="flex items-start gap-2">
-                  {resume.ats_score && (
-                    <div className="flex items-center gap-2">
-                      <div className="text-2xl font-bold text-primary">
-                        {resume.ats_score.score}
-                      </div>
-                      <div className="text-xs text-muted-foreground">ATS</div>
-                    </div>
-                  )}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleDownload(resume.id)}
+                    disabled={downloading === resume.id}
+                    className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors"
+                    title="Download DOCX"
+                  >
+                    {downloading === resume.id ? (
+                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                  </button>
                   <button
                     onClick={() => handleDelete(resume.id, resume.job?.title)}
                     disabled={deleting === resume.id}
-                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Delete resume"
+                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
+                    title="Delete"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {deleting === resume.id ? (
+                      <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-2 py-1 text-xs rounded bg-primary/20 text-primary">
-                  {resume.template}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(resume.created_at).toLocaleDateString()}
-                </span>
-              </div>
+              {/* View Button */}
+              <button
+                onClick={() => handleView(resume)}
+                className="w-full px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                View Resume
+              </button>
 
-              <div className="flex gap-2">
-                <button
-                  className="flex-1 px-4 py-2 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors text-sm"
-                  onClick={() => handleView(resume)}
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => handleDownload(resume.id)}
-                  disabled={downloading === resume.id}
-                  className="flex-1 px-4 py-2 bg-secondary/10 text-secondary rounded hover:bg-secondary/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {downloading === resume.id ? 'Downloading...' : 'Download'}
-                </button>
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
+                <div className="text-xs text-muted-foreground">
+                  {new Date(resume.created_at).toLocaleDateString()}
+                </div>
+                {resume.ats_score?.score != null && (
+                  <div className={`text-xs font-medium px-2 py-1 rounded-full ${resume.ats_score.score >= 80 ? 'bg-green-500/10 text-green-500' :
+                    resume.ats_score.score >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
+                      'bg-red-500/10 text-red-500'
+                    }`}>
+                    ATS: {resume.ats_score.score}%
+                  </div>
+                )}
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
-      {/* View Modal */}
-      {viewingResume && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-card border border-border rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+      {/* Resume View/Edit Modal */}
+      <AnimatePresence>
+        {viewingResume && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={closeModal}
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <div>
-                <h2 className="font-display text-2xl font-bold">
-                  {viewingResume.job?.title || 'Resume'}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {viewingResume.job?.company || 'No company'} • {viewingResume.template}
-                </p>
-              </div>
-              <button
-                onClick={closeModal}
-                className="p-2 hover:bg-muted rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="flex flex-wrap gap-2">
-                {(['preview', 'edit', 'keywords'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                      activeTab === tab
-                        ? 'bg-primary text-slate-950'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    {tab === 'preview' && 'Preview'}
-                    {tab === 'edit' && 'Edit'}
-                    {tab === 'keywords' && 'Keywords'}
-                  </button>
-                ))}
-              </div>
-
-              {successMessage && (
-                <div className="p-3 rounded border border-emerald-400/40 bg-emerald-500/10 text-sm text-emerald-200">
-                  {successMessage}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-background w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-border"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+                <div>
+                  <h2 className="text-xl font-bold font-display">
+                    {viewingResume.job?.title || 'Untitled Resume'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {viewingResume.job?.company || 'No Company'}
+                  </p>
                 </div>
-              )}
-
-              {viewingLoading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  Loading resume details...
-                </div>
-              ) : (
-                <>
-                  {activeTab === 'preview' && (
-                    <div className="space-y-6">
-                      {viewingResume.ats_score && (
-                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-4">
-                          <div className="flex flex-wrap items-center gap-4">
-                            <div>
-                              <div className="text-3xl font-bold text-primary">
-                                {viewingResume.ats_score.score}
-                              </div>
-                              <div className="text-xs text-muted-foreground">Overall ATS</div>
-                            </div>
-                            <div>
-                              <div className="text-lg font-semibold text-primary">
-                                {viewingResume.ats_score.keyword_match}%
-                              </div>
-                              <div className="text-xs text-muted-foreground">Keyword Match</div>
-                            </div>
-                            <div>
-                              <div className="text-lg font-semibold text-primary">
-                                {viewingResume.ats_score.semantic_similarity}%
-                              </div>
-                              <div className="text-xs text-muted-foreground">Semantic Fit</div>
-                            </div>
-                          </div>
-                          {atsAnalysis?.strengths && (
-                            <div className="text-sm">
-                              <p className="font-semibold">Strengths</p>
-                              <ul className="list-disc list-inside text-muted-foreground">
-                                {atsAnalysis.strengths.map((item: string, idx: number) => (
-                                  <li key={idx}>{item}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {atsAnalysis?.improvements && (
-                            <div className="text-sm">
-                              <p className="font-semibold">Improvements</p>
-                              <ul className="list-disc list-inside text-muted-foreground">
-                                {atsAnalysis.improvements.map((item: string, idx: number) => (
-                                  <li key={idx}>{item}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        {editedContent?.contact?.name && (
-                          <div>
-                            <h3 className="text-xl font-display font-semibold">
-                              {editedContent.contact.name}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {[editedContent.contact.email, editedContent.contact.phone, editedContent.contact.location]
-                                .filter(Boolean)
-                                .join(' • ')}
-                            </p>
-                          </div>
-                        )}
-
-                        {editedContent?.summary && (
-                          <section className="space-y-2">
-                            <h4 className="text-sm font-semibold tracking-wide text-muted-foreground">
-                              SUMMARY
-                            </h4>
-                            <p className="text-sm leading-relaxed">{editedContent.summary}</p>
-                          </section>
-                        )}
-
-                        {editedContent?.experience && editedContent.experience.length > 0 && (
-                          <section className="space-y-3">
-                            <h4 className="text-sm font-semibold tracking-wide text-muted-foreground">
-                              EXPERIENCE
-                            </h4>
-                            {editedContent.experience.map((exp, idx) => (
-                              <div key={idx} className="text-sm space-y-1 border-b border-border/50 pb-3 last:border-0">
-                                <p className="font-semibold">
-                                  {exp.title} • <span className="text-muted-foreground">{exp.company}</span>
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {[exp.startDate, exp.endDate].filter(Boolean).join(' - ')} {exp.location && `• ${exp.location}`}
-                                </p>
-                                {exp.bullets && exp.bullets.length > 0 && (
-                                  <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                                    {exp.bullets.map((bullet, bulletIdx) => (
-                                      <li key={bulletIdx}>{bullet}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            ))}
-                          </section>
-                        )}
-
-                        {editedContent?.skills && editedContent.skills.length > 0 && (
-                          <section className="space-y-2">
-                            <h4 className="text-sm font-semibold tracking-wide text-muted-foreground">
-                              SKILLS
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                              {editedContent.skills.map((skill, idx) => (
-                                <span key={idx} className="px-2 py-1 text-xs rounded bg-muted text-muted-foreground">
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
-                          </section>
-                        )}
-
-                        {editedContent?.education && editedContent.education.length > 0 && (
-                          <section className="space-y-2">
-                            <h4 className="text-sm font-semibold tracking-wide text-muted-foreground">
-                              EDUCATION
-                            </h4>
-                            {editedContent.education.map((edu, idx) => (
-                              <div key={idx} className="text-sm">
-                                <p className="font-semibold">{edu.degree}</p>
-                                <p className="text-muted-foreground">
-                                  {edu.school} {edu.year && `• ${edu.year}`} {edu.gpa && `• GPA ${edu.gpa}`}
-                                </p>
-                              </div>
-                            ))}
-                          </section>
-                        )}
-
-                        {editedContent?.certifications && editedContent.certifications.length > 0 && (
-                          <section className="space-y-2">
-                            <h4 className="text-sm font-semibold tracking-wide text-muted-foreground">
-                              CERTIFICATIONS
-                            </h4>
-                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                              {editedContent.certifications.map((cert, idx) => (
-                                <li key={idx}>
-                                  {[cert.name, cert.issuer, cert.date].filter(Boolean).join(' • ')}
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        )}
-                      </div>
-
-                      <div className="pt-4 border-t border-border text-xs text-muted-foreground">
-                        Last updated: {new Date(viewingResume.updated_at || viewingResume.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'edit' && (
-                    <div className="space-y-6">
-                      {!editedContent ? (
-                        <div className="text-sm text-muted-foreground">No resume content available.</div>
+                <div className="flex items-center gap-2">
+                  {hasUnsavedChanges && (
+                    <button
+                      onClick={handleSaveEdits}
+                      disabled={savingResume}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+                    >
+                      {savingResume ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Saving...
+                        </>
                       ) : (
                         <>
-                          <section className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-display text-lg font-semibold">Summary</h3>
-                              {hasUnsavedChanges && (
-                                <span className="text-xs text-primary">Unsaved changes</span>
-                              )}
-                            </div>
-                            <textarea
-                              className="w-full rounded border border-border bg-background px-3 py-2 text-sm min-h-[120px]"
-                              value={editedContent.summary || ''}
-                              onChange={(e) =>
-                                setEditedContent((prev) => (prev ? { ...prev, summary: e.target.value } : prev))
-                              }
-                              placeholder="Professional summary"
-                            />
-                          </section>
-
-                          <section className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-display text-lg font-semibold">Experience</h3>
-                              <button
-                                onClick={addExperience}
-                                className="text-sm px-3 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
-                              >
-                                Add role
-                              </button>
-                            </div>
-
-                            {(editedContent.experience || []).map((exp, idx) => (
-                              <div key={idx} className="space-y-3 rounded-lg border border-border p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-semibold text-muted-foreground">Role {idx + 1}</span>
-                                  <button
-                                    onClick={() => removeExperience(idx)}
-                                    className="text-xs text-destructive hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                                <div className="grid md:grid-cols-2 gap-3">
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Job Title"
-                                    value={exp.title}
-                                    onChange={(e) => handleExperienceChange(idx, 'title', e.target.value)}
-                                  />
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Company"
-                                    value={exp.company}
-                                    onChange={(e) => handleExperienceChange(idx, 'company', e.target.value)}
-                                  />
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Location"
-                                    value={exp.location}
-                                    onChange={(e) => handleExperienceChange(idx, 'location', e.target.value)}
-                                  />
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <input
-                                      className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                      placeholder="Start"
-                                      value={exp.startDate}
-                                      onChange={(e) => handleExperienceChange(idx, 'startDate', e.target.value)}
-                                    />
-                                    <input
-                                      className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                      placeholder="End"
-                                      value={exp.endDate}
-                                      onChange={(e) => handleExperienceChange(idx, 'endDate', e.target.value)}
-                                    />
-                                  </div>
-                                </div>
-                                <textarea
-                                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm min-h-[120px]"
-                                  placeholder="One bullet per line"
-                                  value={(exp.bullets || []).join('\n')}
-                                  onChange={(e) => handleExperienceBulletsChange(idx, e.target.value)}
-                                />
-                              </div>
-                            ))}
-                          </section>
-
-                          <section className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-display text-lg font-semibold">Skills</h3>
-                              <span className="text-xs text-muted-foreground">
-                                Separate with commas or new lines
-                              </span>
-                            </div>
-                            <textarea
-                              className="w-full rounded border border-border bg-background px-3 py-2 text-sm min-h-[80px]"
-                              value={(editedContent.skills || []).join(', ')}
-                              onChange={(e) => updateSkillsFromText(e.target.value)}
-                            />
-                          </section>
-
-                          <section className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-display text-lg font-semibold">Education</h3>
-                              <button
-                                onClick={addEducation}
-                                className="text-sm px-3 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
-                              >
-                                Add school
-                              </button>
-                            </div>
-
-                            {(editedContent.education || []).map((edu, idx) => (
-                              <div key={idx} className="space-y-3 rounded-lg border border-border p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-semibold text-muted-foreground">School {idx + 1}</span>
-                                  <button
-                                    onClick={() => removeEducation(idx)}
-                                    className="text-xs text-destructive hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                                <input
-                                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-                                  placeholder="Degree"
-                                  value={edu.degree}
-                                  onChange={(e) => handleEducationChange(idx, 'degree', e.target.value)}
-                                />
-                                <input
-                                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-                                  placeholder="School"
-                                  value={edu.school}
-                                  onChange={(e) => handleEducationChange(idx, 'school', e.target.value)}
-                                />
-                                <div className="grid grid-cols-2 gap-3">
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Year"
-                                    value={edu.year}
-                                    onChange={(e) => handleEducationChange(idx, 'year', e.target.value)}
-                                  />
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="GPA"
-                                    value={edu.gpa}
-                                    onChange={(e) => handleEducationChange(idx, 'gpa', e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </section>
-
-                          <section className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-display text-lg font-semibold">Certifications</h3>
-                              <button
-                                onClick={addCertification}
-                                className="text-sm px-3 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
-                              >
-                                Add certification
-                              </button>
-                            </div>
-
-                            {(editedContent.certifications || []).map((cert, idx) => (
-                              <div key={idx} className="space-y-3 rounded-lg border border-border p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-semibold text-muted-foreground">Certification {idx + 1}</span>
-                                  <button
-                                    onClick={() => removeCertification(idx)}
-                                    className="text-xs text-destructive hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                                <input
-                                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-                                  placeholder="Name"
-                                  value={cert.name}
-                                  onChange={(e) => handleCertificationChange(idx, 'name', e.target.value)}
-                                />
-                                <div className="grid grid-cols-2 gap-3">
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Issuer"
-                                    value={cert.issuer}
-                                    onChange={(e) => handleCertificationChange(idx, 'issuer', e.target.value)}
-                                  />
-                                  <input
-                                    className="rounded border border-border bg-background px-3 py-2 text-sm"
-                                    placeholder="Date"
-                                    value={cert.date}
-                                    onChange={(e) => handleCertificationChange(idx, 'date', e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </section>
+                          <CheckCircle className="w-4 h-4" />
+                          Save Changes
                         </>
                       )}
-                    </div>
+                    </button>
                   )}
 
-                  {activeTab === 'keywords' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-display text-lg font-semibold mb-2">Keyword Suggestions</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Click a keyword to add it to your summary or skills section. These suggestions come from the latest ATS analysis.
+                  <button
+                    onClick={closeModal}
+                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content - Split Panel */}
+              <div className="flex-1 overflow-hidden flex">
+                {/* Left Panel - Resume Preview (Always Visible) */}
+                <div className="w-1/2 overflow-y-auto p-6 bg-muted/10 border-r border-border">
+                  <div className="max-w-[180mm] mx-auto bg-white text-black shadow-lg min-h-[250mm] p-[15mm] text-[11px]">
+                    {/* Resume Header */}
+                    <div className="text-center border-b-2 border-gray-800 pb-3 mb-4">
+                      <h1 className="text-2xl font-bold uppercase tracking-wider mb-1">
+                        {editedContent?.contact?.name || 'Your Name'}
+                      </h1>
+                      <div className="text-[10px] text-gray-600 flex justify-center gap-3 flex-wrap">
+                        {editedContent?.contact?.email && <span>{editedContent.contact.email}</span>}
+                        {editedContent?.contact?.phone && <span>• {editedContent.contact.phone}</span>}
+                        {editedContent?.contact?.location && <span>• {editedContent.contact.location}</span>}
+                        {editedContent?.contact?.linkedin && <span>• {editedContent.contact.linkedin}</span>}
+                      </div>
+                    </div>
+
+                    {/* Summary */}
+                    {editedContent?.summary && (
+                      <div className="mb-4">
+                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
+                          Professional Summary
+                        </h2>
+                        <p className="leading-relaxed text-gray-700">
+                          {editedContent.summary}
                         </p>
                       </div>
+                    )}
 
-                      {keywordSuggestions.length === 0 ? (
-                        <div className="p-4 rounded border border-border text-sm text-muted-foreground">
-                          No missing keywords were detected for this resume. Great job!
-                        </div>
-                      ) : (
+                    {/* Experience */}
+                    {editedContent?.experience && editedContent.experience.length > 0 && (
+                      <div className="mb-4">
+                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
+                          Experience
+                        </h2>
                         <div className="space-y-3">
-                          {keywordSuggestions.map((keyword) => (
-                            <div
-                              key={keyword}
-                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
-                            >
-                              <span className="font-medium">{keyword}</span>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleKeywordApply(keyword, 'summary')}
-                                  className="px-3 py-1 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
-                                >
-                                  Add to Summary
-                                </button>
-                                <button
-                                  onClick={() => handleKeywordApply(keyword, 'skills')}
-                                  className="px-3 py-1 text-xs rounded bg-secondary/10 text-secondary hover:bg-secondary/20"
-                                >
-                                  Add to Skills
-                                </button>
+                          {editedContent.experience.map((exp: ExperienceEntry, i: number) => (
+                            <div key={i}>
+                              <div className="flex justify-between font-bold mb-0.5">
+                                <span>{exp.company}</span>
+                                <span className="text-[10px]">{exp.startDate} - {exp.endDate || 'Present'}</span>
+                              </div>
+                              <div className="flex justify-between italic mb-1 text-gray-700">
+                                <span>{exp.title}</span>
+                                <span className="text-[10px]">{exp.location}</span>
+                              </div>
+                              <ul className="list-disc list-outside ml-4 space-y-0.5">
+                                {exp.bullets?.map((bullet: string, j: number) => (
+                                  <li key={j} className="text-gray-700 pl-1">
+                                    {bullet}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Education */}
+                    {editedContent?.education && editedContent.education.length > 0 && (
+                      <div className="mb-4">
+                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
+                          Education
+                        </h2>
+                        <div className="space-y-2">
+                          {editedContent.education.map((edu: EducationEntry, i: number) => (
+                            <div key={i}>
+                              <div className="flex justify-between font-bold">
+                                <span>{edu.school}</span>
+                                <span className="text-[10px]">{edu.startDate || edu.year} {edu.endDate ? `- ${edu.endDate}` : ''}</span>
+                              </div>
+                              <div className="text-gray-700">
+                                {edu.degree} {edu.gpa ? `(GPA: ${edu.gpa})` : ''}
                               </div>
                             </div>
                           ))}
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      {atsAnalysis?.matchedKeywords && (
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-semibold text-muted-foreground">Already Covered</h4>
+                    {/* Skills */}
+                    {editedContent?.skills && editedContent.skills.length > 0 && (
+                      <div className="mb-4">
+                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
+                          Skills
+                        </h2>
+                        <div className="text-gray-700">
+                          {editedContent.skills.join(' • ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Panel - Tabbed Content */}
+                <div className="w-1/2 flex flex-col overflow-hidden">
+                  {/* Right Panel Tabs */}
+                  <div className="p-3 border-b border-border bg-muted/20">
+                    <div className="flex bg-muted rounded-lg p-1">
+                      <button
+                        onClick={() => setActiveTab('preview')}
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'preview'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        Analysis
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('keywords')}
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'keywords'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        Keywords
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('edit')}
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'edit'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Panel Content */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {/* Analysis Tab */}
+                    {activeTab === 'preview' && (
+                      <div className="space-y-4">
+                        {/* ATS Score */}
+                        {viewingResume.ats_score?.score != null && (
+                          <div className="glass-card p-4 rounded-xl">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-semibold">ATS Score</h3>
+                              <div className={`text-2xl font-bold ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
+                                {viewingResume.ats_score.score}%
+                              </div>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all ${viewingResume.ats_score.score >= 80 ? 'bg-green-500' : viewingResume.ats_score.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${viewingResume.ats_score.score}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Strengths */}
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                            Strengths
+                          </h3>
+                          <ul className="space-y-2">
+                            {atsAnalysis?.strengths && atsAnalysis.strengths.length > 0 ? (
+                              atsAnalysis.strengths.map((strength: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                  <span className="text-green-500 mt-0.5">✓</span>
+                                  <span>{strength}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="text-sm text-muted-foreground">No strengths analysis available</li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* Areas for Improvement */}
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <Edit className="w-5 h-5 text-yellow-500" />
+                            Areas for Improvement
+                          </h3>
+                          <ul className="space-y-2">
+                            {atsAnalysis?.improvements && atsAnalysis.improvements.length > 0 ? (
+                              atsAnalysis.improvements.map((improvement: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                  <span className="text-yellow-500 mt-0.5">→</span>
+                                  <span>{improvement}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="text-sm text-muted-foreground">No improvement suggestions available</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Keywords Tab */}
+                    {activeTab === 'keywords' && (
+                      <div className="space-y-4">
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                            Matched Keywords ({atsAnalysis?.matchedKeywords?.length || 0})
+                          </h3>
                           <div className="flex flex-wrap gap-2">
-                            {atsAnalysis.matchedKeywords.map((keyword: string) => (
-                              <span key={keyword} className="px-2 py-1 text-xs rounded bg-muted text-muted-foreground">
+                            {atsAnalysis?.matchedKeywords && atsAnalysis.matchedKeywords.length > 0 ? (
+                              atsAnalysis.matchedKeywords.map((keyword: string, i: number) => (
+                                <span key={i} className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm border border-green-500/20">
+                                  {keyword}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-sm text-muted-foreground">No matched keywords</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3 flex items-center gap-2">
+                            <X className="w-5 h-5 text-red-500" />
+                            Missing Keywords ({keywordSuggestions.length})
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {keywordSuggestions.length > 0 ? keywordSuggestions.map((keyword: string, i: number) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  const newSkills = [...(editedContent?.skills || []), keyword];
+                                  setEditedContent({ ...editedContent!, skills: newSkills });
+                                }}
+                                className="px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-sm border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1 group"
+                              >
                                 {keyword}
-                              </span>
+                                <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">+</span>
+                              </button>
+                            )) : (
+                              <span className="text-sm text-muted-foreground">Great job! No missing keywords detected.</span>
+                            )}
+                          </div>
+                          {keywordSuggestions.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-3">
+                              Click a keyword to add it to your skills. Changes appear in the resume preview instantly.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Edit Tab */}
+                    {activeTab === 'edit' && (
+                      <div className="space-y-4">
+                        {/* Edit Summary */}
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3">Professional Summary</h3>
+                          <textarea
+                            value={editedContent?.summary || ''}
+                            onChange={(e) => {
+                              setEditedContent((prev) => {
+                                if (!prev) return prev;
+                                return { ...prev, summary: e.target.value };
+                              });
+                            }}
+                            className="w-full h-24 p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                          />
+                        </div>
+
+                        {/* Edit Skills */}
+                        <div className="glass-card p-4 rounded-xl">
+                          <h3 className="font-semibold mb-3">Skills</h3>
+                          <textarea
+                            value={(editedContent?.skills || []).join(', ')}
+                            onChange={(e) => {
+                              const skills = e.target.value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+                              setEditedContent((prev) => prev ? { ...prev, skills } : prev);
+                            }}
+                            placeholder="Separate skills with commas"
+                            className="w-full h-20 p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                          />
+                        </div>
+
+                        {/* Edit Experience */}
+                        <div className="glass-card p-4 rounded-xl">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-semibold">Experience</h3>
+                            <button
+                              onClick={addExperience}
+                              className="text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          <div className="space-y-4">
+                            {editedContent?.experience?.map((exp: ExperienceEntry, i: number) => (
+                              <div key={i} className="p-3 border border-border rounded-lg bg-background/50">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-xs font-semibold text-muted-foreground">{exp.company || `Role ${i + 1}`}</span>
+                                  <button
+                                    onClick={() => removeExperience(i)}
+                                    className="text-xs text-destructive hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                  <input
+                                    value={exp.company}
+                                    onChange={(e) => handleExperienceChange(i, 'company', e.target.value)}
+                                    className="p-2 rounded border border-border bg-background text-sm"
+                                    placeholder="Company"
+                                  />
+                                  <input
+                                    value={exp.title}
+                                    onChange={(e) => handleExperienceChange(i, 'title', e.target.value)}
+                                    className="p-2 rounded border border-border bg-background text-sm"
+                                    placeholder="Title"
+                                  />
+                                </div>
+                                <textarea
+                                  className="w-full rounded border border-border bg-background px-3 py-2 text-xs min-h-[80px]"
+                                  placeholder="One bullet per line"
+                                  value={(exp.bullets || []).join('\n')}
+                                  onChange={(e) => handleExperienceBulletsChange(i, e.target.value)}
+                                />
+                              </div>
                             ))}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-            {/* Modal Footer */}
-            <div className="flex flex-col gap-3 p-6 border-t border-border">
-              <div className="flex flex-wrap justify-between items-center gap-3 text-xs text-muted-foreground">
-                <span>
-                  Created: {new Date(viewingResume.created_at).toLocaleString()}
-                </span>
-                {hasUnsavedChanges && (
-                  <span className="text-primary font-semibold">You have unsaved changes</span>
+              {/* Modal Footer */}
+              <div className="flex flex-col gap-3 p-4 border-t border-border bg-muted/30">
+                {successMessage && (
+                  <div className="flex items-center gap-2 text-sm text-green-600 bg-green-500/10 px-3 py-2 rounded-lg">
+                    <CheckCircle className="w-4 h-4" />
+                    {successMessage}
+                  </div>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {activeTab === 'edit' && (
-                  <>
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div className="text-xs text-muted-foreground">
+                    Created: {new Date(viewingResume.created_at).toLocaleDateString()} • Template: {viewingResume.template}
+                    {viewingResume.ats_score?.score != null && (
+                      <span className={`ml-2 ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
+                        • ATS Score: {viewingResume.ats_score.score}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {activeTab === 'edit' && hasUnsavedChanges && (
+                      <button
+                        onClick={resetEdits}
+                        disabled={savingResume}
+                        className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    )}
                     <button
-                      onClick={resetEdits}
-                      disabled={!hasUnsavedChanges || savingResume}
-                      className="px-4 py-2 rounded bg-muted text-sm hover:bg-muted/80 disabled:opacity-50"
+                      onClick={() => handleDownload(viewingResume.id)}
+                      disabled={downloading === viewingResume.id}
+                      className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm hover:bg-primary/20 transition-colors flex items-center gap-2"
                     >
-                      Reset
+                      {downloading === viewingResume.id ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                          Downloading...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4" />
+                          Download DOCX
+                        </>
+                      )}
                     </button>
                     <button
-                      onClick={handleSaveEdits}
-                      disabled={!hasUnsavedChanges || savingResume}
-                      className="px-4 py-2 rounded bg-primary text-slate-950 text-sm font-semibold disabled:opacity-50"
+                      onClick={closeModal}
+                      className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80 transition-colors"
                     >
-                      {savingResume ? 'Saving...' : 'Save changes'}
+                      Close
                     </button>
-                  </>
-                )}
-                <button
-                  onClick={() => handleDownload(viewingResume.id)}
-                  disabled={downloading === viewingResume.id}
-                  className="px-4 py-2 rounded bg-secondary/10 text-secondary text-sm hover:bg-secondary/20 transition-colors disabled:opacity-50"
-                >
-                  {downloading === viewingResume.id ? 'Downloading...' : 'Download'}
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 rounded bg-muted text-sm hover:bg-muted/80"
-                >
-                  Close
-                </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function ResumesPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="text-muted-foreground">Loading...</div></div>}>
+    <Suspense fallback={<TailorLoading mode="resume" />}>
       <ResumesContent />
     </Suspense>
   );
 }
-

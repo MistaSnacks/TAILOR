@@ -25,6 +25,9 @@ export type SelectionOptions = {
   maxWriterExperiences?: number;
 };
 
+const SEMANTIC_ALIGNMENT_FLOOR = 0.45;
+const KEYWORD_ALIGNMENT_FLOOR = 0.2;
+
 export type ScoreSignals = {
   bulletScore: number;
   keywordScore: number;
@@ -59,6 +62,8 @@ export type TargetedExperience = {
   writerContext: WriterExperience;
   score: number;
   signals: ScoreSignals;
+  alignmentEligible: boolean;
+  alignmentReasons: string[];
 };
 
 export type SelectionDiagnostics = {
@@ -78,6 +83,12 @@ export type SelectionDiagnostics = {
     bulletBudget: number;
     selectedBullets: number;
     signals: ScoreSignals;
+  }>;
+  alignmentFiltered: Array<{
+    experienceId?: string;
+    title?: string;
+    company?: string;
+    reasons: string[];
   }>;
 };
 
@@ -157,6 +168,15 @@ export function selectTargetAwareProfile(
       bulletScore * 0.55 + keywordScore * 0.2 + recencyScore * 0.2 + metricDensity * 0.05
     );
 
+    const alignmentReasons =
+      bulletScore >= SEMANTIC_ALIGNMENT_FLOOR || keywordScore >= KEYWORD_ALIGNMENT_FLOOR
+        ? []
+        : [
+          `semantic_alignment=${bulletScore.toFixed(2)} (<${SEMANTIC_ALIGNMENT_FLOOR})`,
+          `keyword_alignment=${keywordScore.toFixed(2)} (<${KEYWORD_ALIGNMENT_FLOOR})`,
+        ];
+    const alignmentEligible = alignmentReasons.length === 0;
+
     const prepared: PreparedExperience = {
       ...experience,
       relevance_score: Number(score.toFixed(3)),
@@ -176,24 +196,38 @@ export function selectTargetAwareProfile(
       writerContext,
       score,
       signals: scoreSignals,
+      alignmentEligible,
+      alignmentReasons,
     };
   });
 
   const sorted = scoredExperiences.sort((a, b) => b.score - a.score);
-  
-  // First, get experiences meeting the minimum score threshold
-  let selected = sorted.filter((entry) => entry.score >= minScore).slice(0, maxExperiences);
+  const aligned = sorted.filter((entry) => entry.alignmentEligible);
+  const misaligned = sorted.filter((entry) => !entry.alignmentEligible);
 
-  // If we have fewer than maxExperiences, include lower-scoring ones too
-  // This ensures we don't produce a "thin" resume when semantic match is low
-  if (selected.length < maxExperiences && sorted.length > selected.length) {
-    const remaining = sorted
+  // First, get aligned experiences meeting the minimum score threshold
+  let selected = aligned.filter((entry) => entry.score >= minScore).slice(0, maxExperiences);
+
+  // If needed, pull in aligned experiences that are below the score floor
+  if (selected.length < maxExperiences && aligned.length > selected.length) {
+    const remainingAligned = aligned
       .filter((entry) => entry.score < minScore)
       .slice(0, maxExperiences - selected.length);
-    selected = [...selected, ...remaining];
-    
-    if (remaining.length > 0) {
-      console.log(`📊 Added ${remaining.length} below-threshold experiences to reach ${selected.length} total`);
+    selected = [...selected, ...remainingAligned];
+
+    if (remainingAligned.length > 0) {
+      console.log(`(NO $) 📊 Added ${remainingAligned.length} aligned but below-threshold experiences to reach ${selected.length} total`);
+    }
+  }
+
+  // As a last resort, fill remaining slots with misaligned experiences
+  let alignmentFallbackUsed = false;
+  if (selected.length < maxExperiences && misaligned.length > 0) {
+    alignmentFallbackUsed = true;
+    const fallback = misaligned.slice(0, maxExperiences - selected.length);
+    selected = [...selected, ...fallback];
+    if (fallback.length > 0) {
+      console.log(`(NO $) ⚠️ Used ${fallback.length} low-alignment fallback experiences to avoid empty resume sections`);
     }
   }
 
@@ -241,6 +275,19 @@ export function selectTargetAwareProfile(
     .slice(0, maxWriterExperiences)
     .map((entry) => entry.writerContext);
   const flattenedBullets = selected.flatMap((entry) => entry.selectedBullets);
+  const alignmentFiltered = misaligned.map((entry) => ({
+    experienceId: entry.id,
+    title: entry.experience.title,
+    company: entry.experience.company,
+    reasons: entry.alignmentReasons,
+  }));
+  const alignmentWarnings =
+    alignmentFiltered.length > 0
+      ? [`${alignmentFiltered.length} experiences dropped for low JD alignment`]
+      : [];
+  const fallbackWarnings = alignmentFallbackUsed
+    ? ['Used low-alignment experiences due to insufficient aligned matches']
+    : [];
 
   const diagnostics: SelectionDiagnostics = {
     totalExperiences: canonicalExperiences.length,
@@ -248,6 +295,8 @@ export function selectTargetAwareProfile(
     filteredExperiences: mapFiltered(experienceValidation.filtered),
     warnings: [
       ...experienceValidation.warnings,
+      ...alignmentWarnings,
+      ...fallbackWarnings,
       ...(selected.length === 0 ? ['No experiences met the minimum relevance threshold'] : []),
     ].filter(Boolean),
     jobKeywordSample: jobKeywords.slice(0, 10),
@@ -258,6 +307,7 @@ export function selectTargetAwareProfile(
       selectedBullets: entry.selectedBullets.length,
       signals: entry.signals,
     })),
+    alignmentFiltered,
   };
 
   return {
@@ -508,7 +558,7 @@ function computeBulletScore(bullets: TargetedBullet[]): number {
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
 
   const weightedScore = bullets.reduce((sum, bullet, index) => {
-    const similarity = clamp(bullet.score);
+    const similarity = clamp(bullet.similarity);
     return sum + similarity * weights[index];
   }, 0);
 

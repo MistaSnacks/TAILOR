@@ -8,9 +8,17 @@ type PlaceholderPattern = {
 
 const PLACEHOLDER_PATTERNS: PlaceholderPattern[] = [
   { label: 'company_name', source: '\\bCompany Name\\b' },
+  { label: 'your_company', source: '\\bYour Company\\b' },
   { label: 'job_title', source: '\\bJob Title\\b' },
+  { label: 'position_title', source: '\\bPosition Title\\b' },
+  { label: 'insert_title', source: '\\bInsert Title\\b' },
+  { label: 'insert_company', source: '\\bInsert Company\\b' },
+  { label: 'sample_company', source: '\\bSample Company\\b' },
+  { label: 'sample_title', source: '\\bSample Title\\b' },
   { label: 'full_name', source: '\\bFull Name\\b' },
+  { label: 'your_name', source: '\\bYour Name\\b' },
   { label: 'city_state', source: '\\bCity, State\\b' },
+  { label: 'location', source: '\\bLocation\\b' },
   { label: 'address_line', source: '\\bAddress Line(?: 1| 2)?\\b' },
   { label: 'phone_placeholder', source: '\\b123-456-7890\\b' },
   { label: 'email_placeholder', source: '\\b(?:email@domain\\.com|email@example\\.com)\\b' },
@@ -20,14 +28,29 @@ const PLACEHOLDER_PATTERNS: PlaceholderPattern[] = [
   { label: 'angle_brackets', source: '<[^>]+>' },
   { label: 'lorem_ipsum', source: '\\bLorem ipsum\\b' },
   { label: 'template_word', source: '\\bTemplate\\b' },
+  { label: 'not_provided', source: '\\bNot Provided\\b' },
+  { label: 'not_available', source: '\\bNot Available\\b' },
+  { label: 'to_be_determined', source: '\\bTo Be Determined\\b' },
+  { label: 'example_company', source: '\\bExample Company\\b' },
+  { label: 'example_title', source: '\\bExample Title\\b' },
+  { label: 'enter_patterns', source: '\\bEnter (?:Your|Company|Title|Name)\\b' },
+  { label: 'fill_in', source: '\\bFill In\\b' },
 ];
 
 const EXACT_PLACEHOLDERS = new Set(
   [
     'company name',
+    'your company',
     'job title',
+    'position title',
+    'insert title',
+    'insert company',
+    'sample company',
+    'sample title',
     'full name',
+    'your name',
     'city, state',
+    'location',
     'address line 1',
     'address line 2',
     'email address',
@@ -36,8 +59,19 @@ const EXACT_PLACEHOLDERS = new Set(
     'insert objective here',
     'yyyy-mm',
     'mm/yyyy',
+    'month year',
+    'yyyy',
+    'yyyy-yyyy',
+    '20xx',
     'not provided',
+    'not available',
+    'to be determined',
     'tbd',
+    'n/a',
+    'example company',
+    'example title',
+    'placeholder',
+    'lorem ipsum',
   ].map(value => value.toLowerCase())
 );
 
@@ -92,6 +126,7 @@ export type DocumentAnalysis = {
     job_description: number;
     template: number;
   };
+  structured?: any;
 };
 
 export type DocumentInspectionResult = {

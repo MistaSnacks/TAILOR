@@ -14,7 +14,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { ingestDocument } from '../lib/rag/ingest';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,6 +24,9 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
+type IngestModule = typeof import('../lib/rag/ingest');
+let ingestDocument: IngestModule['ingestDocument'];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -179,6 +181,11 @@ async function reingestSingleDocument(userId: string, documentId: string) {
 }
 
 async function main() {
+    if (!ingestDocument) {
+        const module: IngestModule = await import('../lib/rag/ingest');
+        ingestDocument = module.ingestDocument;
+    }
+
     const userId = process.argv[2] || null;
     const documentId = process.argv[3] || null;
     

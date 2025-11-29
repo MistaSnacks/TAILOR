@@ -10,6 +10,7 @@ type IngestDocumentOptions = {
     metadata?: DocumentMetadata;
     analysis?: DocumentAnalysis;
     chunkCount?: number;
+    structuredData?: any;
 };
 
 type SanitizedExperience = Omit<ParsedExperience, 'company' | 'title' | 'bullets' | 'location' | 'startDate' | 'endDate'> & {
@@ -31,7 +32,7 @@ export async function ingestDocument(documentId: string, text: string, userId: s
         .select('id, email')
         .eq('id', userId)
         .maybeSingle();
-    
+
     if (!existingUser) {
         console.log('📝 User not found, creating...');
         const { data: newUser, error: insertError } = await supabaseAdmin
@@ -43,23 +44,23 @@ export async function ingestDocument(documentId: string, text: string, userId: s
             })
             .select()
             .single();
-            
+
         if (insertError || !newUser) {
             console.error('❌ CRITICAL: Failed to create user:', insertError);
             throw new Error(`User creation failed: ${insertError?.message || 'Unknown error'} (code: ${insertError?.code || 'UNKNOWN'})`);
         }
-        
+
         // Verify the insert actually worked
         const { data: verifyUser } = await supabaseAdmin
             .from('users')
             .select('id')
             .eq('id', userId)
             .single();
-            
+
         if (!verifyUser) {
             throw new Error(`User was created but verification failed - transaction issue?`);
         }
-        
+
         console.log('✅ User created and verified:', verifyUser.id);
     } else {
         console.log('✅ User already exists:', existingUser.id, existingUser.email);
@@ -163,20 +164,20 @@ export async function ingestDocument(documentId: string, text: string, userId: s
     if (contactInfo && (contactInfo.name || contactInfo.email || contactInfo.phone || contactInfo.linkedin || contactInfo.portfolio)) {
         try {
             const profileUpdate: Record<string, string | undefined> = {};
-            
+
             // Only update fields that have values - don't overwrite existing data with empty values
             if (contactInfo.name) profileUpdate.full_name = contactInfo.name;
             if (contactInfo.phone) profileUpdate.phone_number = contactInfo.phone;
             if (contactInfo.linkedin) profileUpdate.linkedin_url = contactInfo.linkedin;
             if (contactInfo.portfolio) profileUpdate.portfolio_url = contactInfo.portfolio;
             // Note: We intentionally do NOT save address to the profile
-            
+
             if (Object.keys(profileUpdate).length > 0) {
                 const { error: profileError } = await supabaseAdmin
                     .from('profiles')
                     .update(profileUpdate)
                     .eq('user_id', userId);
-                
+
                 if (profileError) {
                     console.warn('⚠️ Failed to update profile with contact info:', profileError.message);
                 } else {
@@ -221,12 +222,12 @@ export async function ingestDocument(documentId: string, text: string, userId: s
             parsed_content: parsedContentPayload
         })
         .eq('id', documentId);
-    
+
     if (updateError) {
         console.error('❌ Failed to update document with structured data:', updateError);
         throw updateError;
     }
-    
+
     console.log('✅ Saved structured data to document:', {
         experiences: sanitizedExperiences.length,
         skills: sanitizedSkills.length,
@@ -302,7 +303,7 @@ async function processExperience(userId: string, documentId: string, exp: Saniti
  */
 function calculateBulletImportanceScore(bulletText: string): number {
     let score = 0;
-    
+
     // Check for metrics/numbers (up to 40 points)
     const metricPatterns = [
         /\d+%/,           // Percentages
@@ -312,7 +313,7 @@ function calculateBulletImportanceScore(bulletText: string): number {
         /\d+\s*(million|billion|thousand|k|m|b)/i, // Large numbers
         /increased|decreased|reduced|improved|grew|saved/i, // Impact verbs with implied metrics
     ];
-    
+
     let metricScore = 0;
     for (const pattern of metricPatterns) {
         if (pattern.test(bulletText)) {
@@ -320,13 +321,13 @@ function calculateBulletImportanceScore(bulletText: string): number {
         }
     }
     score += Math.min(metricScore, 40);
-    
+
     // Check for strong action verbs (up to 20 points)
     const actionVerbs = /^(led|managed|developed|implemented|designed|created|built|launched|optimized|streamlined|automated|analyzed|delivered|achieved|spearheaded|orchestrated|established|transformed|pioneered)/i;
     if (actionVerbs.test(bulletText.trim())) {
         score += 20;
     }
-    
+
     // Check for specific tools/technologies (up to 20 points)
     const techPatterns = [
         /\b(python|javascript|typescript|java|sql|react|aws|azure|gcp|kubernetes|docker|tableau|excel|salesforce|jira|confluence)\b/i,
@@ -341,7 +342,7 @@ function calculateBulletImportanceScore(bulletText: string): number {
     if (/\b(compliance|regulatory|audit|risk|security|governance)\b/i.test(bulletText)) {
         score += 10;
     }
-    
+
     // Bullet length/detail (up to 20 points)
     const wordCount = bulletText.split(/\s+/).length;
     if (wordCount >= 15 && wordCount <= 40) {
@@ -351,7 +352,7 @@ function calculateBulletImportanceScore(bulletText: string): number {
     } else if (wordCount >= 8) {
         score += 10;
     }
-    
+
     return Math.min(score, 100);
 }
 
@@ -376,13 +377,13 @@ async function processBullet(experienceId: string, documentId: string, bulletTex
         const existingScore = similarBullets[0].importance_score || 0;
         const { error: updateError } = await supabaseAdmin
             .from('experience_bullets')
-            .update({ 
+            .update({
                 source_count: newSourceCount,
                 // Keep the higher importance score
                 importance_score: Math.max(existingScore, importanceScore)
             })
             .eq('id', bulletId);
-        
+
         if (updateError) {
             console.warn('⚠️ Failed to update bullet:', updateError.message);
         }
@@ -413,7 +414,7 @@ async function processBullet(experienceId: string, documentId: string, bulletTex
 
 async function processSkill(userId: string, skillName: string) {
     const normalizedName = skillName.trim();
-    
+
     if (!normalizedName || normalizedName.length === 0) {
         console.warn('⚠️ Skipping empty skill name');
         return;
@@ -476,13 +477,13 @@ async function processEducation(userId: string, edu: ParsedEducation) {
 
     if (existing) {
         // Update source_count and potentially fill in missing dates
-        const updateData: Record<string, unknown> = { 
-            source_count: (existing.source_count || 1) + 1 
+        const updateData: Record<string, unknown> = {
+            source_count: (existing.source_count || 1) + 1
         };
         // Update dates if we have them and they're not already set
         if (startDate) updateData.start_date = startDate;
         if (endDate) updateData.end_date = endDate;
-        
+
         await supabaseAdmin
             .from('canonical_education')
             .update(updateData)

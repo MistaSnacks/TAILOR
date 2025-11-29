@@ -51,7 +51,7 @@ export function HeroSection({ onOpenAuth }: { onOpenAuth: () => void }) {
                     >
                         <button
                             onClick={onOpenAuth}
-                            className="group relative px-8 py-4 bg-primary text-primary-foreground font-semibold rounded-xl overflow-hidden transition-all hover:shadow-[0_0_40px_-10px_rgba(52,211,153,0.5)]"
+                            className="group relative px-8 py-4 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground font-semibold rounded-xl overflow-hidden transition-all hover:shadow-[0_0_40px_-10px_rgba(52,211,153,0.5)]"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                             <span className="relative flex items-center gap-2">

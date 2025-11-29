@@ -252,6 +252,196 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Remove all data parsed from a specific document
+ * This is called when a document is deleted to remove all related parsed data.
+ * 
+ * What gets removed:
+ * - Experiences that ONLY had this document as a source
+ * - Bullets that ONLY had this document as a source
+ * - Skills linked to deleted experiences (via cascade)
+ * 
+ * Note: Skills, education, and certifications are not directly linked to documents,
+ * so we can't track which came from which document. However, skills linked to
+ * deleted experiences will be cleaned up via cascade, and the canonical profile
+ * will be rebuilt to reflect remaining data.
+ */
+async function removeDocumentParsedData(documentId: string, userId: string) {
+  console.log(`🧹 Removing all parsed data for document: ${documentId}`);
+
+  let deletedExperiences = 0;
+  let deletedBullets = 0;
+
+  // Find all experiences that ONLY have this document as a source
+  const { data: experienceSources } = await supabaseAdmin
+    .from('experience_sources')
+    .select('experience_id')
+    .eq('document_id', documentId);
+
+  if (experienceSources && experienceSources.length > 0) {
+    const experienceIds = experienceSources.map((s: any) => s.experience_id);
+
+    // For each experience, check if it has other sources
+    for (const expId of experienceIds) {
+      const { data: otherSources } = await supabaseAdmin
+        .from('experience_sources')
+        .select('document_id')
+        .eq('experience_id', expId)
+        .neq('document_id', documentId);
+
+      // If this is the only source, delete the experience (bullets will cascade)
+      if (!otherSources || otherSources.length === 0) {
+        console.log(`   🗑️  Deleting experience ${expId} (only source was this document)`);
+        const { error } = await supabaseAdmin
+          .from('experiences')
+          .delete()
+          .eq('id', expId);
+        
+        if (!error) {
+          deletedExperiences++;
+        } else {
+          console.error(`   ❌ Error deleting experience ${expId}:`, error.message);
+        }
+      }
+    }
+  }
+
+  // Find all bullets that ONLY have this document as a source
+  // (Note: Some bullets may have already been deleted via experience cascade)
+  const { data: bulletSources } = await supabaseAdmin
+    .from('experience_bullet_sources')
+    .select('bullet_id')
+    .eq('document_id', documentId);
+
+  if (bulletSources && bulletSources.length > 0) {
+    const bulletIds = bulletSources.map((s: any) => s.bullet_id);
+
+    // For each bullet, check if it has other sources
+    for (const bulletId of bulletIds) {
+      const { data: otherBulletSources } = await supabaseAdmin
+        .from('experience_bullet_sources')
+        .select('document_id')
+        .eq('bullet_id', bulletId)
+        .neq('document_id', documentId);
+
+      // If this is the only source, delete the bullet
+      if (!otherBulletSources || otherBulletSources.length === 0) {
+        console.log(`   🗑️  Deleting bullet ${bulletId} (only source was this document)`);
+        const { error } = await supabaseAdmin
+          .from('experience_bullets')
+          .delete()
+          .eq('id', bulletId);
+        
+        if (!error) {
+          deletedBullets++;
+        } else {
+          console.error(`   ❌ Error deleting bullet ${bulletId}:`, error.message);
+        }
+      }
+    }
+  }
+
+  console.log(`✅ Removed parsed data: ${deletedExperiences} experiences, ${deletedBullets} bullets`);
+  console.log(`   Note: Skills linked to deleted experiences were also removed via cascade`);
+}
+
+/**
+ * Clean up orphaned experiences and bullets that have no remaining source documents
+ * This happens when all source documents for an experience/bullet are deleted
+ */
+async function cleanupOrphanedExperiences(userId: string) {
+  // Get all experiences for this user
+  const { data: allExperiences, error: expError } = await supabaseAdmin
+    .from('experiences')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (expError || !allExperiences || allExperiences.length === 0) {
+    return;
+  }
+
+  // Get all experience sources
+  const { data: allSources } = await supabaseAdmin
+    .from('experience_sources')
+    .select('experience_id');
+
+  const sourceExperienceIds = new Set(
+    (allSources || []).map((s: any) => s.experience_id)
+  );
+
+  // Find experiences with no sources
+  const orphanedExperienceIds = allExperiences
+    .filter((exp: any) => !sourceExperienceIds.has(exp.id))
+    .map((exp: any) => exp.id);
+
+  if (orphanedExperienceIds.length > 0) {
+    console.log(`🧹 Found ${orphanedExperienceIds.length} orphaned experience(s) to clean up`);
+    
+    // Delete orphaned experiences (bullets will cascade delete)
+    const { error: deleteError } = await supabaseAdmin
+      .from('experiences')
+      .delete()
+      .in('id', orphanedExperienceIds);
+
+    if (deleteError) {
+      console.error('Error deleting orphaned experiences:', deleteError);
+    } else {
+      console.log(`✅ Deleted ${orphanedExperienceIds.length} orphaned experience(s)`);
+    }
+  }
+
+  // Also check for orphaned bullets (bullets that lost all sources but experience still exists)
+  // Get all bullets for user's remaining experiences
+  const { data: remainingExperiences } = await supabaseAdmin
+    .from('experiences')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (!remainingExperiences || remainingExperiences.length === 0) {
+    return;
+  }
+
+  const remainingExpIds = remainingExperiences.map((e: any) => e.id);
+  
+  const { data: allBullets } = await supabaseAdmin
+    .from('experience_bullets')
+    .select('id')
+    .in('experience_id', remainingExpIds);
+
+  if (!allBullets || allBullets.length === 0) {
+    return;
+  }
+
+  // Get all bullet sources
+  const { data: allBulletSources } = await supabaseAdmin
+    .from('experience_bullet_sources')
+    .select('bullet_id');
+
+  const sourceBulletIds = new Set(
+    (allBulletSources || []).map((s: any) => s.bullet_id)
+  );
+
+  // Find bullets with no sources
+  const orphanedBulletIds = allBullets
+    .filter((bullet: any) => !sourceBulletIds.has(bullet.id))
+    .map((bullet: any) => bullet.id);
+
+  if (orphanedBulletIds.length > 0) {
+    console.log(`🧹 Found ${orphanedBulletIds.length} orphaned bullet(s) to clean up`);
+    
+    const { error: deleteBulletError } = await supabaseAdmin
+      .from('experience_bullets')
+      .delete()
+      .in('id', orphanedBulletIds);
+
+    if (deleteBulletError) {
+      console.error('Error deleting orphaned bullets:', deleteBulletError);
+    } else {
+      console.log(`✅ Deleted ${orphanedBulletIds.length} orphaned bullet(s)`);
+    }
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   console.log('🗑️ Upload API - DELETE request received');
 
@@ -304,7 +494,16 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Delete document (cascades to chunks and other related data via ON DELETE CASCADE)
+    // Remove all parsed data from this document BEFORE deleting the document
+    // This ensures we clean up experiences/bullets that only had this document as a source
+    try {
+      await removeDocumentParsedData(documentId, userId);
+    } catch (removeError: any) {
+      // Log but continue with deletion - we'll do orphaned cleanup after
+      console.error('⚠️ Error removing document parsed data:', removeError.message);
+    }
+
+    // Delete document (cascades to chunks and source links via ON DELETE CASCADE)
     const { error: deleteError } = await supabaseAdmin
       .from('documents')
       .delete()
@@ -317,6 +516,26 @@ export async function DELETE(request: NextRequest) {
         { error: 'Failed to delete document' },
         { status: 500 }
       );
+    }
+
+    // Clean up any remaining orphaned experiences and bullets
+    // This catches any edge cases where data might still be orphaned
+    try {
+      await cleanupOrphanedExperiences(userId);
+      console.log('✅ Cleaned up any remaining orphaned experiences and bullets');
+    } catch (cleanupError: any) {
+      // Log but don't fail the deletion if cleanup fails
+      console.error('⚠️ Error cleaning up orphaned data:', cleanupError.message);
+    }
+
+    // Rebuild canonical profile to reflect the deletions
+    try {
+      const { canonicalizeProfile } = await import('@/lib/profile-canonicalizer');
+      await canonicalizeProfile(userId);
+      console.log('✅ Rebuilt canonical profile after document deletion');
+    } catch (canonicalizeError: any) {
+      // Log but don't fail - canonicalization can happen later
+      console.error('⚠️ Error rebuilding canonical profile:', canonicalizeError.message);
     }
 
     console.log('✅ Document deleted successfully:', documentId);

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check } from 'lucide-react';
+import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { TailorLoading } from '@/components/ui/tailor-loader';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type Experience = {
   id: string;
@@ -11,21 +13,21 @@ type Experience = {
   start_date?: string;
   end_date?: string;
   is_current: boolean;
-  source_count?: number; // Optional for legacy schema
+  source_count?: number;
   experience_bullets?: Bullet[];
 };
 
 type Bullet = {
   id: string;
   content?: string;
-  text?: string; // Legacy schema
+  text?: string;
   importance_score?: number;
 };
 
 type Skill = {
   id: string;
   canonical_name: string;
-  source_count?: number; // Optional for legacy schema
+  source_count?: number;
 };
 
 type PersonalInfo = {
@@ -36,6 +38,157 @@ type PersonalInfo = {
   linkedin_url?: string;
   portfolio_url?: string;
 };
+
+// --- Sub-components for Collapsible Sections ---
+
+function ExperienceItem({ exp, onDelete, isDeleting }: { exp: Experience, onDelete: (id: string, title: string, company: string) => void, isDeleting: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="glass-card overflow-hidden transition-all duration-200 hover:border-primary/30">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-6 flex justify-between items-start cursor-pointer hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-xl font-bold">{exp.title}</h3>
+            <motion.div
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            </motion.div>
+          </div>
+          <p className="text-lg text-primary font-medium">{exp.company}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {exp.start_date} - {exp.is_current ? 'Present' : exp.end_date}
+          </p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(exp.id, exp.title, exp.company);
+          }}
+          disabled={isDeleting}
+          className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+          title="Delete experience"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="px-6 pb-6 pt-0 border-t border-border/50 mt-2">
+              <div className="pt-4">
+                <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
+                  <span>{exp.location}</span>
+                  {exp.source_count !== undefined && (
+                    <span>Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+
+                {exp.experience_bullets && exp.experience_bullets.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-foreground/80">Achievements:</h4>
+                    <ul className="space-y-2">
+                      {exp.experience_bullets.map((bullet) => (
+                        <li
+                          key={bullet.id}
+                          className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
+                        >
+                          <span className="text-primary mt-1">•</span>
+                          <span className="flex-1 leading-relaxed">{bullet.content || bullet.text || 'No content available'}</span>
+                          {bullet.importance_score !== undefined && (
+                            <span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded">
+                              Score: {bullet.importance_score}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function SkillsList({ skills, onDelete, isDeleting }: { skills: Skill[], onDelete: (id: string, name: string) => void, isDeleting: string | null }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-6 flex justify-between items-center cursor-pointer hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">All Skills ({skills.length})</h3>
+        </div>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="p-6 pt-0 border-t border-border/50">
+              <div className="flex flex-wrap gap-2 pt-4">
+                {skills.map((skill) => (
+                  <div
+                    key={skill.id}
+                    className="group flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors text-sm"
+                  >
+                    <span className="font-medium">{skill.canonical_name}</span>
+                    {skill.source_count !== undefined && (
+                      <span className="text-xs text-primary/60">
+                        ({skill.source_count})
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(skill.id, skill.canonical_name);
+                      }}
+                      disabled={isDeleting === skill.id}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 hover:text-destructive"
+                      title="Delete skill"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// --- Main Page Component ---
 
 export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -190,14 +343,19 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-muted-foreground">Loading profile...</div>
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <TailorLoading mode="general" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="container mx-auto px-4 py-8 max-w-6xl"
+    >
       <div className="mb-8">
         <h1 className="text-4xl font-bold font-display mb-2">Your Profile</h1>
         <p className="text-muted-foreground">
@@ -218,7 +376,12 @@ export default function ProfilePage() {
       )}
 
       {/* Personal Information Section */}
-      <section className="mb-12">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-12"
+      >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold font-display flex items-center gap-2">
             <User className="w-6 h-6 text-primary" />
@@ -227,7 +390,7 @@ export default function ProfilePage() {
           {!editingPersonalInfo && (
             <button
               onClick={() => setEditingPersonalInfo(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -320,7 +483,7 @@ export default function ProfilePage() {
                 <button
                   onClick={savePersonalInfo}
                   disabled={saving || !personalInfoForm.full_name}
-                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
                   {saving ? 'Saving...' : 'Save'}
@@ -395,10 +558,15 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
       {/* Experiences Section */}
-      <section className="mb-12">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-12"
+      >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold font-display flex items-center gap-2">
             <Briefcase className="w-6 h-6 text-primary" />
@@ -414,63 +582,25 @@ export default function ProfilePage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {experiences.map((exp) => (
-              <div key={exp.id} className="glass-card p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold">{exp.title}</h3>
-                    <p className="text-lg text-primary">{exp.company}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {exp.location && `${exp.location} • `}
-                      {exp.start_date} - {exp.is_current ? 'Present' : exp.end_date}
-                    </p>
-                    {exp.source_count !== undefined && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => deleteExperience(exp.id, exp.title, exp.company)}
-                    disabled={deleting === exp.id}
-                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Delete experience"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Bullets */}
-                {exp.experience_bullets && exp.experience_bullets.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-muted-foreground">Achievements:</h4>
-                    <ul className="space-y-2">
-                      {exp.experience_bullets.map((bullet) => (
-                        <li
-                          key={bullet.id}
-                          className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
-                        >
-                          <span className="text-primary mt-1">•</span>
-                          <span className="flex-1">{bullet.content || bullet.text || 'No content available'}</span>
-                          {bullet.importance_score !== undefined && (
-                            <span className="text-xs text-muted-foreground">
-                              Score: {bullet.importance_score}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <ExperienceItem
+                key={exp.id}
+                exp={exp}
+                onDelete={deleteExperience}
+                isDeleting={deleting === exp.id}
+              />
             ))}
           </div>
         )}
-      </section>
+      </motion.section>
 
       {/* Skills Section */}
-      <section>
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold font-display flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary" />
@@ -486,33 +616,13 @@ export default function ProfilePage() {
             </p>
           </div>
         ) : (
-          <div className="glass-card p-6">
-            <div className="flex flex-wrap gap-2">
-              {skills.map((skill) => (
-                <div
-                  key={skill.id}
-                  className="group flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
-                >
-                  <span className="font-medium">{skill.canonical_name}</span>
-                  {skill.source_count !== undefined && (
-                    <span className="text-xs text-primary/60">
-                      ({skill.source_count})
-                    </span>
-                  )}
-                  <button
-                    onClick={() => deleteSkill(skill.id, skill.canonical_name)}
-                    disabled={deleting === skill.id}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                    title="Delete skill"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SkillsList
+            skills={skills}
+            onDelete={deleteSkill}
+            isDeleting={deleting}
+          />
         )}
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }

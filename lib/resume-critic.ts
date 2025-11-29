@@ -125,7 +125,7 @@ Tasks:
 - Remove duplicate or overlapping bullets; keep the best phrasing.
 - Rewrite weak bullets using the ACR rubric while staying truthful to the supplied content.
 - Enforce at most ${maxBulletsPerExperience} bullets per experience. Prioritize current/most relevant achievements.
-- Strip any placeholder text (e.g., "Company Name", "City, State", "N/A", strings containing "YYYY").
+- CRITICAL: Strip ALL placeholder text from every field. This includes: "Company Name", "Job Title", "City, State", "N/A", "Not Provided", "Not Available", "TBD", "YYYY", "YYYY-MM", "20XX", "Example Company", "Your Company", "Insert Title", "Sample Text", "Lorem Ipsum", or any placeholder patterns. If a field contains placeholder text, omit that field entirely.
 - Keep company/title/location/dates exactly as provided. Never reorder experiences.
 - Skills must stay de-duplicated and relevant to the job description.
 - Summary must be 3-4 sentences (minimum 350 characters) that: (1) state years of experience and domain, (2) include 2-3 specific metrics from canonical experiences, (3) mention relevant tools/skills, and (4) connect to the target role. If the summary is too short or generic, rewrite it to meet these requirements using only verified facts.

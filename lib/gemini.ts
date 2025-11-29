@@ -454,8 +454,7 @@ export async function generateTailoredResumeAtomic(
         const bulletLines = exp.bullet_candidates
           .map(
             (candidate: WriterBulletCandidate, bulletIndex: number) =>
-              `      ${bulletIndex + 1}. [score=${candidate.score}] ${candidate.text} | sources: ${
-                candidate.source_ids?.join(', ') || 'n/a'
+              `      ${bulletIndex + 1}. [score=${candidate.score}] ${candidate.text} | sources: ${candidate.source_ids?.join(', ') || 'n/a'
               }`
           )
           .join('\n');
@@ -471,17 +470,17 @@ ${bulletLines || '      (No supporting achievements available)'}`;
       })
       .join('\n\n');
 
-  const skillSource =
-    (profile.canonicalSkillPool?.length ?? 0) > 0
-      ? profile.canonicalSkillPool!
-      : preparedProfile.skills;
+    const skillSource =
+      (profile.canonicalSkillPool?.length ?? 0) > 0
+        ? profile.canonicalSkillPool!
+        : preparedProfile.skills;
 
-  const skillContext = skillSource.length
-    ? skillSource.join(', ')
-    : 'None provided (leave skills array empty)';
+    const skillContext = skillSource.length
+      ? skillSource.join(', ')
+      : 'None provided (leave skills array empty)';
 
-  const educationContext = (profile.education?.length ?? 0) > 0
-    ? profile.education!.map((edu, i) => {
+    const educationContext = (profile.education?.length ?? 0) > 0
+      ? profile.education!.map((edu, i) => {
         // Build date string with start/end if available
         let dateStr = '';
         if (edu.startDate && edu.endDate) {
@@ -493,64 +492,64 @@ ${bulletLines || '      (No supporting achievements available)'}`;
         }
         return `${i + 1}. ${edu.degree || 'Degree'} in ${edu.field || 'Field'} - ${edu.institution}${dateStr}`;
       }).join('\n')
-    : 'None provided (return empty array)';
+      : 'None provided (return empty array)';
 
-  const certificationContext = (profile.certifications?.length ?? 0) > 0
-    ? profile.certifications!.map((cert, i) => 
+    const certificationContext = (profile.certifications?.length ?? 0) > 0
+      ? profile.certifications!.map((cert, i) =>
         `${i + 1}. ${cert.name}${cert.issuer ? ` - ${cert.issuer}` : ''}${cert.date ? ` (${formatDateLabel(cert.date)})` : ''}`
       ).join('\n')
-    : 'None provided (return empty array)';
+      : 'None provided (return empty array)';
 
-  // Build contact info context - only include fields with values
-  const contactFields: string[] = [];
-  const contactInfo = preparedProfile.contactInfo;
-  if (contactInfo?.name) contactFields.push(`Name: ${contactInfo.name}`);
-  if (contactInfo?.email) contactFields.push(`Email: ${contactInfo.email}`);
-  if (contactInfo?.phone) contactFields.push(`Phone: ${contactInfo.phone}`);
-  if (contactInfo?.linkedin) contactFields.push(`LinkedIn: ${contactInfo.linkedin}`);
-  if (contactInfo?.portfolio) contactFields.push(`Portfolio: ${contactInfo.portfolio}`);
-  // Note: address is intentionally excluded - never include in resume
-  
-  const contactInfoContext = contactFields.length > 0
-    ? contactFields.join('\n')
-    : 'None provided (omit contactInfo from output)';
+    // Build contact info context - only include fields with values
+    const contactFields: string[] = [];
+    const contactInfo = preparedProfile.contactInfo;
+    if (contactInfo?.name) contactFields.push(`Name: ${contactInfo.name}`);
+    if (contactInfo?.email) contactFields.push(`Email: ${contactInfo.email}`);
+    if (contactInfo?.phone) contactFields.push(`Phone: ${contactInfo.phone}`);
+    if (contactInfo?.linkedin) contactFields.push(`LinkedIn: ${contactInfo.linkedin}`);
+    if (contactInfo?.portfolio) contactFields.push(`Portfolio: ${contactInfo.portfolio}`);
+    // Note: address is intentionally excluded - never include in resume
 
-  const inferenceHighlightContext =
-    preparedProfile.inferenceContext?.experienceHighlights?.length
-      ? preparedProfile.inferenceContext.experienceHighlights
+    const contactInfoContext = contactFields.length > 0
+      ? contactFields.join('\n')
+      : 'None provided (omit contactInfo from output)';
+
+    const inferenceHighlightContext =
+      preparedProfile.inferenceContext?.experienceHighlights?.length
+        ? preparedProfile.inferenceContext.experienceHighlights
           .slice(0, MAX_INFERENCE_CONTEXT_LINES)
           .map((highlight, index) => `${index + 1}. ${highlight}`)
           .join('\n')
-      : profile.inferenceContext?.experienceHighlights?.length
-      ? profile.inferenceContext.experienceHighlights
-          .slice(0, MAX_INFERENCE_CONTEXT_LINES)
-          .map((highlight, index) => `${index + 1}. ${highlight}`)
-          .join('\n')
-      : 'Not provided (limit inference to verified bullets)';
+        : profile.inferenceContext?.experienceHighlights?.length
+          ? profile.inferenceContext.experienceHighlights
+            .slice(0, MAX_INFERENCE_CONTEXT_LINES)
+            .map((highlight, index) => `${index + 1}. ${highlight}`)
+            .join('\n')
+          : 'Not provided (limit inference to verified bullets)';
 
-  const inferenceMetricContext =
-    profile.inferenceContext?.metricSignals?.length
-      ? profile.inferenceContext.metricSignals
+    const inferenceMetricContext =
+      profile.inferenceContext?.metricSignals?.length
+        ? profile.inferenceContext.metricSignals
           .slice(0, MAX_INFERENCE_CONTEXT_LINES)
           .map((signal, index) => `${index + 1}. ${signal}`)
           .join('\n')
-      : 'Not provided (reference explicit metrics when available)';
+        : 'Not provided (reference explicit metrics when available)';
 
-  const inferenceGuidance =
-    profile.inferenceContext?.instructions ||
-    'Derive new JD-aligned bullets only when the idea is clearly supported by the canonical highlights or metric signals. Reference the supporting company or highlight inside the bullet.';
+    const inferenceGuidance =
+      profile.inferenceContext?.instructions ||
+      'Derive new JD-aligned bullets only when the idea is clearly supported by the canonical highlights or metric signals. Reference the supporting company or highlight inside the bullet.';
 
-  const droppedExperienceSummary =
-    preparedProfile.droppedExperienceIds.length > 0
-      ? preparedProfile.droppedExperienceIds.join(', ')
-      : 'None';
+    const droppedExperienceSummary =
+      preparedProfile.droppedExperienceIds.length > 0
+        ? preparedProfile.droppedExperienceIds.join(', ')
+        : 'None';
 
-  const canonicalSnapshot = `Canonical Profile Snapshot:
+    const canonicalSnapshot = `Canonical Profile Snapshot:
 - Selected experiences: ${preparedProfile.experiences.length}/${profile.experiences?.length ?? 0}
 - Dropped experience IDs (missing fields/placeholders): ${droppedExperienceSummary}
 - Bullet inventory available: ${preparedProfile.bulletCount}`;
 
-  const inferenceSnapshot = `Global Canonical Highlights (available for inference beyond the selected roles):
+    const inferenceSnapshot = `Global Canonical Highlights (available for inference beyond the selected roles):
 ${inferenceHighlightContext}
 
 Metric / Impact Signals (use these to justify quantified rewrites):
@@ -559,7 +558,7 @@ ${inferenceMetricContext}
 Inference Guidance:
 ${inferenceGuidance}`;
 
-  const atsFormatGuide = `ATS Output Contract (JSON only):
+    const atsFormatGuide = `ATS Output Contract (JSON only):
 - Sections (in order): contactInfo, summary, experience, skills, education, certifications.
 - contactInfo: Include ONLY the fields that exist in canonical data (name, email, phone, linkedin, portfolio). NEVER include address or location in contact info.
 - summary: 3-4 sentences (minimum 350 characters) that: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics from canonical experiences, (3) mention key tools/skills relevant to the target JD, and (4) close by connecting the candidate's background to the target role's core requirements.
@@ -608,11 +607,11 @@ Quality Guardrails:
 - Use ONLY the canonical experiences and skills supplied above. Never invent new companies, titles, dates, or credentials.
 - Preserve the experience order exactly as provided; the inventory is already most recent first.
 - Company, title, location, and date strings must match the canonical values verbatim (trim whitespace only).
-- Strip any placeholder fragments (e.g., "Company Name", "City, State", "N/A", strings containing "YYYY") from every field and bullet.
+- CRITICAL: Strip ALL placeholder fragments from every field and bullet. This includes but is not limited to: "Company Name", "Job Title", "City, State", "N/A", "Not Provided", "Not Available", "TBD", "YYYY", "YYYY-MM", "20XX", "Example Company", "Your Company", "Insert Title", "Sample Text", "Lorem Ipsum", or any text containing placeholder patterns like {{}}, [[]], <>, or repeated X/Y/Z characters. If a field contains placeholder text, omit that field entirely rather than including placeholder content.
 - Each bullet must follow the Action + Context + Result rubric, highlight measurable scope/impact when available, and remain grounded in the supporting achievements for that role.
 - Respect the bullet_budget per experience. If the candidate pool is smaller than the budget, output only the vetted bullets; do not fabricate content.
 - When merging multiple candidate bullets, preserve the strongest metric and union of verified tools/regulations, then log the contributing candidate IDs in "merged_from".
-- Professional summary must be 3-4 impactful sentences (minimum 350 characters) that: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics (percentages, dollar amounts, volume numbers) from canonical experiences, (3) mention 2-3 key tools or skills that match the target JD, and (4) close with a clear connection to the target role's core requirements. Do NOT write a generic summary — make it specific to THIS candidate's verified achievements.
+    - Professional summary must be a single cohesive paragraph of 3-4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics (percentages, dollar amounts, volume numbers) from canonical experiences, (3) mention 2-3 key tools or skills that match the target JD, and (4) close with a clear connection to the target role's core requirements. Do NOT write a generic summary — make it specific to THIS candidate's verified achievements.
 - You may infer JD-aligned keywords or new bullet framings ONLY when they are obviously supported by the Global Canonical Highlights or Metric Signals above. Reference the supporting company or highlight inside the bullet (e.g., “(leveraging TD Bank AML program)”). If no supporting highlight exists, omit the inference.
 - Skills list must be a deduped subset of the normalized pool ordered by relevance to the target JD.
 
@@ -852,18 +851,32 @@ export async function calculateAtsScore(
   semanticSimilarity: number;
   analysis: any;
 }> {
+  if (!genAI) {
+    throw new Error('Gemini API key not configured');
+  }
+
   try {
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash-exp',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      },
     });
+
+    // Truncate content if too long to avoid token limits
+    const maxJobDescLength = 6000;
+    const maxResumeLength = 8000;
+    const truncatedJobDesc = jobDescription.substring(0, maxJobDescLength);
+    const truncatedResume = resumeContent.substring(0, maxResumeLength);
 
     const prompt = `Analyze this resume against the job description and provide an ATS compatibility score.
 
-Job Description:
-${jobDescription}
+Job Description (truncated):
+${truncatedJobDesc}
 
-Resume:
-${resumeContent}
+Resume (truncated):
+${truncatedResume}
 
 Provide a detailed analysis in JSON format with:
 {
@@ -879,21 +892,49 @@ Provide a detailed analysis in JSON format with:
     const result = await model.generateContent(prompt);
     const analysisText = result.response.text();
 
-    // Parse JSON from response
-    const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const analysis = JSON.parse(jsonMatch[0]);
-      return {
-        score: analysis.overallScore,
-        keywordMatch: analysis.keywordMatch,
-        semanticSimilarity: analysis.semanticSimilarity,
-        analysis,
-      };
+    // Try to parse as JSON (should be valid JSON with responseMimeType)
+    let analysis: any;
+    try {
+      analysis = JSON.parse(analysisText);
+    } catch (parseError) {
+      // Fallback: try to extract JSON from markdown code blocks or text
+      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('Failed to parse ATS analysis - no JSON found');
+      }
     }
 
-    throw new Error('Failed to parse ATS analysis');
-  } catch (error) {
-    console.error('Error calculating ATS score:', error);
+    // Validate required fields
+    if (typeof analysis.overallScore !== 'number') {
+      throw new Error('ATS analysis missing overallScore');
+    }
+
+    return {
+      score: Math.max(0, Math.min(100, Math.round(analysis.overallScore))),
+      keywordMatch: typeof analysis.keywordMatch === 'number' 
+        ? Math.max(0, Math.min(100, Math.round(analysis.keywordMatch)))
+        : 0,
+      semanticSimilarity: typeof analysis.semanticSimilarity === 'number'
+        ? Math.max(0, Math.min(100, Math.round(analysis.semanticSimilarity)))
+        : 0,
+      analysis: {
+        ...analysis,
+        overallScore: Math.max(0, Math.min(100, Math.round(analysis.overallScore))),
+        keywordMatch: typeof analysis.keywordMatch === 'number' 
+          ? Math.max(0, Math.min(100, Math.round(analysis.keywordMatch)))
+          : 0,
+        semanticSimilarity: typeof analysis.semanticSimilarity === 'number'
+          ? Math.max(0, Math.min(100, Math.round(analysis.semanticSimilarity)))
+          : 0,
+      },
+    };
+  } catch (error: any) {
+    console.error('❌ Error calculating ATS score:', error.message);
+    if (error.stack) {
+      console.error('ATS error stack:', error.stack.split('\n').slice(0, 3).join('\n'));
+    }
     throw error;
   }
 }
