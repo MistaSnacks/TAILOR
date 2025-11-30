@@ -841,7 +841,25 @@ export async function chatWithDocuments(
   }
 }
 
-// Calculate ATS score
+// ATS Score metric weights (based on real-world ATS like Jobscan)
+// These weights sum to 100 and reflect industry-standard importance
+const ATS_WEIGHTS = {
+  hardSkills: 35,      // Technical abilities - most important for technical roles
+  keywords: 25,        // Exact keyword matches from job description
+  semanticMatch: 20,   // Contextual relevance and synonym matching
+  softSkills: 10,      // Interpersonal and transferable skills
+  searchability: 10,   // Format optimization for ATS parsing
+};
+
+export type AtsMetrics = {
+  hardSkills: number;
+  softSkills: number;
+  keywords: number;
+  semanticMatch: number;
+  searchability: number;
+};
+
+// Calculate ATS score with detailed 5-metric breakdown
 export async function calculateAtsScore(
   jobDescription: string,
   resumeContent: string
@@ -870,24 +888,65 @@ export async function calculateAtsScore(
     const truncatedJobDesc = jobDescription.substring(0, maxJobDescLength);
     const truncatedResume = resumeContent.substring(0, maxResumeLength);
 
-    const prompt = `Analyze this resume against the job description and provide an ATS compatibility score.
+    const prompt = `You are an expert ATS (Applicant Tracking System) analyzer. Analyze this resume against the job description and provide a detailed compatibility score breakdown.
 
-Job Description (truncated):
+Job Description:
 ${truncatedJobDesc}
 
-Resume (truncated):
+Resume:
 ${truncatedResume}
 
-Provide a detailed analysis in JSON format with:
+Score EACH of these 5 categories from 0-100, being STRICT and realistic like real ATS systems (Jobscan, etc.):
+
+1. **hardSkills** (Weight: 35%): Technical abilities, tools, technologies, programming languages, certifications, methodologies explicitly mentioned in the job description. Score based on:
+   - Exact match of required technical skills (e.g., Python, AWS, SQL)
+   - Required certifications present
+   - Years of experience with specific technologies
+   - Be strict: if a hard skill is required but not present, heavily penalize
+
+2. **softSkills** (Weight: 10%): Interpersonal abilities like leadership, communication, teamwork, problem-solving mentioned in the job description. Score based on:
+   - Presence of relevant soft skills in bullet points
+   - Evidence of soft skills through achievements (led team of X, collaborated with...)
+
+3. **keywords** (Weight: 25%): Exact terminology matches from job description. Score based on:
+   - Job title match or close variation
+   - Industry-specific terminology
+   - Action verbs that match job requirements
+   - Company-specific language if identifiable
+
+4. **semanticMatch** (Weight: 20%): Contextual relevance even without exact matches. Score based on:
+   - Synonymous terms (e.g., "software engineer" vs "developer")
+   - Related experience in same domain
+   - Transferable accomplishments
+   - Overall career trajectory alignment
+
+5. **searchability** (Weight: 10%): How well the resume is optimized for ATS parsing. Score based on:
+   - Clear section headers (Experience, Education, Skills)
+   - Proper date formats
+   - Standard job title formats
+   - Consistent formatting
+   - No complex tables/graphics that ATS can't parse
+
+Return JSON in this exact format:
 {
-  "overallScore": 0-100,
-  "keywordMatch": 0-100,
-  "semanticSimilarity": 0-100,
-  "strengths": ["list of strengths"],
-  "improvements": ["list of suggested improvements"],
-  "missingKeywords": ["list of important missing keywords"],
-  "matchedKeywords": ["list of matched keywords"]
-}`;
+  "metrics": {
+    "hardSkills": <0-100>,
+    "softSkills": <0-100>,
+    "keywords": <0-100>,
+    "semanticMatch": <0-100>,
+    "searchability": <0-100>
+  },
+  "matchedHardSkills": ["list of matched hard skills from job description"],
+  "missingHardSkills": ["list of required hard skills NOT in resume"],
+  "matchedSoftSkills": ["list of matched soft skills"],
+  "missingSoftSkills": ["list of soft skills from job NOT evidenced in resume"],
+  "matchedKeywords": ["list of exact keyword matches"],
+  "missingKeywords": ["list of important keywords NOT in resume"],
+  "strengths": ["3-5 specific strengths of this resume for this job"],
+  "improvements": ["3-5 specific actionable improvements to increase ATS score"]
+}
+
+Be STRICT in your scoring. A perfect 100 should be rare. Most resumes score 60-80 for good matches.`;
 
     const result = await model.generateContent(prompt);
     const analysisText = result.response.text();
@@ -906,28 +965,40 @@ Provide a detailed analysis in JSON format with:
       }
     }
 
-    // Validate required fields
-    if (typeof analysis.overallScore !== 'number') {
-      throw new Error('ATS analysis missing overallScore');
-    }
+    // Validate and normalize metrics
+    const metrics = analysis.metrics || {};
+    const normalizedMetrics: AtsMetrics = {
+      hardSkills: clampScore(metrics.hardSkills),
+      softSkills: clampScore(metrics.softSkills),
+      keywords: clampScore(metrics.keywords),
+      semanticMatch: clampScore(metrics.semanticMatch),
+      searchability: clampScore(metrics.searchability),
+    };
+
+    // Calculate weighted overall score
+    const weightedScore = Math.round(
+      (normalizedMetrics.hardSkills * ATS_WEIGHTS.hardSkills +
+        normalizedMetrics.softSkills * ATS_WEIGHTS.softSkills +
+        normalizedMetrics.keywords * ATS_WEIGHTS.keywords +
+        normalizedMetrics.semanticMatch * ATS_WEIGHTS.semanticMatch +
+        normalizedMetrics.searchability * ATS_WEIGHTS.searchability) / 100
+    );
+
+    // For backward compatibility, map to existing fields
+    const keywordMatch = Math.round((normalizedMetrics.keywords + normalizedMetrics.hardSkills) / 2);
+    const semanticSimilarity = normalizedMetrics.semanticMatch;
 
     return {
-      score: Math.max(0, Math.min(100, Math.round(analysis.overallScore))),
-      keywordMatch: typeof analysis.keywordMatch === 'number' 
-        ? Math.max(0, Math.min(100, Math.round(analysis.keywordMatch)))
-        : 0,
-      semanticSimilarity: typeof analysis.semanticSimilarity === 'number'
-        ? Math.max(0, Math.min(100, Math.round(analysis.semanticSimilarity)))
-        : 0,
+      score: clampScore(weightedScore),
+      keywordMatch: clampScore(keywordMatch),
+      semanticSimilarity: clampScore(semanticSimilarity),
       analysis: {
         ...analysis,
-        overallScore: Math.max(0, Math.min(100, Math.round(analysis.overallScore))),
-        keywordMatch: typeof analysis.keywordMatch === 'number' 
-          ? Math.max(0, Math.min(100, Math.round(analysis.keywordMatch)))
-          : 0,
-        semanticSimilarity: typeof analysis.semanticSimilarity === 'number'
-          ? Math.max(0, Math.min(100, Math.round(analysis.semanticSimilarity)))
-          : 0,
+        metrics: normalizedMetrics,
+        weights: ATS_WEIGHTS,
+        overallScore: clampScore(weightedScore),
+        keywordMatch: clampScore(keywordMatch),
+        semanticSimilarity: clampScore(semanticSimilarity),
       },
     };
   } catch (error: any) {
@@ -937,5 +1008,11 @@ Provide a detailed analysis in JSON format with:
     }
     throw error;
   }
+}
+
+// Helper to clamp scores to 0-100 range
+function clampScore(value: any): number {
+  if (typeof value !== 'number' || isNaN(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 

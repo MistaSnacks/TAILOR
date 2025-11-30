@@ -11,6 +11,39 @@ type ExperienceEntry = NonNullable<ResumeContent['experience']>[number];
 type EducationEntry = NonNullable<ResumeContent['education']>[number];
 type CertificationEntry = NonNullable<ResumeContent['certifications']>[number];
 type ExperienceTextField = Exclude<keyof ExperienceEntry, 'bullets'>;
+// Small progress bar component for individual ATS metrics
+function AtsMetricBar({ label, value, weight }: { label: string; value: number; weight: number }) {
+  const getColor = (score: number) => {
+    if (score >= 80) return 'bg-green-500';
+    if (score >= 60) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getTextColor = (score: number) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 60) return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-0.5">
+          <span className="text-xs text-muted-foreground truncate">{label}</span>
+          <span className={`text-xs font-medium ${getTextColor(value)}`}>{value}%</span>
+        </div>
+        <div className="w-full bg-muted/50 rounded-full h-1.5">
+          <div
+            className={`h-1.5 rounded-full transition-all ${getColor(value)}`}
+            style={{ width: `${value}%` }}
+          />
+        </div>
+      </div>
+      <span className="text-[10px] text-muted-foreground/60 w-8 text-right">{weight}%</span>
+    </div>
+  );
+}
+
 
 function ResumesContent() {
   const [resumes, setResumes] = useState<any[]>([]);
@@ -746,17 +779,48 @@ function ResumesContent() {
                         {viewingResume.ats_score?.score != null && (
                           <div className="glass-card p-4 rounded-xl">
                             <div className="flex items-center justify-between mb-3">
-                              <h3 className="font-semibold">ATS Score</h3>
+                              <h3 className="font-semibold">Overall Score</h3>
                               <div className={`text-2xl font-bold ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
                                 {viewingResume.ats_score.score}%
                               </div>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-2 mb-4">
                               <div
                                 className={`h-2 rounded-full transition-all ${viewingResume.ats_score.score >= 80 ? 'bg-green-500' : viewingResume.ats_score.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
                                 style={{ width: `${viewingResume.ats_score.score}%` }}
                               />
                             </div>
+
+                            {/* Detailed ATS Metrics */}
+                            {atsAnalysis?.metrics && (
+                              <div className="space-y-2.5 pt-3 border-t border-muted">
+                                <AtsMetricBar 
+                                  label="Hard Skills" 
+                                  value={atsAnalysis.metrics.hardSkills ?? 0} 
+                                  weight={35}
+                                />
+                                <AtsMetricBar 
+                                  label="Keywords" 
+                                  value={atsAnalysis.metrics.keywords ?? 0} 
+                                  weight={25}
+                                />
+                                <AtsMetricBar 
+                                  label="Semantic Match" 
+                                  value={atsAnalysis.metrics.semanticMatch ?? 0} 
+                                  weight={20}
+                                />
+                                <AtsMetricBar 
+                                  label="Soft Skills" 
+                                  value={atsAnalysis.metrics.softSkills ?? 0} 
+                                  weight={10}
+                                />
+                                <AtsMetricBar 
+                                  label="Searchability" 
+                                  value={atsAnalysis.metrics.searchability ?? 0} 
+                                  weight={10}
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
 
