@@ -878,18 +878,16 @@ function ResumesContent() {
               {/* Modal Content - Split Panel on Desktop, Single on Mobile */}
               <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                 {/* Left Panel - Resume Preview */}
-                <div className={`${mobileModalView === 'preview' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-1 overflow-y-auto p-4 md:p-6 bg-muted/10 md:border-r border-border`}>
+                <div className={`${mobileModalView === 'preview' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-col flex-1 overflow-y-auto p-4 md:p-6 bg-muted/10 md:border-r border-border`}>
                   <div 
-                    className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto w-full"
+                    className="bg-white rounded-lg shadow-lg mx-auto w-full"
                     style={{ maxWidth: '600px' }}
                   >
                     <div 
-                      className="overflow-hidden"
                       style={{ 
-                        transform: 'scale(0.5) md:scale(0.55)', 
+                        transform: 'scale(0.5)',
                         transformOrigin: 'top left',
                         width: '200%',
-                        height: 'auto',
                       }}
                     >
                       <TemplatePreview 
