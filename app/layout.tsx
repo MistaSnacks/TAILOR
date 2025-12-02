@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     description: "Tailor your resume to every job in minutes — powered by AI. Get past ATS filters and land more interviews.",
     images: [
       {
-        url: "/api/og",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "T-AI-LOR - AI-Powered Resume Tailoring",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "T-AI-LOR - AI-Powered Resume Tailoring",
     description: "Tailor your resume to every job in minutes — powered by AI. Get past ATS filters and land more interviews.",
-    images: ["/api/og"],
+    images: ["/og-image.png"],
     creator: "@tailor_ai",
   },
   
