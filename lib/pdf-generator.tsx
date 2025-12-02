@@ -722,7 +722,7 @@ function TechnicalResumePDF({ data }: { data: ResumeContent }) {
                   </View>
                   <Text style={[
                     styles.dateTag,
-                    (exp.isCurrent || exp.endDate === 'Present') && styles.currentDateTag
+                    ...((exp.isCurrent || exp.endDate === 'Present') ? [styles.currentDateTag] : [])
                   ]}>
                     {exp.startDate} — {exp.endDate || 'Present'}
                   </Text>
@@ -809,7 +809,7 @@ export async function generateResumePdf(
         break;
     }
 
-    const buffer = await renderToBuffer(PdfDocument);
+    const buffer = await renderToBuffer(PdfDocument as React.ReactElement<any>);
     console.log('✅ PDF generated, size:', buffer.length, 'bytes');
 
     return Buffer.from(buffer);

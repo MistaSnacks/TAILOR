@@ -498,7 +498,7 @@ export function removeGhostData(content: ResumeContent): ResumeContent {
 
         // Clean bullets - handle both string and object formats
         const cleanedBullets = (exp.bullets || [])
-          .map((bullet) => {
+          .map((bullet: string | { text: string }) => {
             // Handle object format with text property (from generator)
             let bulletText: string;
             if (typeof bullet === 'string') {
