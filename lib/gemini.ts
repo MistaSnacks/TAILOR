@@ -666,7 +666,7 @@ Return JSON ONLY (no prose) using this schema:
 IMPORTANT: Only include contactInfo fields that have actual values from canonical data. Omit any empty or missing fields. NEVER include address.`;
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.4,
@@ -720,7 +720,7 @@ export async function generateTailoredResume(
     });
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
     });
 
     // Build context from parsed documents if available
@@ -807,7 +807,7 @@ export async function chatWithDocuments(
     } = context;
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
     });
 
     const chat = model.startChat({
@@ -875,7 +875,7 @@ export async function calculateAtsScore(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.1,

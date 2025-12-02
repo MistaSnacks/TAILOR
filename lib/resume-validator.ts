@@ -220,7 +220,7 @@ export async function validateAndRefineResume({
     .join(', ') || 'Not provided (will not add new keywords)';
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-2.5-flash',
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.1, // Lower temperature for more consistent refinement

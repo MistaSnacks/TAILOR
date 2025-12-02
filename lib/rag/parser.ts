@@ -56,7 +56,7 @@ export async function parseResumeToJSON(text: string): Promise<ParsedResumeData>
     }
 
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         generationConfig: {
             responseMimeType: "application/json",
         }
@@ -182,7 +182,7 @@ export async function parseJobDescriptionToContext(
 
     try {
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp',
+            model: 'gemini-2.5-flash',
             generationConfig: {
                 responseMimeType: 'application/json',
                 temperature: 0.1,
