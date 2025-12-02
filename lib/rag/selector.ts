@@ -25,7 +25,7 @@ export type SelectionOptions = {
   maxWriterExperiences?: number;
 };
 
-const SEMANTIC_ALIGNMENT_FLOOR = 0.45;
+const SEMANTIC_ALIGNMENT_FLOOR = 0.30;
 const KEYWORD_ALIGNMENT_FLOOR = 0.2;
 
 export type ScoreSignals = {
@@ -669,7 +669,7 @@ function prioritizeSkills(skills: RetrievedSkill[], requiredSkills?: string[]): 
   if (!skills?.length) return [];
 
   if (!requiredSkills?.length) {
-    return skills.slice(0, 30); // Increased from 12
+    return skills.slice(0, 40); // Increased to 40 for fuller skill coverage
   }
 
   const requiredSet = new Set(
@@ -692,7 +692,7 @@ function prioritizeSkills(skills: RetrievedSkill[], requiredSkills?: string[]): 
     }
   });
 
-  return unique.slice(0, 30); // Increased from 12
+  return unique.slice(0, 40); // Increased to 40 for fuller skill coverage
 }
 
 function matchHardSkills(text: string, hardSkills: Set<string>): string[] {

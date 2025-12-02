@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 
 const companies = [
-    "Google", "Microsoft", "Amazon", "Meta", "Netflix", "Apple", "Tesla", "Uber", "Airbnb", "Spotify"
+    "Stripe", "Figma", "Notion", "Linear", "Vercel", "Anthropic", "OpenAI"
 ];
 
 export function TrustSection() {
@@ -11,7 +11,7 @@ export function TrustSection() {
         <section className="py-12 border-y border-border bg-muted/10 overflow-hidden">
             <div className="container px-4 mx-auto mb-8 text-center">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                    Trusted by candidates at top companies
+                    Tailor users landed roles at top companies such as
                 </p>
             </div>
 

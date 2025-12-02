@@ -6,8 +6,8 @@ import { Plus, Minus } from 'lucide-react';
 
 const faqs = [
     {
-        question: "How does the RAG technology work?",
-        answer: "We use Retrieval-Augmented Generation (RAG) to analyze your uploaded documents and the job description. This allows our AI to understand your unique experience and match it precisely to the job requirements, generating a highly tailored resume."
+        question: "How does the AI matching work?",
+        answer: "Our AI reads your uploaded resumes and understands your skills, experience, and achievements. When you paste a job description, it identifies what the employer is looking for and rewrites your resume to highlight the most relevant parts of your background."
     },
     {
         question: "Is my data secure?",
@@ -15,11 +15,15 @@ const faqs = [
     },
     {
         question: "Can I edit the generated resume?",
-        answer: "Of course! Our AI generates a strong draft, but you have full control to edit, refine, and polish every detail using our built-in editor."
+        answer: "Of course! Our AI generates a strong draft, but you have full control to edit, refine, and polish every detail. You can also see your ATS score update in real-time as you make changes."
+    },
+    {
+        question: "What is an ATS score?",
+        answer: "ATS (Applicant Tracking System) is software that companies use to filter resumes. Your ATS score shows how well your resume matches the job description. A higher score means you're more likely to pass the initial screening."
     },
     {
         question: "Does it work for all industries?",
-        answer: "T-AI-LOR is trained on millions of job descriptions across all major industries, including Tech, Finance, Healthcare, Marketing, and more."
+        answer: "Yes! T-AI-LOR works for any industry—Tech, Finance, Healthcare, Marketing, Engineering, and more. The AI adapts to each job description regardless of field."
     }
 ];
 

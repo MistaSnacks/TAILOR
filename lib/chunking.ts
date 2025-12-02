@@ -7,7 +7,7 @@ export const MIN_CHUNK_LENGTH = 120;
 
 // Canonical profile tuning
 export const MAX_CANONICAL_BULLETS = 20;
-export const MAX_CANONICAL_SKILLS = 12;
+export const MAX_CANONICAL_SKILLS = 60; // Increased to support 40+ skills in resumes
 export const BULLET_SIMILARITY_THRESHOLD = 0.82;
 
 export type RetrievedChunk = {

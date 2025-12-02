@@ -5,14 +5,15 @@
  * It will re-process all your completed documents with the latest ingestion logic.
  * 
  * What gets re-ingested:
- *   - Experiences and bullets
- *   - Skills
- *   - Education (with start/end dates if available)
- *   - Certifications
- *   - Contact information (name, email, phone, linkedin, portfolio - NO address)
+ *   ✅ Experiences and bullets (with embeddings)
+ *   ✅ Skills (normalized and deduped)
+ *   ✅ Education (with start/end dates if available)
+ *   ✅ Certifications
+ *   ✅ Contact information (name, email, phone, linkedin, portfolio)
+ *   ❌ Address (intentionally excluded for privacy)
  * 
  * Usage:
- *   1. Open browser console (Cmd+Option+I on Mac)
+ *   1. Open browser console (Cmd+Option+I on Mac, Ctrl+Shift+I on Windows/Linux)
  *   2. Make sure you're logged into TAILOR
  *   3. Paste this entire script and press Enter
  * 
@@ -21,27 +22,31 @@
  */
 
 (async function reingestAllDocuments() {
-  console.log('🔄 Starting document re-ingestion...\n');
+  console.log('%c🔄 TAILOR Document Re-ingestion', 'font-size: 16px; font-weight: bold; color: #3b82f6;');
+  console.log('Starting re-ingestion process...\n');
 
   try {
     // Step 1: Confirm before proceeding
     const proceed = confirm(
       `Re-ingest all completed documents?\n\n` +
       `This will:\n` +
-      `- Re-process experiences, skills, education, and certifications\n` +
-      `- Update canonical profile data\n` +
-      `- May take a few minutes\n\n` +
+      `• Re-process experiences, skills, education, and certifications\n` +
+      `• Generate new embeddings for semantic search\n` +
+      `• Update canonical profile data (merge duplicates)\n` +
+      `• May take a few minutes depending on document count\n\n` +
       `Click OK to proceed, or Cancel to abort.`
     );
 
     if (!proceed) {
-      console.log('❌ Re-ingestion cancelled by user.');
-      return;
+      console.log('%c❌ Re-ingestion cancelled by user.', 'color: #ef4444;');
+      return { cancelled: true };
     }
 
     // Step 2: Trigger re-ingestion (API will fetch all documents server-side)
-    console.log('🚀 Starting re-ingestion...');
+    console.log('%c🚀 Starting re-ingestion...', 'color: #22c55e; font-weight: bold;');
     console.log('📋 The API will fetch all your completed documents automatically.\n');
+    
+    const startTime = Date.now();
     const ingestResponse = await fetch('/api/ingest', {
       method: 'POST',
       headers: {
@@ -55,49 +60,53 @@
     }
 
     const result = await ingestResponse.json();
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     
     // Step 3: Show results
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 RE-INGESTION RESULTS');
-    console.log('='.repeat(60));
+    console.log('\n' + '═'.repeat(60));
+    console.log('%c📊 RE-INGESTION RESULTS', 'font-size: 14px; font-weight: bold; color: #3b82f6;');
+    console.log('═'.repeat(60));
+    console.log(`⏱️  Duration: ${duration}s`);
     console.log(`✅ Successfully processed: ${result.succeeded || 0}`);
     console.log(`❌ Failed: ${result.failed || 0}`);
-    console.log(`📄 Total: ${result.processed || 0}`);
+    console.log(`📄 Total documents: ${result.processed || 0}`);
 
     if (result.canonicalization) {
-      console.log('\n🔄 CANONICALIZATION (Merged Duplicates):');
+      console.log('\n%c🔄 CANONICALIZATION (Merged Duplicates):', 'color: #8b5cf6; font-weight: bold;');
       console.log(`   📋 Canonical Experiences: ${result.canonicalization.experiences}`);
       console.log(`   🎯 Canonical Skills: ${result.canonicalization.skills}`);
     }
 
     if (result.canonicalizationError) {
-      console.log('\n⚠️  Canonicalization Error:', result.canonicalizationError);
+      console.log('\n%c⚠️  Canonicalization Error:', 'color: #f59e0b;', result.canonicalizationError);
     }
 
     if (result.errors && result.errors.length > 0) {
-      console.log('\n⚠️  Ingestion Errors:');
+      console.log('\n%c⚠️  Ingestion Errors:', 'color: #f59e0b; font-weight: bold;');
       result.errors.forEach((err, i) => {
         console.log(`   ${i + 1}. ${err.fileName}: ${err.error}`);
       });
     }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('✨ Re-ingestion complete!');
+    console.log('\n' + '═'.repeat(60));
+    console.log('%c✨ Re-ingestion complete!', 'color: #22c55e; font-weight: bold; font-size: 14px;');
     console.log('💡 Tip: Refresh the page to see updated profile data.');
-    console.log('💡 Duplicate experiences should now be merged!');
-    console.log('='.repeat(60));
+    if (result.canonicalization?.experiences > 0) {
+      console.log('💡 Duplicate experiences have been merged!');
+    }
+    console.log('═'.repeat(60));
 
     return result;
 
   } catch (error) {
-    console.error('\n❌ RE-INGESTION FAILED');
-    console.error('='.repeat(60));
+    console.error('\n%c❌ RE-INGESTION FAILED', 'color: #ef4444; font-weight: bold; font-size: 14px;');
+    console.error('═'.repeat(60));
     console.error('Error:', error.message);
     if (error.stack) {
       console.error('\nStack trace:');
       console.error(error.stack);
     }
-    console.error('='.repeat(60));
+    console.error('═'.repeat(60));
     throw error;
   }
 })();

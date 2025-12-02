@@ -1,0 +1,39 @@
+{
+  "summary": "[PASTE IDEAL SUMMARY - 3-4 sentences with metrics, tools, and connection to target role]",
+  "experience": [
+    {
+      "company": "Relevant Company",
+      "title": "Relevant Title",
+      "location": "City, State",
+      "startDate": "Jan 2022",
+      "endDate": "Present",
+      "bullets": [
+        "[Action verb] + [context] + [quantified result] - e.g., 'Investigated 500+ fraud cases monthly, reducing chargeback rates by 35% through pattern analysis'",
+        "[Another strong bullet with metrics]",
+        "[Another strong bullet]"
+      ]
+    }
+  ],
+  "skills": [
+    "Fraud Detection",
+    "SQL",
+    "Risk Analysis",
+    "[Add 15-25 relevant skills]"
+  ],
+  "education": [
+    {
+      "institution": "University Name",
+      "degree": "Bachelor of Science",
+      "field": "Finance",
+      "endDate": "2018"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "Certified Fraud Examiner",
+      "issuer": "ACFE",
+      "date": "2020"
+    }
+  ]
+}
+

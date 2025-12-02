@@ -40,7 +40,7 @@ export function HeroSection({ onOpenAuth }: { onOpenAuth: () => void }) {
                         transition={{ duration: 0.5, delay: 0.2 }}
                         className="text-xl text-muted-foreground mb-10 max-w-2xl"
                     >
-                        Stop sending generic resumes. Our RAG-powered AI analyzes job descriptions and rewrites your resume to highlight the perfect skills—in seconds.
+                        Stop sending generic resumes. Our AI analyzes job descriptions and rewrites your resume to highlight the perfect skills—in seconds.
                     </motion.p>
 
                     <motion.div

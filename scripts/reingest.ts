@@ -8,6 +8,8 @@
  *   npx tsx scripts/reingest.ts                    # Re-ingest all documents for all users
  *   npx tsx scripts/reingest.ts <userId>           # Re-ingest all documents for a specific user
  *   npx tsx scripts/reingest.ts <userId> <docId>   # Re-ingest a specific document
+ *   npx tsx scripts/reingest.ts --help             # Show this help message
+ *   npx tsx scripts/reingest.ts --dry-run          # Preview what would be ingested
  * 
  * Requires:
  *   npm install -D tsx
@@ -24,6 +26,44 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const showHelp = args.includes('--help') || args.includes('-h');
+const dryRun = args.includes('--dry-run');
+const filteredArgs = args.filter(arg => !arg.startsWith('--') && !arg.startsWith('-'));
+
+if (showHelp) {
+    console.log(`
+📋 Re-ingest Documents Script
+
+Usage:
+  npx tsx scripts/reingest.ts                    # Re-ingest all documents for all users
+  npx tsx scripts/reingest.ts <userId>           # Re-ingest all documents for a specific user
+  npx tsx scripts/reingest.ts <userId> <docId>   # Re-ingest a specific document
+  npx tsx scripts/reingest.ts --help             # Show this help message
+  npx tsx scripts/reingest.ts --dry-run          # Preview what would be ingested (no changes made)
+
+Options:
+  --help, -h     Show this help message
+  --dry-run      Preview documents without ingesting
+
+What gets re-ingested:
+  ✅ Experiences and bullets (with embeddings)
+  ✅ Skills (normalized and deduped)
+  ✅ Education (with start/end dates)
+  ✅ Certifications
+  ✅ Contact information (name, email, phone, linkedin, portfolio)
+  ❌ Address (intentionally excluded for privacy)
+
+Examples:
+  npx tsx scripts/reingest.ts
+  npx tsx scripts/reingest.ts cd78e0f4-6563-4973-a88c-735c1e1d6a0b
+  npx tsx scripts/reingest.ts cd78e0f4-6563-4973-a88c-735c1e1d6a0b c98140f9-de4a-456c-9376-d116151f643e
+  npx tsx scripts/reingest.ts --dry-run
+`);
+    process.exit(0);
+}
 
 type IngestModule = typeof import('../lib/rag/ingest');
 let ingestDocument: IngestModule['ingestDocument'];
@@ -43,8 +83,11 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     }
 });
 
-async function reingestAllDocuments(userId: string | null = null) {
+async function reingestAllDocuments(userId: string | null = null, isDryRun: boolean = false) {
     console.log('🔄 Starting document re-ingestion...');
+    if (isDryRun) {
+        console.log('🔍 DRY RUN MODE - No changes will be made\n');
+    }
     
     let query = supabase
         .from('documents')
@@ -70,6 +113,21 @@ async function reingestAllDocuments(userId: string | null = null) {
     }
     
     console.log(`📄 Found ${documents.length} document(s) to re-ingest\n`);
+    
+    // In dry-run mode, just list the documents
+    if (isDryRun) {
+        console.log('📋 Documents that would be re-ingested:');
+        documents.forEach((doc, index) => {
+            const parsedContent = doc.parsed_content as any;
+            const hasText = !!(parsedContent?.sanitizedText?.trim());
+            const status = hasText ? '✅' : '⚠️  (no text)';
+            console.log(`   ${index + 1}. ${status} ${doc.file_name}`);
+            console.log(`      ID: ${doc.id}`);
+            console.log(`      User: ${doc.user_id}`);
+        });
+        console.log('\n💡 Run without --dry-run to process these documents');
+        return;
+    }
     
     const results = {
         processed: documents.length,
@@ -181,22 +239,28 @@ async function reingestSingleDocument(userId: string, documentId: string) {
 }
 
 async function main() {
-    if (!ingestDocument) {
+    if (!ingestDocument && !dryRun) {
         const module: IngestModule = await import('../lib/rag/ingest');
         ingestDocument = module.ingestDocument;
     }
 
-    const userId = process.argv[2] || null;
-    const documentId = process.argv[3] || null;
+    const userId = filteredArgs[0] || null;
+    const documentId = filteredArgs[1] || null;
     
     if (documentId) {
         if (!userId) {
             console.error('❌ User ID is required when specifying a document ID');
             process.exit(1);
         }
+        if (dryRun) {
+            console.log('🔍 DRY RUN: Would re-ingest single document');
+            console.log(`   User: ${userId}`);
+            console.log(`   Document: ${documentId}`);
+            return;
+        }
         await reingestSingleDocument(userId, documentId);
     } else {
-        await reingestAllDocuments(userId);
+        await reingestAllDocuments(userId, dryRun);
     }
 }
 

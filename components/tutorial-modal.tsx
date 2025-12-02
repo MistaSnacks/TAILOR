@@ -17,6 +17,9 @@ import {
   MessageCircle,
   Target,
   CheckCircle,
+  User,
+  Plus,
+  Briefcase,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'tailor_tutorial_completed';
@@ -32,14 +35,75 @@ type TutorialStep = {
 
 const tutorialSteps: TutorialStep[] = [
   {
-    id: 'upload',
+    id: 'profile',
+    icon: <User className="w-6 h-6" />,
+    title: 'Build Your Profile',
+    description: 'Add your skills and work experience directly, or upload documents to extract them automatically.',
+    points: [
+      { icon: <Edit className="w-4 h-4" />, text: 'Edit your personal information' },
+      { icon: <Plus className="w-4 h-4" />, text: 'Add skills (bulk paste supported)' },
+      { icon: <Briefcase className="w-4 h-4" />, text: 'Add work experience with bullets' },
+    ],
+    illustration: (
+      <div className="relative w-full h-32 flex items-center justify-center">
+        <div className="w-52 bg-card border border-border rounded-xl p-3 shadow-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <div className="text-xs font-bold">John Doe</div>
+              <div className="text-[10px] text-muted-foreground">john@email.com</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1 mb-2">
+            <motion.span
+              className="px-2 py-0.5 text-[8px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              React
+            </motion.span>
+            <motion.span
+              className="px-2 py-0.5 text-[8px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              TypeScript
+            </motion.span>
+            <motion.span
+              className="px-2 py-0.5 text-[8px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              Node.js
+            </motion.span>
+          </div>
+          <motion.div
+            className="flex items-center gap-1 text-[9px] text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Briefcase className="w-3 h-3" />
+            <span>3 work experiences</span>
+          </motion.div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'documents',
     icon: <UploadCloud className="w-6 h-6" />,
-    title: 'Upload Your Documents',
-    description: 'Start by uploading your existing resumes or career documents. Our AI will extract your experience automatically.',
+    title: 'Upload Documents',
+    description: 'Have existing resumes? Upload them and our AI will extract your skills and experience automatically.',
     points: [
       { icon: <FileText className="w-4 h-4" />, text: 'Drag & drop PDF or DOCX files' },
       { icon: <Sparkles className="w-4 h-4" />, text: 'AI extracts skills & experience' },
-      { icon: <CheckCircle className="w-4 h-4" />, text: 'Data populates your Profile' },
+      { icon: <CheckCircle className="w-4 h-4" />, text: 'Data merges into your Profile' },
     ],
     illustration: (
       <div className="relative w-full h-32 flex items-center justify-center">

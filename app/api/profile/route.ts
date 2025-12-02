@@ -138,7 +138,71 @@ export async function PUT(request: NextRequest) {
         logOperation('PUT profile', userId, { type, action });
 
         if (type === 'experience') {
-            if (action === 'update') {
+            if (action === 'create') {
+                // Validate required fields
+                if (!data.company || !data.title) {
+                    return NextResponse.json(
+                        { error: 'Company and title are required' },
+                        { status: 400 }
+                    );
+                }
+
+                // Insert the experience
+                const { data: newExperience, error: expError } = await supabaseAdmin
+                    .from('experiences')
+                    .insert({
+                        user_id: userId,
+                        company: data.company,
+                        title: data.title,
+                        location: data.location || null,
+                        start_date: data.start_date || null,
+                        end_date: data.is_current ? null : (data.end_date || null),
+                        is_current: data.is_current || false,
+                        source_count: 1,
+                    })
+                    .select()
+                    .single();
+
+                if (expError) {
+                    logError('PUT experience create', userId, expError);
+                    return NextResponse.json(
+                        { error: 'Failed to create experience', details: expError.message },
+                        { status: 500 }
+                    );
+                }
+
+                // Insert bullets if provided
+                if (data.bullets && Array.isArray(data.bullets) && data.bullets.length > 0) {
+                    const bulletsToInsert = data.bullets
+                        .filter((b: string) => b && b.trim())
+                        .map((content: string) => ({
+                            experience_id: newExperience.id,
+                            content: content.trim(),
+                            source_count: 1,
+                            importance_score: 50,
+                        }));
+
+                    if (bulletsToInsert.length > 0) {
+                        const { error: bulletError } = await supabaseAdmin
+                            .from('experience_bullets')
+                            .insert(bulletsToInsert);
+
+                        if (bulletError) {
+                            logError('PUT experience create bullets', userId, bulletError, { experienceId: newExperience.id });
+                            // Experience created but bullets failed - still return success with warning
+                            return NextResponse.json({ 
+                                success: true, 
+                                experience: newExperience,
+                                warning: 'Experience created but some bullets failed to save'
+                            });
+                        }
+                    }
+                }
+
+                logOperation('PUT experience create success', userId, { experienceId: newExperience.id });
+                return NextResponse.json({ success: true, experience: newExperience });
+
+            } else if (action === 'update') {
                 const { id, ...updates } = data;
                 const { error, data: updatedData } = await supabaseAdmin
                     .from('experiences')
@@ -187,7 +251,55 @@ export async function PUT(request: NextRequest) {
                 }
             }
         } else if (type === 'skill') {
-            if (action === 'delete') {
+            if (action === 'create') {
+                // Validate required fields
+                if (!data.name || !data.name.trim()) {
+                    return NextResponse.json(
+                        { error: 'Skill name is required' },
+                        { status: 400 }
+                    );
+                }
+
+                const skillName = data.name.trim();
+
+                // Check if skill already exists for this user
+                const { data: existingSkill } = await supabaseAdmin
+                    .from('skills')
+                    .select('id, canonical_name')
+                    .eq('user_id', userId)
+                    .ilike('canonical_name', skillName)
+                    .maybeSingle();
+
+                if (existingSkill) {
+                    return NextResponse.json(
+                        { error: 'Skill already exists', existing: existingSkill },
+                        { status: 409 }
+                    );
+                }
+
+                // Insert the new skill
+                const { data: newSkill, error: skillError } = await supabaseAdmin
+                    .from('skills')
+                    .insert({
+                        user_id: userId,
+                        canonical_name: skillName,
+                        source_count: 1,
+                    })
+                    .select()
+                    .single();
+
+                if (skillError) {
+                    logError('PUT skill create', userId, skillError);
+                    return NextResponse.json(
+                        { error: 'Failed to create skill', details: skillError.message },
+                        { status: 500 }
+                    );
+                }
+
+                logOperation('PUT skill create success', userId, { skillId: newSkill.id, skillName });
+                return NextResponse.json({ success: true, skill: newSkill });
+
+            } else if (action === 'delete') {
                 const { error, data: deletedData } = await supabaseAdmin
                     .from('skills')
                     .delete()

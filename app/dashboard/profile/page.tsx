@@ -1,10 +1,423 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown, Plus } from 'lucide-react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
+
+// --- Modal Components ---
+
+type AddSkillModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (skillNames: string[]) => Promise<{ added: number; skipped: number }>;
+  isSubmitting: boolean;
+};
+
+function AddSkillModal({ isOpen, onClose, onSubmit, isSubmitting }: AddSkillModalProps) {
+  const [skillsInput, setSkillsInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ added: number; skipped: number } | null>(null);
+
+  // Parse skills from input - supports comma-separated or newline-separated
+  const parseSkills = (input: string): string[] => {
+    return input
+      .split(/[,\n]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  };
+
+  const skillsList = parseSkills(skillsInput);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (skillsList.length === 0) {
+      setError('Enter at least one skill');
+      return;
+    }
+    setError(null);
+    setResult(null);
+    try {
+      const res = await onSubmit(skillsList);
+      setResult(res);
+      if (res.added > 0) {
+        setSkillsInput('');
+        // Auto-close after a short delay if all skills were added
+        if (res.skipped === 0) {
+          setTimeout(() => {
+            onClose();
+            setResult(null);
+          }, 1500);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add skills');
+    }
+  };
+
+  const handleClose = () => {
+    setSkillsInput('');
+    setError(null);
+    setResult(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-primary" />
+                  Add Skills
+                </h2>
+                <button
+                  onClick={handleClose}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">
+                    Skills <span className="text-destructive">*</span>
+                  </label>
+                  <textarea
+                    value={skillsInput}
+                    onChange={(e) => setSkillsInput(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    placeholder="Enter skills separated by commas or new lines:&#10;React, Python, Project Management&#10;or&#10;React&#10;Python&#10;Project Management"
+                    rows={5}
+                    autoFocus
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {skillsList.length > 0 ? (
+                      <span className="text-primary">{skillsList.length} skill{skillsList.length !== 1 ? 's' : ''} detected</span>
+                    ) : (
+                      'Separate skills with commas or new lines'
+                    )}
+                  </p>
+                  {error && (
+                    <p className="text-sm text-destructive mt-2">{error}</p>
+                  )}
+                  {result && (
+                    <p className="text-sm mt-2">
+                      <span className="text-green-600">{result.added} added</span>
+                      {result.skipped > 0 && (
+                        <span className="text-muted-foreground"> • {result.skipped} already existed</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || skillsList.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isSubmitting ? 'Adding...' : `Add ${skillsList.length || ''} Skill${skillsList.length !== 1 ? 's' : ''}`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                  >
+                    {result?.added ? 'Done' : 'Cancel'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+type ExperienceFormData = {
+  company: string;
+  title: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  bullets: string[];
+};
+
+type AddExperienceModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: ExperienceFormData) => Promise<void>;
+  isSubmitting: boolean;
+};
+
+function AddExperienceModal({ isOpen, onClose, onSubmit, isSubmitting }: AddExperienceModalProps) {
+  const [formData, setFormData] = useState<ExperienceFormData>({
+    company: '',
+    title: '',
+    location: '',
+    start_date: '',
+    end_date: '',
+    is_current: false,
+    bullets: [],
+  });
+  const [bulletsInput, setBulletsInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Parse bullets from input - one per line, strips bullet characters
+  const parseBullets = (input: string): string[] => {
+    return input
+      .split('\n')
+      .map(line => line.trim().replace(/^[-•*]\s*/, '')) // Strip leading bullet chars
+      .filter(line => line.length > 0);
+  };
+
+  const bulletsList = parseBullets(bulletsInput);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.company.trim() || !formData.title.trim()) {
+      setError('Company and job title are required');
+      return;
+    }
+    setError(null);
+    try {
+      await onSubmit({
+        ...formData,
+        bullets: bulletsList,
+      });
+      resetForm();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add experience');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      company: '',
+      title: '',
+      location: '',
+      start_date: '',
+      end_date: '',
+      is_current: false,
+      bullets: [],
+    });
+    setBulletsInput('');
+    setError(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-full max-w-2xl max-h-[90vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-border flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-primary" />
+                  Add Work Experience
+                </h2>
+                <button
+                  onClick={handleClose}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                {error && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Company <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., Google"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Job Title <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., Software Engineer"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Location <span className="text-muted-foreground text-xs">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., San Francisco, CA"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Start Date <span className="text-muted-foreground text-xs">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., Jan 2020"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      End Date <span className="text-muted-foreground text-xs">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed"
+                      placeholder="e.g., Dec 2023"
+                      disabled={isSubmitting || formData.is_current}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_current"
+                    checked={formData.is_current}
+                    onChange={(e) => setFormData({ ...formData, is_current: e.target.checked, end_date: e.target.checked ? '' : formData.end_date })}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                    disabled={isSubmitting}
+                  />
+                  <label htmlFor="is_current" className="text-sm font-medium">
+                    I currently work here
+                  </label>
+                </div>
+
+                <div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">
+                      Achievements / Bullets <span className="text-muted-foreground text-xs">(optional)</span>
+                    </label>
+                  </div>
+                  <textarea
+                    value={bulletsInput}
+                    onChange={(e) => setBulletsInput(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none font-mono text-sm"
+                    placeholder="Paste or type your bullet points (one per line):&#10;• Led development of customer-facing features&#10;• Reduced API response time by 40%&#10;• Mentored 3 junior developers"
+                    rows={6}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {bulletsList.length > 0 ? (
+                      <span className="text-primary">{bulletsList.length} bullet{bulletsList.length !== 1 ? 's' : ''} detected</span>
+                    ) : (
+                      'One bullet per line • Leading bullet characters (•, -, *) are removed automatically'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-border bg-muted/30 flex-shrink-0">
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !formData.company.trim() || !formData.title.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isSubmitting ? 'Adding...' : 'Add Experience'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 type Experience = {
   id: string;
@@ -282,6 +695,12 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
+  // Modal states
+  const [showAddSkillModal, setShowAddSkillModal] = useState(false);
+  const [showAddExperienceModal, setShowAddExperienceModal] = useState(false);
+  const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [isAddingExperience, setIsAddingExperience] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -420,6 +839,109 @@ export default function ProfilePage() {
       setDeleting(null);
     }
   }
+
+  const handleAddSkill = useCallback(async (skillNames: string[]): Promise<{ added: number; skipped: number }> => {
+    setIsAddingSkill(true);
+    setError(null);
+
+    let added = 0;
+    let skipped = 0;
+    const newSkills: Skill[] = [];
+
+    try {
+      // Process skills sequentially to handle duplicates gracefully
+      for (const skillName of skillNames) {
+        try {
+          const res = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'skill',
+              action: 'create',
+              data: { name: skillName },
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.skill) {
+            newSkills.push(data.skill);
+            added++;
+          } else if (res.status === 409) {
+            // Skill already exists
+            skipped++;
+          } else {
+            // Other error - still count as skipped but log
+            console.warn(`[Profile] Failed to add skill "${skillName}":`, data.error);
+            skipped++;
+          }
+        } catch {
+          skipped++;
+        }
+      }
+
+      // Add all new skills to local state
+      if (newSkills.length > 0) {
+        setSkills(prev => [...prev, ...newSkills]);
+      }
+
+      if (added > 0) {
+        const message = added === 1 
+          ? `Skill added successfully!`
+          : `${added} skills added successfully!`;
+        setSuccessMessage(skipped > 0 ? `${message} (${skipped} already existed)` : message);
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+
+      return { added, skipped };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add skills';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAddingSkill(false);
+    }
+  }, []);
+
+  const handleAddExperience = useCallback(async (formData: ExperienceFormData) => {
+    setIsAddingExperience(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'experience',
+          action: 'create',
+          data: {
+            company: formData.company,
+            title: formData.title,
+            location: formData.location || null,
+            start_date: formData.start_date || null,
+            end_date: formData.is_current ? null : (formData.end_date || null),
+            is_current: formData.is_current,
+            bullets: formData.bullets,
+          },
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to add experience');
+      }
+
+      // Refetch to get full experience with bullets
+      await fetchProfile();
+      setSuccessMessage(`Experience at "${formData.company}" added successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add experience';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAddingExperience(false);
+    }
+  }, []);
 
   // Motion props must be defined BEFORE any early returns (Rules of Hooks)
   const pageMotion = prefersReducedMotion
@@ -655,14 +1177,28 @@ export default function ProfilePage() {
             <Briefcase className="w-6 h-6 text-primary" />
             Work Experience
           </h2>
+          <button
+            onClick={() => setShowAddExperienceModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Add Experience
+          </button>
         </div>
 
         {experiences.length === 0 ? (
           <div className="glass-card p-8 text-center">
             <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              No work experience found. Upload a resume to get started.
+            <p className="text-muted-foreground mb-4">
+              No work experience found. Upload a resume or add manually.
             </p>
+            <button
+              onClick={() => setShowAddExperienceModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Experience
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -688,14 +1224,28 @@ export default function ProfilePage() {
             <GraduationCap className="w-6 h-6 text-primary" />
             Skills
           </h2>
+          <button
+            onClick={() => setShowAddSkillModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Add Skill
+          </button>
         </div>
 
         {skills.length === 0 ? (
           <div className="glass-card p-8 text-center">
             <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              No skills found. Upload a resume to get started.
+            <p className="text-muted-foreground mb-4">
+              No skills found. Upload a resume or add manually.
             </p>
+            <button
+              onClick={() => setShowAddSkillModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Skill
+            </button>
           </div>
         ) : (
           <SkillsList
@@ -706,6 +1256,20 @@ export default function ProfilePage() {
           />
         )}
       </motion.section>
+
+      {/* Modals */}
+      <AddSkillModal
+        isOpen={showAddSkillModal}
+        onClose={() => setShowAddSkillModal(false)}
+        onSubmit={handleAddSkill}
+        isSubmitting={isAddingSkill}
+      />
+      <AddExperienceModal
+        isOpen={showAddExperienceModal}
+        onClose={() => setShowAddExperienceModal(false)}
+        onSubmit={handleAddExperience}
+        isSubmitting={isAddingExperience}
+      />
     </motion.div>
   );
 }

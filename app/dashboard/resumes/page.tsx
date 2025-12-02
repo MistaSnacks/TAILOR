@@ -1,16 +1,161 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus } from 'lucide-react';
+import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus, ChevronDown } from 'lucide-react';
 import { normalizeResumeContent, type ResumeContent } from '@/lib/resume-content';
 import { TailorLoading } from '@/components/ui/tailor-loader';
+import { TemplatePreview } from '@/components/resume-templates';
+import type { TemplateType } from '@/components/resume-templates';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type ExperienceEntry = NonNullable<ResumeContent['experience']>[number];
 type EducationEntry = NonNullable<ResumeContent['education']>[number];
 type CertificationEntry = NonNullable<ResumeContent['certifications']>[number];
 type ExperienceTextField = Exclude<keyof ExperienceEntry, 'bullets'>;
+type DownloadFormat = 'docx' | 'pdf';
+
+// Download dropdown component
+function DownloadDropdown({ 
+  resumeId, 
+  downloading, 
+  onDownload,
+  variant = 'icon'
+}: { 
+  resumeId: string;
+  downloading: string | null;
+  onDownload: (id: string, format: DownloadFormat) => void;
+  variant?: 'icon' | 'button';
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const isDownloading = downloading === resumeId;
+
+  if (variant === 'icon') {
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={isDownloading}
+          className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors flex items-center gap-0.5"
+          title="Download"
+        >
+          {isDownloading ? (
+            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              <ChevronDown className="w-3 h-3" />
+            </>
+          )}
+        </button>
+        
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]"
+            >
+              <button
+                onClick={() => {
+                  onDownload(resumeId, 'docx');
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4 text-blue-500" />
+                DOCX
+              </button>
+              <button
+                onClick={() => {
+                  onDownload(resumeId, 'pdf');
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4 text-red-500" />
+                PDF
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isDownloading}
+        className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm hover:bg-primary/20 transition-colors flex items-center gap-2"
+      >
+        {isDownloading ? (
+          <>
+            <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            Downloading...
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" />
+            Download
+            <ChevronDown className="w-3 h-3" />
+          </>
+        )}
+      </button>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute right-0 bottom-full mb-1 z-50 bg-background border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px]"
+          >
+            <button
+              onClick={() => {
+                onDownload(resumeId, 'docx');
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-2.5 text-sm text-left hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4 text-blue-500" />
+              Download DOCX
+            </button>
+            <button
+              onClick={() => {
+                onDownload(resumeId, 'pdf');
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-2.5 text-sm text-left hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4 text-red-500" />
+              Download PDF
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // Small progress bar component for individual ATS metrics
 function AtsMetricBar({ label, value, weight }: { label: string; value: number; weight: number }) {
   const getColor = (score: number) => {
@@ -112,19 +257,22 @@ function ResumesContent() {
         setError('Failed to fetch resumes');
       }
     } catch (error: unknown) {
-      // Silent fail - error state already set
       setError('Failed to fetch resumes');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = async (resumeId: string) => {
+  const handleDownload = async (resumeId: string, format: DownloadFormat = 'docx') => {
     try {
       setDownloading(resumeId);
       setError(null);
 
-      const response = await fetch(`/api/resumes/${resumeId}/download`);
+      const url = format === 'pdf' 
+        ? `/api/resumes/${resumeId}/download/pdf`
+        : `/api/resumes/${resumeId}/download`;
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Download failed');
@@ -133,17 +281,17 @@ function ResumesContent() {
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch ? filenameMatch[1] : 'resume.docx';
+      const filename = filenameMatch ? filenameMatch[1] : `resume.${format}`;
 
       // Download file
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = downloadUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
     } catch (error: unknown) {
       setError('Failed to download resume');
@@ -195,11 +343,9 @@ function ResumesContent() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          // Already exists
           setSuccessMessage('This resume is already in your documents.');
           return;
         }
-        // Include details for debugging
         const errorMsg = data.details 
           ? `${data.error}: ${data.details}` 
           : (data.error || 'Failed to add to documents');
@@ -231,7 +377,6 @@ function ResumesContent() {
         );
       }
     } catch (err: unknown) {
-      // Silent fail - error state already set
       setError('Failed to load resume details');
     } finally {
       setViewingLoading(false);
@@ -584,18 +729,12 @@ function ResumesContent() {
                       <FolderPlus className="w-4 h-4" />
                     )}
                   </button>
-                  <button
-                    onClick={() => handleDownload(resume.id)}
-                    disabled={downloading === resume.id}
-                    className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors"
-                    title="Download DOCX"
-                  >
-                    {downloading === resume.id ? (
-                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4" />
-                    )}
-                  </button>
+                  <DownloadDropdown 
+                    resumeId={resume.id}
+                    downloading={downloading}
+                    onDownload={handleDownload}
+                    variant="icon"
+                  />
                   <button
                     onClick={() => handleDelete(resume.id, resume.job?.title)}
                     disabled={deleting === resume.id}
@@ -697,97 +836,27 @@ function ResumesContent() {
 
               {/* Modal Content - Split Panel */}
               <div className="flex-1 overflow-hidden flex">
-                {/* Left Panel - Resume Preview (Always Visible) */}
+                {/* Left Panel - Resume Preview with Template */}
                 <div className="w-1/2 overflow-y-auto p-6 bg-muted/10 border-r border-border">
-                  <div className="max-w-[180mm] mx-auto bg-white text-black shadow-lg min-h-[250mm] p-[15mm] text-[11px]">
-                    {/* Resume Header */}
-                    <div className="text-center border-b-2 border-gray-800 pb-3 mb-4">
-                      <h1 className="text-2xl font-bold uppercase tracking-wider mb-1">
-                        {editedContent?.contact?.name || 'Your Name'}
-                      </h1>
-                      <div className="text-[10px] text-gray-600 flex justify-center gap-3 flex-wrap">
-                        {editedContent?.contact?.email && <span>{editedContent.contact.email}</span>}
-                        {editedContent?.contact?.phone && <span>• {editedContent.contact.phone}</span>}
-                        {editedContent?.contact?.location && <span>• {editedContent.contact.location}</span>}
-                        {editedContent?.contact?.linkedin && <span>• {editedContent.contact.linkedin}</span>}
-                      </div>
+                  <div 
+                    className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto"
+                    style={{ maxWidth: '600px' }}
+                  >
+                    <div 
+                      className="overflow-hidden"
+                      style={{ 
+                        transform: 'scale(0.55)', 
+                        transformOrigin: 'top left',
+                        width: '182%',
+                        height: 'auto',
+                      }}
+                    >
+                      <TemplatePreview 
+                        template={(viewingResume.template || 'modern') as TemplateType} 
+                        content={editedContent || normalizedViewingContent || {}} 
+                        scale={1}
+                      />
                     </div>
-
-                    {/* Summary */}
-                    {editedContent?.summary && (
-                      <div className="mb-4">
-                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
-                          Professional Summary
-                        </h2>
-                        <p className="leading-relaxed text-gray-700">
-                          {editedContent.summary}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Experience */}
-                    {editedContent?.experience && editedContent.experience.length > 0 && (
-                      <div className="mb-4">
-                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
-                          Experience
-                        </h2>
-                        <div className="space-y-3">
-                          {editedContent.experience.map((exp: ExperienceEntry, i: number) => (
-                            <div key={i}>
-                              <div className="flex justify-between font-bold mb-0.5">
-                                <span>{exp.company}</span>
-                                <span className="text-[10px]">{exp.startDate} - {exp.endDate || 'Present'}</span>
-                              </div>
-                              <div className="flex justify-between italic mb-1 text-gray-700">
-                                <span>{exp.title}</span>
-                                <span className="text-[10px]">{exp.location}</span>
-                              </div>
-                              <ul className="list-disc list-outside ml-4 space-y-0.5">
-                                {exp.bullets?.map((bullet: string, j: number) => (
-                                  <li key={j} className="text-gray-700 pl-1">
-                                    {bullet}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Education */}
-                    {editedContent?.education && editedContent.education.length > 0 && (
-                      <div className="mb-4">
-                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
-                          Education
-                        </h2>
-                        <div className="space-y-2">
-                          {editedContent.education.map((edu: EducationEntry, i: number) => (
-                            <div key={i}>
-                              <div className="flex justify-between font-bold">
-                                <span>{edu.school}</span>
-                                <span className="text-[10px]">{edu.startDate || edu.year} {edu.endDate ? `- ${edu.endDate}` : ''}</span>
-                              </div>
-                              <div className="text-gray-700">
-                                {edu.degree} {edu.gpa ? `(GPA: ${edu.gpa})` : ''}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Skills */}
-                    {editedContent?.skills && editedContent.skills.length > 0 && (
-                      <div className="mb-4">
-                        <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-2 pb-1">
-                          Skills
-                        </h2>
-                        <div className="text-gray-700">
-                          {editedContent.skills.join(' • ')}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1086,23 +1155,12 @@ function ResumesContent() {
                         Reset
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDownload(viewingResume.id)}
-                      disabled={downloading === viewingResume.id}
-                      className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm hover:bg-primary/20 transition-colors flex items-center gap-2"
-                    >
-                      {downloading === viewingResume.id ? (
-                        <>
-                          <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                          Downloading...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4" />
-                          Download DOCX
-                        </>
-                      )}
-                    </button>
+                    <DownloadDropdown 
+                      resumeId={viewingResume.id}
+                      downloading={downloading}
+                      onDownload={handleDownload}
+                      variant="button"
+                    />
                     <button
                       onClick={closeModal}
                       className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80 transition-colors"

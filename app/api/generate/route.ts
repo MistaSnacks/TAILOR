@@ -240,17 +240,17 @@ export async function POST(request: NextRequest) {
 
     const normalizedDraft = normalizeResumeContent(rawResumeContent);
 
-    // Remove any ghost/placeholder data before critic
-    const cleanedDraft = removeGhostData(normalizedDraft);
-
-    let finalResumeContent = cleanedDraft;
+    // Note: We skip removeGhostData before critic to avoid removing legitimate content
+    // The critic and validator will handle placeholder removal in their prompts
+    // We only clean once at the very end after all processing
+    let finalResumeContent = normalizedDraft;
     let criticMetadata: any = null;
     let validatorMetadata: ValidatorMetadata | null = null;
 
     // Step 1: Run critic to improve bullet quality and structure
     try {
       const criticResult = await runResumeCritic({
-        resumeDraft: cleanedDraft,
+        resumeDraft: finalResumeContent,
         jobDescription: job.description,
         parsedJob,
       });

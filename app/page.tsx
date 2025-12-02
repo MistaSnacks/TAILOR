@@ -57,20 +57,20 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <FeatureCard
               icon={FileSearch}
-              title="Smart Parsing"
-              description="We extract every detail from your resume and LinkedIn profile to create a comprehensive career profile."
+              title="Smart Document Analysis"
+              description="Upload your resumes and we'll extract your skills, experience, and achievements to build your career profile."
               delay={0.1}
             />
             <FeatureCard
               icon={Bot}
-              title="AI Tailoring"
-              description="Our RAG engine analyzes job descriptions to highlight your most relevant experience for each role."
+              title="AI-Powered Matching"
+              description="Our AI reads job descriptions and rewrites your resume to highlight exactly what employers are looking for."
               delay={0.2}
             />
             <FeatureCard
               icon={Zap}
-              title="Instant Optimization"
-              description="Get a perfectly formatted, ATS-friendly resume in seconds, not hours."
+              title="Instant ATS Optimization"
+              description="Get a perfectly tailored resume with your match score in seconds—no more guessing if you'll pass the filter."
               delay={0.3}
             />
           </div>

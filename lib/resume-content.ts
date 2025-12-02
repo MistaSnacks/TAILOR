@@ -184,7 +184,7 @@ const PLACEHOLDER_EXACT_MATCHES = [
   'lorem ipsum',
   'placeholder',
   'city, state',
-  'location',
+  // Note: 'location' removed - it's a legitimate field name/value
   'mm/yyyy',
   'month year',
   'yyyy',
@@ -198,10 +198,7 @@ const PLACEHOLDER_EXACT_MATCHES = [
   'example company',
   'example title',
   'your name',
-  'full name',
-  'email address',
-  'phone number',
-  'address line',
+  // Note: 'full name', 'email address', 'phone number', 'address line' removed - too aggressive
 ];
 
 const PLACEHOLDER_REGEXPS = [
@@ -227,10 +224,11 @@ const PLACEHOLDER_REGEXPS = [
   /\bto\s+be\s+determined\b/i,
   /\bexample\s+(company|title|name)\b/i,
   /\byour\s+(company|title|name|email|phone)\b/i,
-  /\bfull\s+name\b/i,
-  /\bemail\s+address\b/i,
-  /\bphone\s+number\b/i,
-  /\baddress\s+line\b/i,
+  // Removed overly aggressive patterns that could match legitimate content:
+  // /\bfull\s+name\b/i, - could match "Full Name: John Doe"
+  // /\bemail\s+address\b/i, - could match legitimate text
+  // /\bphone\s+number\b/i, - could match legitimate text
+  // /\baddress\s+line\b/i, - could match legitimate text
   /\benter\s+(your|company|title|name)\b/i,
   /\bfill\s+in\b/i,
 ];
@@ -498,10 +496,20 @@ export function removeGhostData(content: ResumeContent): ResumeContent {
           return null;
         }
 
-        // Clean bullets
+        // Clean bullets - handle both string and object formats
         const cleanedBullets = (exp.bullets || [])
           .map((bullet) => {
-            const cleaned = scrubField(bullet);
+            // Handle object format with text property (from generator)
+            let bulletText: string;
+            if (typeof bullet === 'string') {
+              bulletText = bullet;
+            } else if (bullet && typeof bullet === 'object' && 'text' in bullet && typeof bullet.text === 'string') {
+              bulletText = bullet.text;
+            } else {
+              return null;
+            }
+            
+            const cleaned = scrubField(bulletText);
             return cleaned.placeholder ? null : cleaned.value;
           })
           .filter((bullet): bullet is string => Boolean(bullet));

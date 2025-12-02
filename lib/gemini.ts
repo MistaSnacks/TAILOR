@@ -75,7 +75,7 @@ const PLACEHOLDER_SNIPPETS = ['lorem ipsum', 'placeholder', 'sample text', 'dumm
 const MAX_EXPERIENCES_FOR_PROMPT = 5;
 const MAX_BULLET_CONTEXT_PER_ROLE = 8;
 export const MAX_BULLETS_PER_ROLE = 6;
-const MAX_SKILLS_FOR_PROMPT = 30; // Increased from 12 to show more skills
+const MAX_SKILLS_FOR_PROMPT = 40; // Increased to 40 for fuller skill coverage
 const MAX_INFERENCE_CONTEXT_LINES = 12;
 
 type PreparedWriterProfile = {
@@ -559,7 +559,7 @@ Inference Guidance:
 ${inferenceGuidance}`;
 
     const atsFormatGuide = `ATS Output Contract (JSON only):
-- Sections (in order): contactInfo, summary, experience, skills, education, certifications.
+- Sections (in order): contactInfo, summary, experience, skills, education, certifications. Note: Skills appear AFTER experience in the final document.
 - contactInfo: Include ONLY the fields that exist in canonical data (name, email, phone, linkedin, portfolio). NEVER include address or location in contact info.
 - summary: 3-4 sentences (minimum 350 characters) that: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics from canonical experiences, (3) mention key tools/skills relevant to the target JD, and (4) close by connecting the candidate's background to the target role's core requirements.
 - experience: array matching the canonical inventory order; each object must include company, title, optional location, startDate ("Month Year" format), endDate ("Month Year" or "Present"), and bullets.
