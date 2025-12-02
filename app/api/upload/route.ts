@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { parseDocument, chunkText } from '@/lib/parse';
+import { parseDocument } from '@/lib/parse';
 import type { DocumentAnalysis } from '@/lib/document-analysis';
-import { uploadFileToGemini, uploadTextChunkToGemini, embedText } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
-import { MAX_CHUNK_SIZE, MAX_CHUNKS_PER_DOCUMENT, MIN_CHUNK_LENGTH } from '@/lib/chunking';
 import { ingestDocument } from '@/lib/rag/ingest';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📤 Upload API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function POST(request: NextRequest) {
-  console.log('📤 Upload API - POST request received');
 
   try {
     // Get authenticated user
     const userId = await requireAuth();
-    console.log('🔐 Upload API - User authenticated:', userId ? '✅' : '❌');
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -52,14 +45,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create document record
-    console.log('📝 Creating document record:', {
-      userId,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      storagePath: fileName,
-    });
-
     const { data: document, error: dbError } = await supabaseAdmin
       .from('documents')
       .insert({
@@ -74,15 +59,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (dbError) {
-      console.error('❌ Database error creating document:', {
-        error: dbError,
-        code: dbError.code,
-        message: dbError.message,
-        details: dbError.details,
-        hint: dbError.hint,
-        userId,
-        fileName: file.name,
-      });
+      console.error('❌ Database error creating document:', dbError.message);
       return NextResponse.json(
         {
           error: 'Failed to create document record',
@@ -93,25 +70,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Document record created:', document.id);
-
     // Parse document in background
     let lastAnalysis: DocumentAnalysis | undefined = undefined;
 
     try {
-      console.log('📄 Parsing document...');
       const parsed = await parseDocument(buffer, file.type);
       lastAnalysis = parsed.analysis;
-      console.log('✅ Document parsed, sanitized text length:', parsed.text.length);
-      // REMOVE IN PRODUCTION
-      console.log('🔍 Document analysis:', {
-        documentId: document.id,
-        type: parsed.analysis.type,
-        placeholderMatches: parsed.analysis.placeholder.totalMatches,
-        placeholderDensity: parsed.analysis.placeholder.density,
-        placeholderFlagged: parsed.analysis.placeholder.flagged,
-        examples: parsed.analysis.placeholder.examples,
-      });
 
       if (!parsed.text.trim()) {
         await supabaseAdmin
@@ -138,15 +102,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      /* 
-      // Skip chunk processing for now to prevent timeouts on legacy schema
-      const chunks = chunkText(parsed.text, MAX_CHUNK_SIZE)
-        .filter(chunk => chunk.trim().length >= MIN_CHUNK_LENGTH)
-        .slice(0, MAX_CHUNKS_PER_DOCUMENT);
-      
-      // ... removed heavy Gemini loop ...
-      */
-      const chunkRecords: any[] = [];
       const geminiFileUri = null;
 
       // Update document with parsed content + chunk metadata
@@ -166,10 +121,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', document.id);
 
-      console.log('✅ Document updated in database (chunks skipped)');
-
       // Trigger Atomic RAG ingestion (separate try-catch to not revert parse_status)
-      console.log('🚀 Triggering Atomic RAG ingestion...');
       try {
         await ingestDocument(document.id, parsed.text, userId, {
           metadata: parsed.metadata,
@@ -177,13 +129,12 @@ export async function POST(request: NextRequest) {
           chunkCount: 0,
           structuredData: parsed.analysis?.structured || null,
         });
-        console.log('✅ Atomic RAG ingestion completed');
       } catch (ingestError) {
         // Don't revert parse_status - document was parsed successfully
-        console.error('❌ Ingestion error (document still marked completed):', ingestError);
+        if (isDev) console.error('❌ Ingestion error (document still marked completed):', ingestError);
       }
     } catch (parseError) {
-      console.error('❌ Parse error:', parseError);
+      if (isDev) console.error('❌ Parse error:', parseError);
       await supabaseAdmin
         .from('documents')
         .update({ parse_status: 'failed' })
@@ -196,8 +147,6 @@ export async function POST(request: NextRequest) {
       analysis: lastAnalysis,
     });
   } catch (error: any) {
-    console.error('❌ Upload error:', error);
-
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -213,16 +162,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  console.log('📤 Upload API - GET request received');
-
   try {
     // Get authenticated user
     const userId = await requireAuth();
-    console.log('🔐 Upload API - User authenticated:', userId ? '✅' : '❌');
 
+    // Only select columns needed by the documents list UI
     const { data: documents, error } = await supabaseAdmin
       .from('documents')
-      .select('*')
+      .select('id, file_name, file_type, file_size, parse_status, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -236,8 +183,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ documents });
   } catch (error: any) {
-    console.error('❌ Fetch error:', error);
-
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -267,8 +212,6 @@ export async function GET(request: NextRequest) {
  * will be rebuilt to reflect remaining data.
  */
 async function removeDocumentParsedData(documentId: string, userId: string) {
-  console.log(`🧹 Removing all parsed data for document: ${documentId}`);
-
   let deletedExperiences = 0;
   let deletedBullets = 0;
 
@@ -291,7 +234,6 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
 
       // If this is the only source, delete the experience (bullets will cascade)
       if (!otherSources || otherSources.length === 0) {
-        console.log(`   🗑️  Deleting experience ${expId} (only source was this document)`);
         const { error } = await supabaseAdmin
           .from('experiences')
           .delete()
@@ -299,8 +241,6 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
         
         if (!error) {
           deletedExperiences++;
-        } else {
-          console.error(`   ❌ Error deleting experience ${expId}:`, error.message);
         }
       }
     }
@@ -326,7 +266,6 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
 
       // If this is the only source, delete the bullet
       if (!otherBulletSources || otherBulletSources.length === 0) {
-        console.log(`   🗑️  Deleting bullet ${bulletId} (only source was this document)`);
         const { error } = await supabaseAdmin
           .from('experience_bullets')
           .delete()
@@ -334,15 +273,11 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
         
         if (!error) {
           deletedBullets++;
-        } else {
-          console.error(`   ❌ Error deleting bullet ${bulletId}:`, error.message);
         }
       }
     }
   }
 
-  console.log(`✅ Removed parsed data: ${deletedExperiences} experiences, ${deletedBullets} bullets`);
-  console.log(`   Note: Skills linked to deleted experiences were also removed via cascade`);
 }
 
 /**
@@ -375,19 +310,11 @@ async function cleanupOrphanedExperiences(userId: string) {
     .map((exp: any) => exp.id);
 
   if (orphanedExperienceIds.length > 0) {
-    console.log(`🧹 Found ${orphanedExperienceIds.length} orphaned experience(s) to clean up`);
-    
     // Delete orphaned experiences (bullets will cascade delete)
-    const { error: deleteError } = await supabaseAdmin
+    await supabaseAdmin
       .from('experiences')
       .delete()
       .in('id', orphanedExperienceIds);
-
-    if (deleteError) {
-      console.error('Error deleting orphaned experiences:', deleteError);
-    } else {
-      console.log(`✅ Deleted ${orphanedExperienceIds.length} orphaned experience(s)`);
-    }
   }
 
   // Also check for orphaned bullets (bullets that lost all sources but experience still exists)
@@ -427,28 +354,17 @@ async function cleanupOrphanedExperiences(userId: string) {
     .map((bullet: any) => bullet.id);
 
   if (orphanedBulletIds.length > 0) {
-    console.log(`🧹 Found ${orphanedBulletIds.length} orphaned bullet(s) to clean up`);
-    
-    const { error: deleteBulletError } = await supabaseAdmin
+    await supabaseAdmin
       .from('experience_bullets')
       .delete()
       .in('id', orphanedBulletIds);
-
-    if (deleteBulletError) {
-      console.error('Error deleting orphaned bullets:', deleteBulletError);
-    } else {
-      console.log(`✅ Deleted ${orphanedBulletIds.length} orphaned bullet(s)`);
-    }
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  console.log('🗑️ Upload API - DELETE request received');
-
   try {
     // Get authenticated user
     const userId = await requireAuth();
-    console.log('🔐 Upload API - User authenticated:', userId ? '✅' : '❌');
 
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('id');
@@ -479,18 +395,11 @@ export async function DELETE(request: NextRequest) {
     // Delete from storage if storage_path exists
     if (document.storage_path) {
       try {
-        const { error: storageError } = await supabaseAdmin.storage
+        await supabaseAdmin.storage
           .from('resumes')
           .remove([document.storage_path]);
-
-        if (storageError) {
-          console.error('Storage deletion error:', storageError);
-          // Continue with database deletion even if storage deletion fails
-        } else {
-          console.log('✅ File deleted from storage:', document.storage_path);
-        }
       } catch (storageError) {
-        console.error('Storage deletion error:', storageError);
+        // Continue with database deletion even if storage deletion fails
       }
     }
 
@@ -498,9 +407,8 @@ export async function DELETE(request: NextRequest) {
     // This ensures we clean up experiences/bullets that only had this document as a source
     try {
       await removeDocumentParsedData(documentId, userId);
-    } catch (removeError: any) {
-      // Log but continue with deletion - we'll do orphaned cleanup after
-      console.error('⚠️ Error removing document parsed data:', removeError.message);
+    } catch {
+      // Continue with deletion - we'll do orphaned cleanup after
     }
 
     // Delete document (cascades to chunks and source links via ON DELETE CASCADE)
@@ -519,30 +427,22 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Clean up any remaining orphaned experiences and bullets
-    // This catches any edge cases where data might still be orphaned
     try {
       await cleanupOrphanedExperiences(userId);
-      console.log('✅ Cleaned up any remaining orphaned experiences and bullets');
-    } catch (cleanupError: any) {
-      // Log but don't fail the deletion if cleanup fails
-      console.error('⚠️ Error cleaning up orphaned data:', cleanupError.message);
+    } catch {
+      // Don't fail the deletion if cleanup fails
     }
 
     // Rebuild canonical profile to reflect the deletions
     try {
       const { canonicalizeProfile } = await import('@/lib/profile-canonicalizer');
       await canonicalizeProfile(userId);
-      console.log('✅ Rebuilt canonical profile after document deletion');
-    } catch (canonicalizeError: any) {
-      // Log but don't fail - canonicalization can happen later
-      console.error('⚠️ Error rebuilding canonical profile:', canonicalizeError.message);
+    } catch {
+      // Canonicalization can happen later
     }
 
-    console.log('✅ Document deleted successfully:', documentId);
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('❌ Delete error:', error);
-
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },

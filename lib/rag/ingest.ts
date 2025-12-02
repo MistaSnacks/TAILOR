@@ -27,23 +27,47 @@ export async function ingestDocument(documentId: string, text: string, userId: s
 
     // CRITICAL: Ensure user exists to prevent Foreign Key errors
     // First check if user exists
-    const { data: existingUser } = await supabaseAdmin
+    const { data: existingUser, error: userCheckError } = await supabaseAdmin
         .from('users')
         .select('id, email')
         .eq('id', userId)
         .maybeSingle();
 
+    // Sanitize user object for logging (no sensitive data)
+    const sanitizedUser = existingUser ? {
+        id: existingUser.id.slice(0, 8) + '...',
+        email: existingUser.email ? existingUser.email.split('@')[0] + '@***' : null,
+    } : null;
+
+    console.log('🔍 [ingestDocument] User check:', {
+        userId: userId.slice(0, 8) + '...',
+        found: !!existingUser,
+        sanitizedUser,
+        error: userCheckError?.message || null,
+    });
+
     if (!existingUser) {
-        console.log('📝 User not found, creating...');
+        console.log('📝 [ingestDocument] User not found, creating...');
         const { data: newUser, error: insertError } = await supabaseAdmin
             .from('users')
             .insert({
                 id: userId,
-                email: `user_${userId.slice(0, 8)}@placeholder.com`,
+                email: `user_${userId.slice(0, 8)}@example.invalid`,
                 email_verified: new Date().toISOString()
             })
             .select()
             .single();
+
+        // Sanitize user object before logging
+        const sanitizedNewUser = newUser ? {
+            id: newUser.id.slice(0, 8) + '...',
+            email: newUser.email ? newUser.email.split('@')[0] + '@***' : null,
+        } : null;
+
+        console.log('🔍 [ingestDocument] Insert result:', {
+            sanitizedNewUser,
+            error: insertError ? { code: insertError.code, message: insertError.message, details: insertError.details } : null,
+        });
 
         if (insertError || !newUser) {
             console.error('❌ CRITICAL: Failed to create user:', insertError);
@@ -57,13 +81,20 @@ export async function ingestDocument(documentId: string, text: string, userId: s
             .eq('id', userId)
             .single();
 
+        console.log('🔍 [ingestDocument] Verification:', {
+            userId: userId.slice(0, 8) + '...',
+            verified: !!verifyUser,
+        });
+
         if (!verifyUser) {
             throw new Error(`User was created but verification failed - transaction issue?`);
         }
 
-        console.log('✅ User created and verified:', verifyUser.id);
+        console.log('✅ [ingestDocument] User created and verified:', verifyUser.id.slice(0, 8) + '...');
     } else {
-        console.log('✅ User already exists:', existingUser.id, existingUser.email);
+        // Sanitize email in log
+        const sanitizedEmail = existingUser.email ? existingUser.email.split('@')[0] + '@***' : 'no email';
+        console.log('✅ [ingestDocument] User already exists:', existingUser.id.slice(0, 8) + '...', sanitizedEmail);
     }
 
     // 1. Parse the document

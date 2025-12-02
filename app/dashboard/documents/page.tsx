@@ -2,14 +2,55 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { UploadCloud, FileText, Trash2, CheckCircle, AlertCircle, FileType } from 'lucide-react';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
+
+// Proper type interface for documents
+export interface Document {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  parse_status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: string;
+  updated_at?: string;
+  storage_path?: string | null;
+  source_resume_id?: string | null;
+}
+
+interface DocumentsResponse {
+  documents: Document[];
+}
+
+// Extracted motion prop patterns for consistency
+const createMotionProps = (prefersReducedMotion: boolean) => ({
+  page: prefersReducedMotion
+    ? {}
+    : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } },
+  uploadArea: prefersReducedMotion
+    ? {}
+    : { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, transition: { delay: 0.1 } },
+  documentsList: prefersReducedMotion
+    ? {}
+    : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.2 } },
+  documentItem: (index: number): Variants | {} => prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, x: -20 },
+        transition: { delay: index * 0.05 },
+      },
+});
 
 export default function DocumentsPage() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const motionProps = createMotionProps(prefersReducedMotion);
 
   // Fetch documents on mount
   useEffect(() => {
@@ -18,24 +59,21 @@ export default function DocumentsPage() {
 
   const fetchDocuments = async () => {
     try {
-      console.log('📄 Fetching documents...');
       const response = await fetch('/api/upload');
 
       if (response.ok) {
-        const data = await response.json();
-        console.log('📄 Documents fetched:', data.documents?.length || 0);
+        const data = await response.json() as DocumentsResponse;
         setDocuments(data.documents || []);
-      } else {
-        console.error('Failed to fetch documents:', response.status);
       }
     } catch (error) {
-      console.error('❌ Fetch error:', error);
+      // Silent fail - UI will show empty state
     } finally {
       setLoading(false);
     }
   };
 
   // Shared upload logic for both click and drag-drop
+  // Parallel file uploads for better performance
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
@@ -45,9 +83,6 @@ export default function DocumentsPage() {
         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         file.name.endsWith('.pdf') ||
         file.name.endsWith('.docx');
-      if (!isValid) {
-        console.warn(`⚠️ Skipping invalid file type: ${file.name} (${file.type})`);
-      }
       return isValid;
     });
 
@@ -56,12 +91,11 @@ export default function DocumentsPage() {
       return;
     }
 
-    console.log('📤 File upload initiated:', validFiles.length, 'file(s)');
     setUploading(true);
 
     try {
-      for (const file of validFiles) {
-        console.log('📤 Uploading file:', file.name, `(${(file.size / 1024).toFixed(1)} KB)`);
+      // Upload files in parallel for better performance
+      const uploadPromises = validFiles.map(async (file) => {
         const formData = new FormData();
         formData.append('file', file);
 
@@ -74,17 +108,16 @@ export default function DocumentsPage() {
           const error = await response.json();
           throw new Error(error.error || 'Upload failed');
         }
+        return response;
+      });
 
-        const result = await response.json();
-        console.log('✅ Upload result:', result);
-      }
+      await Promise.all(uploadPromises);
 
       // Refresh documents list
       await fetchDocuments();
-      // alert('Files uploaded successfully!');
-    } catch (error: any) {
-      console.error('❌ Upload error:', error);
-      alert(error.message || 'Failed to upload file');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
+      alert(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -92,10 +125,7 @@ export default function DocumentsPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) {
-      console.warn('⚠️ No files selected');
-      return;
-    }
+    if (!files || files.length === 0) return;
     await uploadFiles(files);
     // Reset file input to allow re-uploading the same file
     e.target.value = '';
@@ -147,7 +177,6 @@ export default function DocumentsPage() {
     try {
       // Optimistic update
       setDocuments(prev => prev.filter(d => d.id !== docId));
-      console.log('🗑️ Deleting document:', docId);
 
       const response = await fetch(`/api/upload?id=${docId}`, {
         method: 'DELETE',
@@ -156,14 +185,10 @@ export default function DocumentsPage() {
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Delete failed');
-        // Revert optimistic update on failure
-        fetchDocuments();
       }
-
-      console.log('✅ Document deleted successfully');
-    } catch (error: any) {
-      console.error('❌ Delete error:', error);
-      alert(error.message || 'Failed to delete document');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
+      alert(errorMessage);
       fetchDocuments(); // Revert on error
     }
   };
@@ -178,9 +203,7 @@ export default function DocumentsPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      {...motionProps.page}
       className="container mx-auto px-4 py-8 max-w-6xl"
     >
       <div className="flex items-center gap-3 mb-8">
@@ -197,9 +220,7 @@ export default function DocumentsPage() {
 
       {/* Upload area with drag and drop */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1 }}
+        {...motionProps.uploadArea}
         className="mb-12"
       >
         <div
@@ -260,9 +281,7 @@ export default function DocumentsPage() {
 
       {/* Documents list */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        {...motionProps.documentsList}
       >
         <h2 className="font-display text-2xl font-semibold mb-6 flex items-center gap-2">
           <FileText className="w-5 h-5 text-primary" />
@@ -287,10 +306,7 @@ export default function DocumentsPage() {
               {documents.map((doc, index) => (
                 <motion.div
                   key={doc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: index * 0.05 }}
+                  {...(typeof motionProps.documentItem(index) === 'object' && 'variants' in motionProps.documentItem(index) ? motionProps.documentItem(index) : {})}
                   className="p-4 rounded-xl glass-card border border-border flex items-center justify-between hover:border-primary/50 transition-all hover:shadow-md group"
                 >
                   <div className="flex-1 flex items-center gap-4">

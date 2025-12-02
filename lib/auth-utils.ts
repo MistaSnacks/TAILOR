@@ -1,7 +1,6 @@
-// 🔑 Authentication utilities for API routes (REMOVE IN PRODUCTION)
+// 🔑 Authentication utilities for API routes
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 /**
@@ -11,29 +10,32 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function getUserId(): Promise<string | null> {
   try {
     if (process.env.DEBUG_USER_ID) {
-      console.warn('⚠️ DEBUG_USER_ID override active (REMOVE IN PRODUCTION)');
+      console.warn('⚠️ DEBUG_USER_ID override active');
       return process.env.DEBUG_USER_ID;
     }
 
     const session = await getServerSession(authOptions);
-    
-    console.log('🔐 getUserId check:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      email: session?.user?.email || 'None',
-    });
 
     if (!session?.user?.email) {
-      console.error('❌ No user email in session');
+      console.log('[Auth] No session or email');
       return null;
     }
 
     const email = session.user.email;
     const name = session.user.name || null;
     const image = session.user.image || null;
-
-    // Prefer the UUID we stored in the session (set by NextAuth callback)
     const sessionUserId = (session.user as any)?.id || null;
+
+    // Helper function to sanitize email for logging (production safety)
+    const sanitizeEmail = (email: string | null | undefined): string | null => {
+      return email ? email.split('@')[0] + '@***' : null;
+    };
+
+    const sanitizedEmail = sanitizeEmail(email);
+    console.log('[Auth] Session info:', { 
+      email: sanitizedEmail, 
+      sessionUserId: sessionUserId ? sessionUserId.slice(0, 8) + '...' : 'not set'
+    });
 
     // 1) Try to find by session user id (fastest, guarantees stable UUID)
     if (sessionUserId) {
@@ -44,12 +46,12 @@ export async function getUserId(): Promise<string | null> {
         .maybeSingle();
 
       if (userById?.id) {
-        console.log('✅ Found user by session id:', userById.id);
+        console.log('[Auth] Found user by session ID:', userById.id.slice(0, 8) + '...');
         return userById.id;
       }
     }
 
-    // 2) Fallback: try to find by email (legacy records may not have session id stored)
+    // 2) Fallback: try to find by email (THIS IS THE KEY FIX)
     const { data: userByEmail } = await supabaseAdmin
       .from('users')
       .select('id')
@@ -57,9 +59,7 @@ export async function getUserId(): Promise<string | null> {
       .maybeSingle();
 
     if (userByEmail?.id) {
-      console.log('✅ Found user by email:', userByEmail.id);
-
-      // If session is missing id, update session token downstream
+      console.log('[Auth] Found user by email:', userByEmail.id.slice(0, 8) + '...', '(email:', sanitizedEmail, ')');
       return userByEmail.id;
     }
 
@@ -75,7 +75,13 @@ export async function getUserId(): Promise<string | null> {
       insertPayload.id = sessionUserId;
     }
 
-    console.log('📝 Creating new user in database for:', email, sessionUserId ? `(id=${sessionUserId})` : '');
+    // Structured logging for user creation (production-ready)
+    console.log('[Auth] Creating new user:', {
+      email: sanitizedEmail,
+      hasSessionId: !!sessionUserId,
+      timestamp: new Date().toISOString(),
+    });
+
     const { data: newUser, error: createError } = await supabaseAdmin
       .from('users')
       .insert(insertPayload)
@@ -83,14 +89,23 @@ export async function getUserId(): Promise<string | null> {
       .single();
 
     if (createError) {
-      console.error('❌ Error creating user:', createError);
+      console.error('[Auth] Error creating user:', {
+        error: createError.message,
+        code: createError.code,
+        email: sanitizedEmail,
+        timestamp: new Date().toISOString(),
+      });
       return null;
     }
 
-    console.log('✅ Created new user in database:', newUser.id);
+    console.log('[Auth] Created new user:', {
+      userId: newUser.id.slice(0, 8) + '...',
+      email: sanitizedEmail,
+      timestamp: new Date().toISOString(),
+    });
     return newUser.id;
   } catch (error) {
-    console.error('❌ Error getting user ID:', error);
+    console.error('[Auth] Error getting user ID:', error);
     return null;
   }
 }
@@ -102,15 +117,8 @@ export async function getUserId(): Promise<string | null> {
 export async function getAuthUser() {
   try {
     const session = await getServerSession(authOptions);
-    
-    console.log('🔐 getAuthUser check:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      email: session?.user?.email || 'None',
-    });
 
     if (!session?.user) {
-      console.error('❌ No user in session');
       return null;
     }
 

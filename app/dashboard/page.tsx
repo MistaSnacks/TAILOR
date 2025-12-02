@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { FileText, Files, Sparkles, TrendingUp, ArrowRight, Plus, UploadCloud, UserCheck, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import { TailorLoading } from '@/components/ui/tailor-loader';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 type DashboardStats = {
   documentsCount: number;
@@ -25,6 +26,7 @@ type DashboardStats = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     async function fetchStats() {
@@ -34,8 +36,8 @@ export default function DashboardPage() {
           const data = await res.json();
           setStats(data);
         }
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
+      } catch {
+        // Silent fail - UI will show empty state
       } finally {
         setLoading(false);
       }
@@ -51,27 +53,26 @@ export default function DashboardPage() {
     );
   }
 
+  // Motion variants - only used when reduced motion is not preferred
   const container = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: prefersReducedMotion ? 1 : 0 },
     show: {
       opacity: 1,
-      transition: {
+      transition: prefersReducedMotion ? { duration: 0 } : {
         staggerChildren: 0.1
       }
     }
   };
 
   const item = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
     show: { opacity: 1, y: 0 }
   };
 
   return (
     <div>
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        {...(prefersReducedMotion ? {} : { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } })}
         className="mb-8"
       >
         <h1 className="font-display text-4xl font-bold mb-2 text-foreground">Dashboard</h1>
@@ -80,8 +81,7 @@ export default function DashboardPage() {
 
       <motion.div
         variants={container}
-        initial="hidden"
-        animate="show"
+        {...(prefersReducedMotion ? {} : { initial: "hidden", animate: "show" })}
         className="space-y-8"
       >
         {/* Stats Grid */}
@@ -180,9 +180,7 @@ export default function DashboardPage() {
                 {stats.recentResumes.map((resume, i) => (
                   <motion.div
                     key={resume.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
+                    {...(prefersReducedMotion ? {} : { initial: { opacity: 0, x: -20 }, animate: { opacity: 1, x: 0 }, transition: { delay: i * 0.1 } })}
                     className="glass-card p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-4">

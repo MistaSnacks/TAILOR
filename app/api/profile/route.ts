@@ -2,11 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth-utils';
 
+// Structured logging helper for production observability
+function logOperation(operation: string, userId: string, details?: Record<string, unknown>) {
+  console.log(`[Profile API] ${operation}:`, {
+    userId: userId.slice(0, 8) + '...',
+    timestamp: new Date().toISOString(),
+    ...details,
+  });
+}
+
+function logError(operation: string, userId: string, error: unknown, details?: Record<string, unknown>) {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  const errorName = error instanceof Error ? error.name : 'Error';
+  
+  console.error(`[Profile API] ${operation} error:`, {
+    userId: userId.slice(0, 8) + '...',
+    error: errorMessage,
+    name: errorName,
+    timestamp: new Date().toISOString(),
+    ...details,
+  });
+}
+
 export async function GET(request: NextRequest) {
     try {
-        console.log('📋 Profile API - GET request received');
         const userId = await requireAuth();
-        console.log('✅ Profile API - User authenticated:', userId);
+        
+        logOperation('GET profile', userId);
 
         // Fetch experiences with their bullets
         const { data: experiences, error: expError } = await supabaseAdmin
@@ -20,7 +42,6 @@ export async function GET(request: NextRequest) {
             .order('end_date', { ascending: false, nullsFirst: true });
 
         if (expError) {
-            console.error('❌ Error fetching experiences:', expError);
             return NextResponse.json(
                 { error: 'Failed to fetch experiences', details: expError.message },
                 { status: 500 }
@@ -35,16 +56,13 @@ export async function GET(request: NextRequest) {
             })),
         }));
 
-        console.log('✅ Profile API - Experiences fetched:', normalizedExperiences.length);
-
-        // Fetch skills (schema may vary)
+        // Fetch skills - only needed columns
         const { data: skills, error: skillError } = await supabaseAdmin
             .from('skills')
-            .select('*')
+            .select('id, canonical_name, source_count')
             .eq('user_id', userId);
 
         if (skillError) {
-            console.error('❌ Error fetching skills:', skillError);
             return NextResponse.json(
                 { error: 'Failed to fetch skills', details: skillError.message },
                 { status: 500 }
@@ -64,8 +82,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        console.log('✅ Profile API - Skills fetched:', normalizedSkills.length);
-
         // Fetch personal info from profiles table
         const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
@@ -74,34 +90,32 @@ export async function GET(request: NextRequest) {
             .single();
 
         if (profileError && profileError.code !== 'PGRST116') {
-            console.error('❌ Error fetching profile:', profileError);
-            console.error('Profile error details:', JSON.stringify(profileError, null, 2));
             return NextResponse.json(
                 { error: 'Failed to fetch profile', details: profileError.message },
                 { status: 500 }
             );
         }
 
-        console.log('✅ Profile API - Profile data fetched:', profile ? 'Found' : 'Not found (OK)');
+        logOperation('GET profile success', userId, {
+            experienceCount: normalizedExperiences.length,
+            skillCount: normalizedSkills.length,
+            hasProfile: !!profile,
+        });
 
-        const response = {
+        return NextResponse.json({
             experiences: normalizedExperiences,
             skills: normalizedSkills,
             personalInfo: profile || null,
-        };
-
-        console.log('✅ Profile API - Returning response:', {
-            experienceCount: response.experiences.length,
-            skillCount: response.skills.length,
-            hasPersonalInfo: !!response.personalInfo,
         });
-
-        return NextResponse.json(response);
-    } catch (error: any) {
-        console.error('❌ Profile API - Error:', error);
-        console.error('Error stack:', error.stack);
-
-        if (error.message === 'Unauthorized') {
+    } catch (error: unknown) {
+        const userId = 'unknown';
+        logError('GET profile', userId, error);
+        
+        // Proper error type checking instead of fragile string comparison
+        const isUnauthorizedError = error instanceof Error && error.message === 'Unauthorized';
+        const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+        
+        if (isUnauthorizedError) {
             return NextResponse.json(
                 { error: 'Unauthorized', message: 'Please sign in to access your profile' },
                 { status: 401 }
@@ -109,7 +123,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json(
-            { error: 'Internal server error', message: error.message || 'Unexpected error' },
+            { error: 'Internal server error', message: errorMessage },
             { status: 500 }
         );
     }
@@ -121,41 +135,128 @@ export async function PUT(request: NextRequest) {
         const body = await request.json();
         const { type, action, data } = body;
 
+        logOperation('PUT profile', userId, { type, action });
+
         if (type === 'experience') {
             if (action === 'update') {
                 const { id, ...updates } = data;
-                await supabaseAdmin
+                const { error, data: updatedData } = await supabaseAdmin
                     .from('experiences')
                     .update(updates)
                     .eq('id', id)
-                    .eq('user_id', userId);
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT experience update', userId, error, { experienceId: id });
+                    return NextResponse.json(
+                        { error: 'Failed to update experience', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!updatedData || updatedData.length === 0) {
+                    logError('PUT experience update', userId, new Error('No rows updated'), { experienceId: id });
+                    return NextResponse.json(
+                        { error: 'Experience not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
             } else if (action === 'delete') {
-                await supabaseAdmin
+                const { error, data: deletedData } = await supabaseAdmin
                     .from('experiences')
                     .delete()
                     .eq('id', data.id)
-                    .eq('user_id', userId);
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT experience delete', userId, error, { experienceId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete experience', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    logError('PUT experience delete', userId, new Error('No rows deleted'), { experienceId: data.id });
+                    return NextResponse.json(
+                        { error: 'Experience not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
             }
         } else if (type === 'skill') {
             if (action === 'delete') {
-                await supabaseAdmin
+                const { error, data: deletedData } = await supabaseAdmin
                     .from('skills')
                     .delete()
                     .eq('id', data.id)
-                    .eq('user_id', userId);
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT skill delete', userId, error, { skillId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete skill', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    logError('PUT skill delete', userId, new Error('No rows deleted'), { skillId: data.id });
+                    return NextResponse.json(
+                        { error: 'Skill not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
             }
         } else if (type === 'bullet') {
             if (action === 'update') {
                 const { id, content } = data;
-                await supabaseAdmin
+                const { error, data: updatedData } = await supabaseAdmin
                     .from('experience_bullets')
                     .update({ content })
-                    .eq('id', id);
+                    .eq('id', id)
+                    .select();
+
+                if (error) {
+                    logError('PUT bullet update', userId, error, { bulletId: id });
+                    return NextResponse.json(
+                        { error: 'Failed to update bullet', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!updatedData || updatedData.length === 0) {
+                    logError('PUT bullet update', userId, new Error('No rows updated'), { bulletId: id });
+                    return NextResponse.json(
+                        { error: 'Bullet not found' },
+                        { status: 404 }
+                    );
+                }
             } else if (action === 'delete') {
-                await supabaseAdmin
+                const { error, data: deletedData } = await supabaseAdmin
                     .from('experience_bullets')
                     .delete()
-                    .eq('id', data.id);
+                    .eq('id', data.id)
+                    .select();
+
+                if (error) {
+                    logError('PUT bullet delete', userId, error, { bulletId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete bullet', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    logError('PUT bullet delete', userId, new Error('No rows deleted'), { bulletId: data.id });
+                    return NextResponse.json(
+                        { error: 'Bullet not found' },
+                        { status: 404 }
+                    );
+                }
             }
         } else if (type === 'personal_info') {
             // Validate URLs if provided
@@ -189,7 +290,6 @@ export async function PUT(request: NextRequest) {
             const userEmail = userData?.email || data.email;
             
             if (!userEmail) {
-                console.error('❌ No email found for user:', userId);
                 return NextResponse.json(
                     { error: 'Email is required to save profile' },
                     { status: 400 }
@@ -214,7 +314,7 @@ export async function PUT(request: NextRequest) {
 
             if (existingProfileForUser) {
                 // Update existing profile for this user
-                const { error } = await supabaseAdmin
+                const { error, data: updatedData } = await supabaseAdmin
                     .from('profiles')
                     .update({
                         full_name: data.full_name,
@@ -224,13 +324,19 @@ export async function PUT(request: NextRequest) {
                         portfolio_url: data.portfolio_url || null,
                         updated_at: new Date().toISOString(),
                     })
-                    .eq('user_id', userId);
+                    .eq('user_id', userId)
+                    .select();
                 profileError = error;
+                
+                if (error) {
+                    logError('PUT profile update', userId, error);
+                } else if (!updatedData || updatedData.length === 0) {
+                    logError('PUT profile update', userId, new Error('No rows updated'));
+                    profileError = { message: 'No rows updated', code: 'NO_ROWS_UPDATED' } as any;
+                }
             } else if (existingProfileByEmail && existingProfileByEmail.user_id !== userId) {
-                // Profile exists with this email but for a different user
-                // Update the existing profile to point to the current user (consolidate accounts)
-                console.log('🔄 Consolidating profile: reassigning from', existingProfileByEmail.user_id, 'to', userId);
-                const { error } = await supabaseAdmin
+                // Profile exists with this email but for a different user - consolidate accounts
+                const { error, data: updatedData } = await supabaseAdmin
                     .from('profiles')
                     .update({
                         user_id: userId,
@@ -241,11 +347,19 @@ export async function PUT(request: NextRequest) {
                         portfolio_url: data.portfolio_url || null,
                         updated_at: new Date().toISOString(),
                     })
-                    .eq('id', existingProfileByEmail.id);
+                    .eq('id', existingProfileByEmail.id)
+                    .select();
                 profileError = error;
+                
+                if (error) {
+                    logError('PUT profile consolidate', userId, error);
+                } else if (!updatedData || updatedData.length === 0) {
+                    logError('PUT profile consolidate', userId, new Error('No rows updated'));
+                    profileError = { message: 'No rows updated', code: 'NO_ROWS_UPDATED' } as any;
+                }
             } else {
                 // Insert new profile
-                const { error } = await supabaseAdmin
+                const { error, data: insertedData } = await supabaseAdmin
                     .from('profiles')
                     .insert({
                         user_id: userId,
@@ -255,34 +369,45 @@ export async function PUT(request: NextRequest) {
                         address: data.address || null,
                         linkedin_url: data.linkedin_url || null,
                         portfolio_url: data.portfolio_url || null,
-                    });
+                    })
+                    .select();
                 profileError = error;
+                
+                if (error) {
+                    logError('PUT profile insert', userId, error);
+                } else if (!insertedData || insertedData.length === 0) {
+                    logError('PUT profile insert', userId, new Error('No rows inserted'));
+                    profileError = { message: 'No rows inserted', code: 'NO_ROWS_INSERTED' } as any;
+                }
             }
 
             if (profileError) {
-                console.error('❌ Error saving personal info:', profileError);
                 return NextResponse.json(
                     { error: 'Failed to save personal info', details: profileError.message },
                     { status: 500 }
                 );
             }
-            
-            console.log('✅ Personal info saved successfully for user:', userId);
         }
 
+        logOperation('PUT profile success', userId, { type, action });
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        console.error('Profile update error:', error);
-
-        if (error.message === 'Unauthorized') {
+    } catch (error: unknown) {
+        const userId = 'unknown';
+        logError('PUT profile', userId, error);
+        
+        // Proper error type checking instead of fragile string comparison
+        const isUnauthorizedError = error instanceof Error && error.message === 'Unauthorized';
+        
+        if (isUnauthorizedError) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
             );
         }
 
+        const errorMessage = error instanceof Error ? error.message : 'Internal server error';
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Internal server error', message: errorMessage },
             { status: 500 }
         );
     }

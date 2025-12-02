@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { X, Trash2, FileText, Download, Edit, CheckCircle } from 'lucide-react';
+import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus } from 'lucide-react';
 import { normalizeResumeContent, type ResumeContent } from '@/lib/resume-content';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,6 +50,7 @@ function ResumesContent() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [addingToDocs, setAddingToDocs] = useState<string | null>(null);
   const [viewingResume, setViewingResume] = useState<any | null>(null);
   const [editedContent, setEditedContent] = useState<ResumeContent | null>(null);
   const [activeTab, setActiveTab] = useState<'preview' | 'edit' | 'keywords'>('preview');
@@ -110,8 +111,8 @@ function ResumesContent() {
       } else {
         setError('Failed to fetch resumes');
       }
-    } catch (error) {
-      console.error('Failed to fetch resumes:', error);
+    } catch (error: unknown) {
+      // Silent fail - error state already set
       setError('Failed to fetch resumes');
     } finally {
       setLoading(false);
@@ -122,7 +123,6 @@ function ResumesContent() {
     try {
       setDownloading(resumeId);
       setError(null);
-      console.log('📥 Downloading resume:', resumeId);
 
       const response = await fetch(`/api/resumes/${resumeId}/download`);
 
@@ -145,10 +145,7 @@ function ResumesContent() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
-      console.log('✅ Resume downloaded');
-    } catch (error) {
-      console.error('❌ Download error:', error);
+    } catch (error: unknown) {
       setError('Failed to download resume');
     } finally {
       setDownloading(null);
@@ -165,7 +162,6 @@ function ResumesContent() {
     try {
       setDeleting(resumeId);
       setError(null);
-      console.log('🗑️  Deleting resume:', resumeId);
 
       const response = await fetch(`/api/resumes/${resumeId}`, {
         method: 'DELETE',
@@ -176,14 +172,46 @@ function ResumesContent() {
         throw new Error(data.error || 'Delete failed');
       }
 
-      console.log('✅ Resume deleted successfully');
       // Remove from local state
       setResumes(resumes.filter(r => r.id !== resumeId));
-    } catch (error: any) {
-      console.error('❌ Delete error:', error);
-      setError(error.message || 'Failed to delete resume');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete resume';
+      setError(errorMessage);
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleAddToDocs = async (resumeId: string, jobTitle?: string) => {
+    try {
+      setAddingToDocs(resumeId);
+      setError(null);
+
+      const response = await fetch(`/api/resumes/${resumeId}/add-to-docs`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          // Already exists
+          setSuccessMessage('This resume is already in your documents.');
+          return;
+        }
+        // Include details for debugging
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}` 
+          : (data.error || 'Failed to add to documents');
+        throw new Error(errorMsg);
+      }
+
+      setSuccessMessage(`"${jobTitle || 'Resume'}" added to your documents and ingested into your career profile!`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add resume to documents';
+      setError(errorMessage);
+    } finally {
+      setAddingToDocs(null);
     }
   };
 
@@ -202,8 +230,9 @@ function ResumesContent() {
           prev.map((item) => (item.id === data.resume.id ? data.resume : item))
         );
       }
-    } catch (err) {
-      console.error('❌ Failed to load resume detail:', err);
+    } catch (err: unknown) {
+      // Silent fail - error state already set
+      setError('Failed to load resume details');
     } finally {
       setViewingLoading(false);
     }
@@ -429,9 +458,9 @@ function ResumesContent() {
       );
       setSuccessMessage('Resume updated and ATS rescored.');
       setActiveTab('preview');
-    } catch (err: any) {
-      console.error('❌ Save error:', err);
-      setError(err.message || 'Failed to save changes');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
+      setError(errorMessage);
     } finally {
       setSavingResume(false);
     }
@@ -476,6 +505,21 @@ function ResumesContent() {
         <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center gap-2">
           <X className="w-4 h-4" />
           {error}
+        </div>
+      )}
+
+      {successMessage && !viewingResume && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            {successMessage}
+          </div>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="p-1 hover:bg-green-500/10 rounded"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -528,6 +572,18 @@ function ResumesContent() {
                   </p>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleAddToDocs(resume.id, resume.job?.title)}
+                    disabled={addingToDocs === resume.id}
+                    className="p-2 hover:bg-secondary/10 text-secondary rounded-lg transition-colors"
+                    title="Add to Documents"
+                  >
+                    {addingToDocs === resume.id ? (
+                      <div className="w-4 h-4 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
+                    ) : (
+                      <FolderPlus className="w-4 h-4" />
+                    )}
+                  </button>
                   <button
                     onClick={() => handleDownload(resume.id)}
                     disabled={downloading === resume.id}

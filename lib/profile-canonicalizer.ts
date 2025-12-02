@@ -126,6 +126,104 @@ export async function canonicalizeProfile(userId: string): Promise<CanonicalProf
 
   console.log('🧱 Building canonical profile for user:', userId);
 
+  // CRITICAL: Ensure user exists before inserting into canonical tables (FK constraint)
+  const { data: existingUser, error: userCheckError } = await supabaseAdmin
+    .from('users')
+    .select('id, email')
+    .eq('id', userId)
+    .maybeSingle();
+
+  console.log('🔍 [canonicalizeProfile] User check:', {
+    userId,
+    found: !!existingUser,
+    existingUser,
+    error: userCheckError?.message || null,
+  });
+
+  if (!existingUser) {
+    console.log('📝 [canonicalizeProfile] User not found, creating placeholder...');
+    // Use dedicated placeholder domain (RFC 2606 reserved domain)
+    // email_verified set to current timestamp for consistency with auth flow
+    const { data: insertedUser, error: insertError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        id: userId,
+        email: `user_${userId.slice(0, 8)}@example.invalid`,
+        email_verified: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    // Sanitize user object before logging (no sensitive data)
+    const sanitizedInsertedUser = insertedUser ? {
+      id: insertedUser.id.slice(0, 8) + '...',
+      email: insertedUser.email ? insertedUser.email.split('@')[0] + '@***' : null,
+    } : null;
+
+    console.log('🔍 [canonicalizeProfile] Insert result:', {
+      sanitizedInsertedUser,
+      error: insertError ? { code: insertError.code, message: insertError.message, details: insertError.details } : null,
+    });
+
+    if (insertError) {
+      // Could be duplicate email - try with more unique email
+      if (insertError.code === '23505') {
+        console.log('⚠️ Placeholder email conflict, trying with full UUID...');
+        const { data: retryUser, error: retryError } = await supabaseAdmin
+          .from('users')
+          .insert({
+            id: userId,
+            email: `user_${userId}@example.invalid`,
+            email_verified: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        // Sanitize user object before logging
+        const sanitizedRetryUser = retryUser ? {
+          id: retryUser.id.slice(0, 8) + '...',
+          email: retryUser.email ? retryUser.email.split('@')[0] + '@***' : null,
+        } : null;
+
+        console.log('🔍 [canonicalizeProfile] Retry result:', {
+          sanitizedRetryUser,
+          error: retryError ? { code: retryError.code, message: retryError.message, details: retryError.details } : null,
+        });
+
+        if (retryError) {
+          console.error('❌ [canonicalizeProfile] Failed to create user after retry:', retryError);
+          throw new Error(`User creation failed in canonicalizeProfile: ${retryError.message}`);
+        }
+        console.log('✅ [canonicalizeProfile] User created (retry):', retryUser?.id);
+      } else {
+        console.error('❌ [canonicalizeProfile] Failed to create user:', insertError);
+        throw new Error(`User creation failed in canonicalizeProfile: ${insertError.message}`);
+      }
+    } else {
+      console.log('✅ [canonicalizeProfile] User created:', insertedUser?.id);
+    }
+
+    // Verify user actually exists now
+    const { data: verifyUser } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single();
+    
+    console.log('🔍 [canonicalizeProfile] Verification:', {
+      userId: userId.slice(0, 8) + '...',
+      verified: !!verifyUser,
+    });
+
+    if (!verifyUser) {
+      throw new Error(`User creation appeared to succeed but verification failed for ${userId}`);
+    }
+  } else {
+    // Sanitize email in log
+    const sanitizedEmail = existingUser.email ? existingUser.email.split('@')[0] + '@***' : 'no email';
+    console.log('✅ [canonicalizeProfile] User exists:', existingUser.id.slice(0, 8) + '...', sanitizedEmail);
+  }
+
   const { experiences, skills } = await fetchRawProfile(userId);
   const canonicalExperiences = await buildCanonicalExperiences(experiences);
   const canonicalSkills = buildCanonicalSkills(skills);

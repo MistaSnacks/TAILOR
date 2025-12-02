@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth-utils';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📊 Dashboard Stats API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-});
-
 export async function GET(request: NextRequest) {
-  console.log('📊 Dashboard Stats API - GET request received');
-
   try {
     const userId = await requireAuth();
-    console.log('🔐 Dashboard Stats API - User authenticated:', userId ? '✅' : '❌');
 
     // Fetch all stats in parallel for performance
     const [
@@ -91,14 +83,6 @@ export async function GET(request: NextRequest) {
     const totalFields = Object.keys(profileChecks).length;
     const profileCompleteness = Math.round((completedFields / totalFields) * 100);
 
-    // Debug logging (REMOVE IN PRODUCTION)
-    console.log('👤 Profile completeness check:', {
-      ...profileChecks,
-      completed: completedFields,
-      total: totalFields,
-      percentage: profileCompleteness,
-    });
-
     // Format recent resumes - flatten the ats_score array
     const recentResumes = (recentResumesResult.data || []).map((resume: any) => ({
       id: resume.id,
@@ -127,20 +111,8 @@ export async function GET(request: NextRequest) {
       averageAtsScore,
     };
 
-    console.log('📊 Dashboard Stats:', {
-      documents: stats.documentsCount,
-      resumes: stats.resumesCount,
-      recentResumes: stats.recentResumes.length,
-      profileCompleteness: stats.profileCompleteness,
-      experiences: stats.experienceCount,
-      skills: stats.skillsCount,
-      averageAtsScore: stats.averageAtsScore,
-    });
-
     return NextResponse.json(stats);
   } catch (error: any) {
-    console.error('❌ Dashboard stats error:', error);
-
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },

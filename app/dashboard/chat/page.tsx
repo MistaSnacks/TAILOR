@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Send, 
-  Bot, 
-  User, 
-  Sparkles, 
-  Target, 
-  MessageCircle, 
-  Briefcase, 
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Target,
+  MessageCircle,
+  Briefcase,
   TrendingUp,
   Heart,
   Lightbulb,
@@ -192,7 +192,7 @@ export default function CoachPage() {
         const parts = line.split(/\*\*(.*?)\*\*/g);
         return (
           <p key={i} className="my-1">
-            {parts.map((part, j) => 
+            {parts.map((part, j) =>
               j % 2 === 1 ? <strong key={j}>{part}</strong> : part
             )}
           </p>
@@ -217,8 +217,8 @@ export default function CoachPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
-                <span className="font-display text-2xl font-bold text-white">T</span>
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden">
+                <span className="font-display text-2xl font-bold text-white leading-none">T</span>
               </div>
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
                 <Sparkles className="w-3 h-3 text-white" />
@@ -226,7 +226,7 @@ export default function CoachPage() {
             </div>
             <div>
               <h1 className="font-display text-3xl font-bold tracking-tight">
-                TAILOR
+                T<span className="text-primary">AI</span>LOR
               </h1>
               <p className="text-muted-foreground text-sm">Your AI Career Coach</p>
             </div>
@@ -279,7 +279,7 @@ export default function CoachPage() {
               transition={{ delay: 0.2 }}
               className="font-display text-2xl font-bold mb-3"
             >
-              Hi, I'm TAILOR! 👋
+              Hi, I&apos;m T<span className="text-primary">AI</span>LOR! 👋
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -287,10 +287,10 @@ export default function CoachPage() {
               transition={{ delay: 0.3 }}
               className="text-muted-foreground max-w-lg mb-8 leading-relaxed"
             >
-              I'm your personal AI career coach. I know your resume inside and out, and I'm here to help you 
-              <span className="text-primary font-medium"> ace interviews</span>, 
-              <span className="text-emerald-500 font-medium"> navigate career transitions</span>, and 
-              <span className="text-amber-500 font-medium"> build confidence</span>. 
+              I&apos;m your personal AI career coach. I know your resume inside and out, and I&apos;m here to help you
+              <span className="text-primary font-medium"> ace interviews</span>,
+              <span className="text-emerald-500 font-medium"> navigate career transitions</span>, and
+              <span className="text-amber-500 font-medium"> build confidence</span>.
               What can I help you with today?
             </motion.p>
 
@@ -308,11 +308,10 @@ export default function CoachPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 + index * 0.1 }}
                   onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br ${category.color} border transition-all duration-200 ${
-                    activeCategory === category.id 
-                      ? 'ring-2 ring-primary/50 scale-105' 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br ${category.color} border transition-all duration-200 ${activeCategory === category.id
+                      ? 'ring-2 ring-primary/50 scale-105'
                       : 'hover:scale-105'
-                  }`}
+                    }`}
                 >
                   {category.icon}
                   <span className="font-medium text-sm">{category.label}</span>
@@ -387,36 +386,33 @@ export default function CoachPage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'user' 
-                        ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md' 
-                        : 'bg-gradient-to-br from-violet-500/20 to-primary/20 text-primary border border-primary/20'
-                    }`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${message.role === 'user'
+                        ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md'
+                        : 'bg-gradient-to-br from-primary via-primary/80 to-violet-600 shadow-md'
+                      }`}>
                       {message.role === 'user' ? (
                         <User className="w-5 h-5" />
                       ) : (
-                        <span className="font-display font-bold text-sm">T</span>
+                        <span className="font-display font-bold text-sm text-white leading-none">T</span>
                       )}
                     </div>
                     <div
-                      className={`px-5 py-3.5 rounded-2xl shadow-sm ${
-                        message.role === 'user'
+                      className={`px-5 py-3.5 rounded-2xl shadow-sm ${message.role === 'user'
                           ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
                           : 'bg-card border border-border rounded-tl-sm'
-                      }`}
+                        }`}
                     >
                       <div className="leading-relaxed prose prose-sm max-w-none dark:prose-invert">
-                        {message.role === 'assistant' 
+                        {message.role === 'assistant'
                           ? formatContent(message.content)
                           : message.content
                         }
                       </div>
                       <div
-                        className={`text-[10px] mt-3 opacity-70 ${
-                          message.role === 'user'
+                        className={`text-[10px] mt-3 opacity-70 ${message.role === 'user'
                             ? 'text-primary-foreground/80'
                             : 'text-muted-foreground'
-                        }`}
+                          }`}
                       >
                         {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
@@ -433,11 +429,11 @@ export default function CoachPage() {
                 className="flex justify-start"
               >
                 <div className="flex gap-3 max-w-[85%]">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-primary/20 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                    <span className="font-display font-bold text-sm text-primary">T</span>
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-md overflow-hidden">
+                    <span className="font-display font-bold text-sm text-white leading-none">T</span>
                   </div>
                   <div className="px-5 py-4 rounded-2xl rounded-tl-sm bg-card border border-border shadow-sm flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground font-medium">TAILOR is thinking</span>
+                    <span className="text-sm text-muted-foreground font-medium">T<span className="text-primary">AI</span>LOR is thinking</span>
                     <div className="flex gap-1.5">
                       <motion.div
                         animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}

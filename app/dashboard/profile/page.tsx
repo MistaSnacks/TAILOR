@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown } from 'lucide-react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 type Experience = {
   id: string;
@@ -41,7 +42,7 @@ type PersonalInfo = {
 
 // --- Sub-components for Collapsible Sections ---
 
-function ExperienceItem({ exp, onDelete, isDeleting }: { exp: Experience, onDelete: (id: string, title: string, company: string) => void, isDeleting: boolean }) {
+function ExperienceItem({ exp, onDelete, isDeleting, prefersReducedMotion }: { exp: Experience, onDelete: (id: string, title: string, company: string) => void, isDeleting: boolean, prefersReducedMotion: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -53,12 +54,16 @@ function ExperienceItem({ exp, onDelete, isDeleting }: { exp: Experience, onDele
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-xl font-bold">{exp.title}</h3>
-            <motion.div
-              animate={{ rotate: isOpen ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            </motion.div>
+            {prefersReducedMotion ? (
+              <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            ) : (
+              <motion.div
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              </motion.div>
+            )}
           </div>
           <p className="text-lg text-primary font-medium">{exp.company}</p>
           <p className="text-sm text-muted-foreground mt-1">
@@ -78,54 +83,91 @@ function ExperienceItem({ exp, onDelete, isDeleting }: { exp: Experience, onDele
         </button>
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="px-6 pb-6 pt-0 border-t border-border/50 mt-2">
-              <div className="pt-4">
-                <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
-                  <span>{exp.location}</span>
-                  {exp.source_count !== undefined && (
-                    <span>Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}</span>
-                  )}
-                </div>
-
-                {exp.experience_bullets && exp.experience_bullets.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-foreground/80">Achievements:</h4>
-                    <ul className="space-y-2">
-                      {exp.experience_bullets.map((bullet) => (
-                        <li
-                          key={bullet.id}
-                          className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
-                        >
-                          <span className="text-primary mt-1">•</span>
-                          <span className="flex-1 leading-relaxed">{bullet.content || bullet.text || 'No content available'}</span>
-                          {bullet.importance_score !== undefined && (
-                            <span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded">
-                              Score: {bullet.importance_score}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+      {prefersReducedMotion ? (
+        isOpen && (
+          <div className="px-6 pb-6 pt-0 border-t border-border/50 mt-2">
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
+                <span>{exp.location}</span>
+                {exp.source_count !== undefined && (
+                  <span>Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}</span>
                 )}
               </div>
+
+              {exp.experience_bullets && exp.experience_bullets.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground/80">Achievements:</h4>
+                  <ul className="space-y-2">
+                    {exp.experience_bullets.map((bullet) => (
+                      <li
+                        key={bullet.id}
+                        className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
+                      >
+                        <span className="text-primary mt-1">•</span>
+                        <span className="flex-1 leading-relaxed">{bullet.content || bullet.text || 'No content available'}</span>
+                        {bullet.importance_score !== undefined && (
+                          <span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded">
+                            Score: {bullet.importance_score}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        )
+      ) : (
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="px-6 pb-6 pt-0 border-t border-border/50 mt-2">
+                <div className="pt-4">
+                  <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
+                    <span>{exp.location}</span>
+                    {exp.source_count !== undefined && (
+                      <span>Found in {exp.source_count} document{exp.source_count !== 1 ? 's' : ''}</span>
+                    )}
+                  </div>
+
+                  {exp.experience_bullets && exp.experience_bullets.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-foreground/80">Achievements:</h4>
+                      <ul className="space-y-2">
+                        {exp.experience_bullets.map((bullet) => (
+                          <li
+                            key={bullet.id}
+                            className="flex items-start gap-2 text-sm bg-muted/30 p-3 rounded-lg"
+                          >
+                            <span className="text-primary mt-1">•</span>
+                            <span className="flex-1 leading-relaxed">{bullet.content || bullet.text || 'No content available'}</span>
+                            {bullet.importance_score !== undefined && (
+                              <span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded">
+                                Score: {bullet.importance_score}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }
 
-function SkillsList({ skills, onDelete, isDeleting }: { skills: Skill[], onDelete: (id: string, name: string) => void, isDeleting: string | null }) {
+function SkillsList({ skills, onDelete, isDeleting, prefersReducedMotion }: { skills: Skill[], onDelete: (id: string, name: string) => void, isDeleting: string | null, prefersReducedMotion: boolean }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -137,53 +179,90 @@ function SkillsList({ skills, onDelete, isDeleting }: { skills: Skill[], onDelet
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">All Skills ({skills.length})</h3>
         </div>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-        </motion.div>
-      </div>
-
-      <AnimatePresence>
-        {isOpen && (
+        {prefersReducedMotion ? (
+          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        ) : (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="p-6 pt-0 border-t border-border/50">
-              <div className="flex flex-wrap gap-2 pt-4">
-                {skills.map((skill) => (
-                  <div
-                    key={skill.id}
-                    className="group flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors text-sm"
-                  >
-                    <span className="font-medium">{skill.canonical_name}</span>
-                    {skill.source_count !== undefined && (
-                      <span className="text-xs text-primary/60">
-                        ({skill.source_count})
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(skill.id, skill.canonical_name);
-                      }}
-                      disabled={isDeleting === skill.id}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 hover:text-destructive"
-                      title="Delete skill"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
+
+      {prefersReducedMotion ? (
+        isOpen && (
+          <div className="p-6 pt-0 border-t border-border/50">
+            <div className="flex flex-wrap gap-2 pt-4">
+              {skills.map((skill) => (
+                <div
+                  key={skill.id}
+                  className="group flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors text-sm"
+                >
+                  <span className="font-medium">{skill.canonical_name}</span>
+                  {skill.source_count !== undefined && (
+                    <span className="text-xs text-primary/60">
+                      ({skill.source_count})
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(skill.id, skill.canonical_name);
+                    }}
+                    disabled={isDeleting === skill.id}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 hover:text-destructive"
+                    title="Delete skill"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      ) : (
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-6 pt-0 border-t border-border/50">
+                <div className="flex flex-wrap gap-2 pt-4">
+                  {skills.map((skill) => (
+                    <div
+                      key={skill.id}
+                      className="group flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors text-sm"
+                    >
+                      <span className="font-medium">{skill.canonical_name}</span>
+                      {skill.source_count !== undefined && (
+                        <span className="text-xs text-primary/60">
+                          ({skill.source_count})
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(skill.id, skill.canonical_name);
+                        }}
+                        disabled={isDeleting === skill.id}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 hover:text-destructive"
+                        title="Delete skill"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }
@@ -201,6 +280,7 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     fetchProfile();
@@ -229,9 +309,9 @@ export default function ProfilePage() {
       setSkills(data.skills || []);
       setPersonalInfo(data.personalInfo || null);
       setPersonalInfoForm(data.personalInfo || {});
-    } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      setError(error.message || 'Failed to load profile');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load profile';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -263,9 +343,9 @@ export default function ProfilePage() {
 
       // Auto-dismiss success message
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error: any) {
-      console.error('Error saving personal info:', error);
-      setError(error.message || 'Failed to save personal info');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save personal info';
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -301,9 +381,9 @@ export default function ProfilePage() {
 
       // Remove from local state immediately
       setSkills(skills.filter(s => s.id !== skillId));
-    } catch (error: any) {
-      console.error('Error deleting skill:', error);
-      setError(error.message || 'Failed to delete skill');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete skill';
+      setError(errorMessage);
     } finally {
       setDeleting(null);
     }
@@ -333,13 +413,22 @@ export default function ProfilePage() {
 
       // Remove from local state immediately
       setExperiences(experiences.filter(e => e.id !== expId));
-    } catch (error: any) {
-      console.error('Error deleting experience:', error);
-      setError(error.message || 'Failed to delete experience');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete experience';
+      setError(errorMessage);
     } finally {
       setDeleting(null);
     }
   }
+
+  // Motion props must be defined BEFORE any early returns (Rules of Hooks)
+  const pageMotion = prefersReducedMotion
+    ? {}
+    : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } };
+
+  const sectionMotion = (delay: number) => prefersReducedMotion
+    ? {}
+    : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay } };
 
   if (loading) {
     return (
@@ -351,9 +440,7 @@ export default function ProfilePage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      {...pageMotion}
       className="container mx-auto px-4 py-8 max-w-6xl"
     >
       <div className="mb-8">
@@ -377,9 +464,7 @@ export default function ProfilePage() {
 
       {/* Personal Information Section */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        {...sectionMotion(0.1)}
         className="mb-12"
       >
         <div className="flex items-center justify-between mb-6">
@@ -562,9 +647,7 @@ export default function ProfilePage() {
 
       {/* Experiences Section */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        {...sectionMotion(0.2)}
         className="mb-12"
       >
         <div className="flex items-center justify-between mb-6">
@@ -589,6 +672,7 @@ export default function ProfilePage() {
                 exp={exp}
                 onDelete={deleteExperience}
                 isDeleting={deleting === exp.id}
+                prefersReducedMotion={prefersReducedMotion}
               />
             ))}
           </div>
@@ -597,9 +681,7 @@ export default function ProfilePage() {
 
       {/* Skills Section */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        {...sectionMotion(0.3)}
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold font-display flex items-center gap-2">
@@ -620,6 +702,7 @@ export default function ProfilePage() {
             skills={skills}
             onDelete={deleteSkill}
             isDeleting={deleting}
+            prefersReducedMotion={prefersReducedMotion}
           />
         )}
       </motion.section>
