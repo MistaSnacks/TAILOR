@@ -29,18 +29,18 @@ const testimonials = [
 
 export function TestimonialsSection() {
     return (
-        <section className="py-24 relative">
+        <section className="py-16 md:py-24 relative">
             <div className="container px-4 mx-auto">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold font-display mb-6">
+                <div className="text-center mb-10 md:mb-16">
+                    <h2 className="text-2xl md:text-5xl font-bold font-display mb-4 md:mb-6">
                         Loved by <span className="text-secondary">Thousands</span>
                     </h2>
-                    <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+                    <p className="text-muted-foreground max-w-2xl mx-auto text-base md:text-lg">
                         Join thousands of professionals who have accelerated their careers with T-AI-LOR.
                     </p>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-8">
+                <div className="grid md:grid-cols-3 gap-4 md:gap-8">
                     {testimonials.map((testimonial, index) => (
                         <motion.div
                             key={index}
@@ -48,25 +48,25 @@ export function TestimonialsSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="p-8 rounded-2xl glass-card border border-white/5 relative group hover:border-secondary/30 transition-colors"
+                            className="p-5 md:p-8 rounded-xl md:rounded-2xl glass-card border border-white/5 relative group hover:border-secondary/30 transition-colors"
                         >
-                            <div className="flex items-center gap-1 mb-4">
+                            <div className="flex items-center gap-1 mb-3 md:mb-4">
                                 {[...Array(testimonial.rating)].map((_, i) => (
-                                    <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                    <Star key={i} className="w-3.5 md:w-4 h-3.5 md:h-4 fill-yellow-500 text-yellow-500" />
                                 ))}
                             </div>
 
-                            <p className="text-lg mb-6 text-foreground/90 leading-relaxed">
+                            <p className="text-sm md:text-lg mb-4 md:mb-6 text-foreground/90 leading-relaxed">
                                 &quot;{testimonial.content}&quot;
                             </p>
 
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-semibold text-foreground">{testimonial.name}</div>
-                                    <div className="text-sm text-muted-foreground">{testimonial.role} at {testimonial.company}</div>
+                                    <div className="font-semibold text-sm md:text-base text-foreground">{testimonial.name}</div>
+                                    <div className="text-xs md:text-sm text-muted-foreground">{testimonial.role} at {testimonial.company}</div>
                                 </div>
-                                <div className="flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                                    <CheckCircle className="w-3 h-3" /> Verified
+                                <div className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-primary bg-primary/10 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
+                                    <CheckCircle className="w-2.5 md:w-3 h-2.5 md:h-3" /> Verified
                                 </div>
                             </div>
                         </motion.div>

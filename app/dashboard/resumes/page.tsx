@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus, ChevronDown } from 'lucide-react';
+import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { normalizeResumeContent, type ResumeContent } from '@/lib/resume-content';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { TemplatePreview } from '@/components/resume-templates';
@@ -110,12 +110,12 @@ function DownloadDropdown({
         {isDownloading ? (
           <>
             <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-            Downloading...
+            <span className="hidden sm:inline">Downloading...</span>
           </>
         ) : (
           <>
             <Download className="w-4 h-4" />
-            Download
+            <span className="hidden sm:inline">Download</span>
             <ChevronDown className="w-3 h-3" />
           </>
         )}
@@ -203,6 +203,7 @@ function ResumesContent() {
   const [error, setError] = useState<string | null>(null);
   const [viewingLoading, setViewingLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [mobileModalView, setMobileModalView] = useState<'preview' | 'details'>('preview');
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('id');
 
@@ -363,6 +364,7 @@ function ResumesContent() {
 
   const handleView = async (resume: any) => {
     setActiveTab('preview');
+    setMobileModalView('preview');
     setViewingResume(resume);
     setViewingLoading(true);
     setError(null);
@@ -389,6 +391,7 @@ function ResumesContent() {
     setActiveTab('preview');
     setViewingLoading(false);
     setSuccessMessage(null);
+    setMobileModalView('preview');
   };
 
   const resetEdits = () => {
@@ -620,6 +623,18 @@ function ResumesContent() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (viewingResume) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [viewingResume]);
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
@@ -629,17 +644,18 @@ function ResumesContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-6xl">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-4xl font-bold font-display mb-2">My Resumes</h1>
-          <p className="text-muted-foreground">
-            Manage and tailor your resumes for different job applications.
+          <h1 className="text-2xl md:text-4xl font-bold font-display mb-1 md:mb-2">My Resumes</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Manage your tailored resumes.
           </p>
         </div>
         <a
           href="/dashboard/generate"
-          className="px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
+          className="px-4 py-2.5 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm font-medium"
         >
           <FileText className="w-4 h-4" />
           New Resume
@@ -647,21 +663,21 @@ function ResumesContent() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center gap-2">
-          <X className="w-4 h-4" />
+        <div className="mb-4 md:mb-6 p-3 md:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center gap-2 text-sm">
+          <X className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {successMessage && !viewingResume && (
-        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 flex items-center justify-between gap-2">
+        <div className="mb-4 md:mb-6 p-3 md:p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 flex items-center justify-between gap-2 text-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" />
-            {successMessage}
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="line-clamp-2">{successMessage}</span>
           </div>
           <button 
             onClick={() => setSuccessMessage(null)}
-            className="p-1 hover:bg-green-500/10 rounded"
+            className="p-1 hover:bg-green-500/10 rounded flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -669,22 +685,22 @@ function ResumesContent() {
       )}
 
       {resumes.length === 0 ? (
-        <div className="text-center py-16 glass-card rounded-xl border border-dashed border-border">
-          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No resumes yet</h3>
-          <p className="text-muted-foreground mb-6">
+        <div className="text-center py-12 md:py-16 glass-card rounded-xl border border-dashed border-border">
+          <FileText className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-3 md:mb-4" />
+          <h3 className="text-base md:text-lg font-semibold mb-2">No resumes yet</h3>
+          <p className="text-sm text-muted-foreground mb-4 md:mb-6 px-4">
             Create your first tailored resume to get started.
           </p>
           <a
             href="/dashboard/generate"
-            className="px-6 py-3 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all inline-flex items-center gap-2"
+            className="px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all inline-flex items-center gap-2 text-sm md:text-base"
           >
             Create Resume
           </a>
         </div>
       ) : (
         <motion.div
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
           initial="hidden"
           animate="visible"
           variants={{
@@ -704,19 +720,20 @@ function ResumesContent() {
                 hidden: { opacity: 0, y: 20 },
                 visible: { opacity: 1, y: 0 }
               }}
-              className={`glass-card p-6 rounded-xl border transition-all duration-200 hover:border-primary/50 hover:shadow-lg group ${highlightId === resume.id ? 'ring-2 ring-primary' : 'border-border'
+              className={`glass-card p-4 md:p-6 rounded-xl border transition-all duration-200 hover:border-primary/50 hover:shadow-lg group ${highlightId === resume.id ? 'ring-2 ring-primary' : 'border-border'
                 }`}
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg truncate pr-2" title={resume.job?.title}>
+              <div className="flex justify-between items-start mb-3 md:mb-4">
+                <div className="flex-1 min-w-0 pr-2">
+                  <h3 className="font-semibold text-base md:text-lg truncate" title={resume.job?.title}>
                     {resume.job?.title || 'Untitled Resume'}
                   </h3>
                   <p className="text-sm text-muted-foreground truncate" title={resume.job?.company}>
                     {resume.job?.company || 'No Company'}
                   </p>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Action buttons - always visible on mobile */}
+                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleAddToDocs(resume.id, resume.job?.title)}
                     disabled={addingToDocs === resume.id}
@@ -753,13 +770,13 @@ function ResumesContent() {
               {/* View Button */}
               <button
                 onClick={() => handleView(resume)}
-                className="w-full px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium flex items-center justify-center gap-2"
               >
                 <FileText className="w-4 h-4" />
                 View Resume
               </button>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
+              <div className="flex items-center justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-border/50">
                 <div className="text-xs text-muted-foreground">
                   {new Date(resume.created_at).toLocaleDateString()}
                 </div>
@@ -777,30 +794,30 @@ function ResumesContent() {
         </motion.div>
       )}
 
-      {/* Resume View/Edit Modal */}
+      {/* Resume View/Edit Modal - Full screen on mobile */}
       <AnimatePresence>
         {viewingResume && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 md:p-4"
             onClick={closeModal}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-background w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-border"
+              className="bg-background w-full h-full md:max-w-7xl md:h-[90vh] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 md:border border-border"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-                <div>
-                  <h2 className="text-xl font-bold font-display">
+              <div className="p-3 md:p-4 border-b border-border flex justify-between items-center bg-muted/30">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg md:text-xl font-bold font-display truncate">
                     {viewingResume.job?.title || 'Untitled Resume'}
                   </h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground truncate">
                     {viewingResume.job?.company || 'No Company'}
                   </p>
                 </div>
@@ -809,17 +826,17 @@ function ResumesContent() {
                     <button
                       onClick={handleSaveEdits}
                       disabled={savingResume}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+                      className="px-3 py-1.5 md:px-4 md:py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2"
                     >
                       {savingResume ? (
                         <>
                           <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Saving...
+                          <span className="hidden sm:inline">Saving...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="w-4 h-4" />
-                          Save Changes
+                          <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Save</span>
                         </>
                       )}
                     </button>
@@ -834,20 +851,44 @@ function ResumesContent() {
                 </div>
               </div>
 
-              {/* Modal Content - Split Panel */}
-              <div className="flex-1 overflow-hidden flex">
-                {/* Left Panel - Resume Preview with Template */}
-                <div className="w-1/2 overflow-y-auto p-6 bg-muted/10 border-r border-border">
+              {/* Mobile View Toggle */}
+              <div className="md:hidden flex border-b border-border">
+                <button
+                  onClick={() => setMobileModalView('preview')}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    mobileModalView === 'preview' 
+                      ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  Preview
+                </button>
+                <button
+                  onClick={() => setMobileModalView('details')}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    mobileModalView === 'details' 
+                      ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  Analysis & Edit
+                </button>
+              </div>
+
+              {/* Modal Content - Split Panel on Desktop, Single on Mobile */}
+              <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                {/* Left Panel - Resume Preview */}
+                <div className={`${mobileModalView === 'preview' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-1 overflow-y-auto p-4 md:p-6 bg-muted/10 md:border-r border-border`}>
                   <div 
-                    className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto"
+                    className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto w-full"
                     style={{ maxWidth: '600px' }}
                   >
                     <div 
                       className="overflow-hidden"
                       style={{ 
-                        transform: 'scale(0.55)', 
+                        transform: 'scale(0.5) md:scale(0.55)', 
                         transformOrigin: 'top left',
-                        width: '182%',
+                        width: '200%',
                         height: 'auto',
                       }}
                     >
@@ -861,13 +902,13 @@ function ResumesContent() {
                 </div>
 
                 {/* Right Panel - Tabbed Content */}
-                <div className="w-1/2 flex flex-col overflow-hidden">
+                <div className={`${mobileModalView === 'details' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-col flex-1 overflow-hidden`}>
                   {/* Right Panel Tabs */}
-                  <div className="p-3 border-b border-border bg-muted/20">
+                  <div className="p-2 md:p-3 border-b border-border bg-muted/20">
                     <div className="flex bg-muted rounded-lg p-1">
                       <button
                         onClick={() => setActiveTab('preview')}
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'preview'
+                        className={`flex-1 px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${activeTab === 'preview'
                           ? 'bg-background shadow-sm text-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                           }`}
@@ -876,7 +917,7 @@ function ResumesContent() {
                       </button>
                       <button
                         onClick={() => setActiveTab('keywords')}
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'keywords'
+                        className={`flex-1 px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${activeTab === 'keywords'
                           ? 'bg-background shadow-sm text-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                           }`}
@@ -885,7 +926,7 @@ function ResumesContent() {
                       </button>
                       <button
                         onClick={() => setActiveTab('edit')}
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'edit'
+                        className={`flex-1 px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${activeTab === 'edit'
                           ? 'bg-background shadow-sm text-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                           }`}
@@ -896,16 +937,16 @@ function ResumesContent() {
                   </div>
 
                   {/* Right Panel Content */}
-                  <div className="flex-1 overflow-y-auto p-4">
+                  <div className="flex-1 overflow-y-auto p-3 md:p-4">
                     {/* Analysis Tab */}
                     {activeTab === 'preview' && (
-                      <div className="space-y-4">
+                      <div className="space-y-3 md:space-y-4">
                         {/* ATS Score */}
                         {viewingResume.ats_score?.score != null && (
-                          <div className="glass-card p-4 rounded-xl">
+                          <div className="glass-card p-3 md:p-4 rounded-xl">
                             <div className="flex items-center justify-between mb-3">
-                              <h3 className="font-semibold">Overall Score</h3>
-                              <div className={`text-2xl font-bold ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
+                              <h3 className="font-semibold text-sm md:text-base">Overall Score</h3>
+                              <div className={`text-xl md:text-2xl font-bold ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
                                 {viewingResume.ats_score.score}%
                               </div>
                             </div>
@@ -950,41 +991,41 @@ function ResumesContent() {
                         )}
 
                         {/* Strengths */}
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-500" />
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
+                            <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
                             Strengths
                           </h3>
-                          <ul className="space-y-2">
+                          <ul className="space-y-1.5 md:space-y-2">
                             {atsAnalysis?.strengths && atsAnalysis.strengths.length > 0 ? (
                               atsAnalysis.strengths.map((strength: string, i: number) => (
-                                <li key={i} className="flex items-start gap-2 text-sm">
+                                <li key={i} className="flex items-start gap-2 text-xs md:text-sm">
                                   <span className="text-green-500 mt-0.5">✓</span>
                                   <span>{strength}</span>
                                 </li>
                               ))
                             ) : (
-                              <li className="text-sm text-muted-foreground">No strengths analysis available</li>
+                              <li className="text-xs md:text-sm text-muted-foreground">No strengths analysis available</li>
                             )}
                           </ul>
                         </div>
 
                         {/* Areas for Improvement */}
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <Edit className="w-5 h-5 text-yellow-500" />
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
+                            <Edit className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
                             Areas for Improvement
                           </h3>
-                          <ul className="space-y-2">
+                          <ul className="space-y-1.5 md:space-y-2">
                             {atsAnalysis?.improvements && atsAnalysis.improvements.length > 0 ? (
                               atsAnalysis.improvements.map((improvement: string, i: number) => (
-                                <li key={i} className="flex items-start gap-2 text-sm">
+                                <li key={i} className="flex items-start gap-2 text-xs md:text-sm">
                                   <span className="text-yellow-500 mt-0.5">→</span>
                                   <span>{improvement}</span>
                                 </li>
                               ))
                             ) : (
-                              <li className="text-sm text-muted-foreground">No improvement suggestions available</li>
+                              <li className="text-xs md:text-sm text-muted-foreground">No improvement suggestions available</li>
                             )}
                           </ul>
                         </div>
@@ -993,31 +1034,31 @@ function ResumesContent() {
 
                     {/* Keywords Tab */}
                     {activeTab === 'keywords' && (
-                      <div className="space-y-4">
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-500" />
+                      <div className="space-y-3 md:space-y-4">
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
+                            <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
                             Matched Keywords ({atsAnalysis?.matchedKeywords?.length || 0})
                           </h3>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
                             {atsAnalysis?.matchedKeywords && atsAnalysis.matchedKeywords.length > 0 ? (
                               atsAnalysis.matchedKeywords.map((keyword: string, i: number) => (
-                                <span key={i} className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm border border-green-500/20">
+                                <span key={i} className="px-2 md:px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-xs md:text-sm border border-green-500/20">
                                   {keyword}
                                 </span>
                               ))
                             ) : (
-                              <span className="text-sm text-muted-foreground">No matched keywords</span>
+                              <span className="text-xs md:text-sm text-muted-foreground">No matched keywords</span>
                             )}
                           </div>
                         </div>
 
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <X className="w-5 h-5 text-red-500" />
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
+                            <X className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
                             Missing Keywords ({keywordSuggestions.length})
                           </h3>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
                             {keywordSuggestions.length > 0 ? keywordSuggestions.map((keyword: string, i: number) => (
                               <button
                                 key={i}
@@ -1025,18 +1066,18 @@ function ResumesContent() {
                                   const newSkills = [...(editedContent?.skills || []), keyword];
                                   setEditedContent({ ...editedContent!, skills: newSkills });
                                 }}
-                                className="px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-sm border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1 group"
+                                className="px-2 md:px-3 py-1 bg-red-500/10 text-red-600 rounded-full text-xs md:text-sm border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1 group"
                               >
                                 {keyword}
                                 <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">+</span>
                               </button>
                             )) : (
-                              <span className="text-sm text-muted-foreground">Great job! No missing keywords detected.</span>
+                              <span className="text-xs md:text-sm text-muted-foreground">Great job! No missing keywords detected.</span>
                             )}
                           </div>
                           {keywordSuggestions.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-3">
-                              Click a keyword to add it to your skills. Changes appear in the resume preview instantly.
+                            <p className="text-[10px] md:text-xs text-muted-foreground mt-2 md:mt-3">
+                              Click a keyword to add it to your skills.
                             </p>
                           )}
                         </div>
@@ -1045,10 +1086,10 @@ function ResumesContent() {
 
                     {/* Edit Tab */}
                     {activeTab === 'edit' && (
-                      <div className="space-y-4">
+                      <div className="space-y-3 md:space-y-4">
                         {/* Edit Summary */}
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3">Professional Summary</h3>
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 text-sm md:text-base">Professional Summary</h3>
                           <textarea
                             value={editedContent?.summary || ''}
                             onChange={(e) => {
@@ -1057,13 +1098,13 @@ function ResumesContent() {
                                 return { ...prev, summary: e.target.value };
                               });
                             }}
-                            className="w-full h-24 p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                            className="w-full h-20 md:h-24 p-2 md:p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-xs md:text-sm"
                           />
                         </div>
 
                         {/* Edit Skills */}
-                        <div className="glass-card p-4 rounded-xl">
-                          <h3 className="font-semibold mb-3">Skills</h3>
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <h3 className="font-semibold mb-2 md:mb-3 text-sm md:text-base">Skills</h3>
                           <textarea
                             value={(editedContent?.skills || []).join(', ')}
                             onChange={(e) => {
@@ -1071,14 +1112,14 @@ function ResumesContent() {
                               setEditedContent((prev) => prev ? { ...prev, skills } : prev);
                             }}
                             placeholder="Separate skills with commas"
-                            className="w-full h-20 p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                            className="w-full h-16 md:h-20 p-2 md:p-3 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-xs md:text-sm"
                           />
                         </div>
 
                         {/* Edit Experience */}
-                        <div className="glass-card p-4 rounded-xl">
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-semibold">Experience</h3>
+                        <div className="glass-card p-3 md:p-4 rounded-xl">
+                          <div className="flex items-center justify-between mb-2 md:mb-3">
+                            <h3 className="font-semibold text-sm md:text-base">Experience</h3>
                             <button
                               onClick={addExperience}
                               className="text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
@@ -1086,14 +1127,14 @@ function ResumesContent() {
                               + Add
                             </button>
                           </div>
-                          <div className="space-y-4">
+                          <div className="space-y-3 md:space-y-4">
                             {editedContent?.experience?.map((exp: ExperienceEntry, i: number) => (
-                              <div key={i} className="p-3 border border-border rounded-lg bg-background/50">
+                              <div key={i} className="p-2 md:p-3 border border-border rounded-lg bg-background/50">
                                 <div className="flex justify-between items-center mb-2">
-                                  <span className="text-xs font-semibold text-muted-foreground">{exp.company || `Role ${i + 1}`}</span>
+                                  <span className="text-[10px] md:text-xs font-semibold text-muted-foreground">{exp.company || `Role ${i + 1}`}</span>
                                   <button
                                     onClick={() => removeExperience(i)}
-                                    className="text-xs text-destructive hover:underline"
+                                    className="text-[10px] md:text-xs text-destructive hover:underline"
                                   >
                                     Remove
                                   </button>
@@ -1102,18 +1143,18 @@ function ResumesContent() {
                                   <input
                                     value={exp.company}
                                     onChange={(e) => handleExperienceChange(i, 'company', e.target.value)}
-                                    className="p-2 rounded border border-border bg-background text-sm"
+                                    className="p-2 rounded border border-border bg-background text-xs md:text-sm"
                                     placeholder="Company"
                                   />
                                   <input
                                     value={exp.title}
                                     onChange={(e) => handleExperienceChange(i, 'title', e.target.value)}
-                                    className="p-2 rounded border border-border bg-background text-sm"
+                                    className="p-2 rounded border border-border bg-background text-xs md:text-sm"
                                     placeholder="Title"
                                   />
                                 </div>
                                 <textarea
-                                  className="w-full rounded border border-border bg-background px-3 py-2 text-xs min-h-[80px]"
+                                  className="w-full rounded border border-border bg-background px-2 md:px-3 py-2 text-[10px] md:text-xs min-h-[60px] md:min-h-[80px]"
                                   placeholder="One bullet per line"
                                   value={(exp.bullets || []).join('\n')}
                                   onChange={(e) => handleExperienceBulletsChange(i, e.target.value)}
@@ -1129,28 +1170,28 @@ function ResumesContent() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex flex-col gap-3 p-4 border-t border-border bg-muted/30">
+              <div className="flex flex-col gap-2 md:gap-3 p-3 md:p-4 border-t border-border bg-muted/30">
                 {successMessage && (
-                  <div className="flex items-center gap-2 text-sm text-green-600 bg-green-500/10 px-3 py-2 rounded-lg">
-                    <CheckCircle className="w-4 h-4" />
-                    {successMessage}
+                  <div className="flex items-center gap-2 text-xs md:text-sm text-green-600 bg-green-500/10 px-3 py-2 rounded-lg">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="line-clamp-1">{successMessage}</span>
                   </div>
                 )}
-                <div className="flex flex-wrap justify-between items-center gap-3">
-                  <div className="text-xs text-muted-foreground">
-                    Created: {new Date(viewingResume.created_at).toLocaleDateString()} • Template: {viewingResume.template}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 md:gap-3">
+                  <div className="text-[10px] md:text-xs text-muted-foreground">
+                    {new Date(viewingResume.created_at).toLocaleDateString()} • {viewingResume.template}
                     {viewingResume.ats_score?.score != null && (
                       <span className={`ml-2 ${viewingResume.ats_score.score >= 80 ? 'text-green-500' : viewingResume.ats_score.score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
-                        • ATS Score: {viewingResume.ats_score.score}%
+                        • ATS: {viewingResume.ats_score.score}%
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     {activeTab === 'edit' && hasUnsavedChanges && (
                       <button
                         onClick={resetEdits}
                         disabled={savingResume}
-                        className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80 transition-colors"
+                        className="px-3 md:px-4 py-2 rounded-lg bg-muted text-xs md:text-sm hover:bg-muted/80 transition-colors"
                       >
                         Reset
                       </button>
@@ -1163,7 +1204,7 @@ function ResumesContent() {
                     />
                     <button
                       onClick={closeModal}
-                      className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80 transition-colors"
+                      className="px-3 md:px-4 py-2 rounded-lg bg-muted text-xs md:text-sm hover:bg-muted/80 transition-colors"
                     >
                       Close
                     </button>

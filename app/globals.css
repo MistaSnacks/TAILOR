@@ -111,4 +111,14 @@
     background-image: linear-gradient(to right, hsl(var(--grid-color) / 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, hsl(var(--grid-color) / 0.03) 1px, transparent 1px);
   }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

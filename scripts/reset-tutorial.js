@@ -22,3 +22,4 @@ console.log('🔄 Tutorial reset! Refreshing page...');
 // Reload to see the tutorial
 location.reload();
 
+

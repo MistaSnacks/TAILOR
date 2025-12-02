@@ -6,7 +6,6 @@ import { AuthModal } from '@/components/auth-modal';
 import { HeroSection } from '@/components/unauth/hero-section';
 import { FeatureCard } from '@/components/unauth/feature-card';
 import { HowItWorks } from '@/components/unauth/how-it-works';
-import { BackgroundBeams } from '@/components/unauth/background-beams';
 import { TrustSection } from '@/components/unauth/trust-section';
 import { TestimonialsSection } from '@/components/unauth/testimonials-section';
 import { FAQSection } from '@/components/unauth/faq-section';
@@ -24,11 +23,11 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground relative selection:bg-primary/30 bg-grid-pattern">
       <div className="relative z-10">
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/50 backdrop-blur-md">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="font-display font-bold text-2xl tracking-tight">
+          <div className="container mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+            <div className="font-display font-bold text-xl md:text-2xl tracking-tight">
               T<span className="text-primary">AI</span>LOR
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
               <ThemeToggle />
               {user ? (
                 <a
@@ -53,8 +52,8 @@ export default function Home() {
 
         <TrustSection />
 
-        <section className="py-24 container px-4 mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
+        <section className="py-12 md:py-24 container px-4 mx-auto">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-8">
             <FeatureCard
               icon={FileSearch}
               title="Smart Document Analysis"

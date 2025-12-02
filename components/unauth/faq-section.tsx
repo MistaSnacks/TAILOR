@@ -31,27 +31,27 @@ export function FAQSection() {
     const [openIndex, setOpenIndex] = useState<number | null>(null);
 
     return (
-        <section className="py-24 relative">
+        <section className="py-16 md:py-24 relative">
             <div className="container px-4 mx-auto max-w-3xl">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold font-display mb-6">
+                <div className="text-center mb-10 md:mb-16">
+                    <h2 className="text-2xl md:text-5xl font-bold font-display mb-4 md:mb-6">
                         Frequently Asked <span className="text-primary">Questions</span>
                     </h2>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                     {faqs.map((faq, index) => (
                         <div
                             key={index}
-                            className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden transition-colors hover:border-white/10"
+                            className="rounded-xl md:rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden transition-colors hover:border-white/10"
                         >
                             <button
                                 onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                                className="flex items-center justify-between w-full p-6 text-left"
+                                className="flex items-center justify-between w-full p-4 md:p-6 text-left"
                             >
-                                <span className="text-lg font-medium text-foreground">{faq.question}</span>
-                                <span className="ml-4 flex-shrink-0 text-muted-foreground">
-                                    {openIndex === index ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                                <span className="text-sm md:text-lg font-medium text-foreground pr-2">{faq.question}</span>
+                                <span className="flex-shrink-0 text-muted-foreground">
+                                    {openIndex === index ? <Minus className="w-4 h-4 md:w-5 md:h-5" /> : <Plus className="w-4 h-4 md:w-5 md:h-5" />}
                                 </span>
                             </button>
                             <AnimatePresence>
@@ -62,7 +62,7 @@ export function FAQSection() {
                                         exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.3 }}
                                     >
-                                        <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
+                                        <div className="px-4 md:px-6 pb-4 md:pb-6 text-sm md:text-base text-muted-foreground leading-relaxed">
                                             {faq.answer}
                                         </div>
                                     </motion.div>

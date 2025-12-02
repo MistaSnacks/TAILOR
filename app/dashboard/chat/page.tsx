@@ -105,8 +105,8 @@ export default function CoachPage() {
   const suggestionCategories: SuggestionCategory[] = [
     {
       id: 'interview',
-      icon: <Target className="w-5 h-5" />,
-      label: 'Interview Prep',
+      icon: <Target className="w-4 h-4 md:w-5 md:h-5" />,
+      label: 'Interview',
       color: 'from-violet-500/20 to-violet-600/20 border-violet-500/30 hover:border-violet-400/50',
       suggestions: [
         "Generate interview questions for my target role",
@@ -117,8 +117,8 @@ export default function CoachPage() {
     },
     {
       id: 'resume',
-      icon: <FileText className="w-5 h-5" />,
-      label: 'Resume Help',
+      icon: <FileText className="w-4 h-4 md:w-5 md:h-5" />,
+      label: 'Resume',
       color: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30 hover:border-emerald-400/50',
       suggestions: [
         "What are my strongest accomplishments?",
@@ -129,8 +129,8 @@ export default function CoachPage() {
     },
     {
       id: 'career',
-      icon: <Compass className="w-5 h-5" />,
-      label: 'Career Strategy',
+      icon: <Compass className="w-4 h-4 md:w-5 md:h-5" />,
+      label: 'Career',
       color: 'from-amber-500/20 to-amber-600/20 border-amber-500/30 hover:border-amber-400/50',
       suggestions: [
         "Help me plan a career transition to product management",
@@ -141,7 +141,7 @@ export default function CoachPage() {
     },
     {
       id: 'confidence',
-      icon: <Heart className="w-5 h-5" />,
+      icon: <Heart className="w-4 h-4 md:w-5 md:h-5" />,
       label: 'Confidence',
       color: 'from-rose-500/20 to-rose-600/20 border-rose-500/30 hover:border-rose-400/50',
       suggestions: [
@@ -154,9 +154,9 @@ export default function CoachPage() {
   ];
 
   const quickPrompts = [
-    { icon: '🎯', text: "What makes me stand out as a candidate?" },
-    { icon: '📈', text: "Analyze gaps in my experience" },
-    { icon: '💡', text: "Suggest ways to improve my profile" },
+    { icon: '🎯', text: "What makes me stand out?" },
+    { icon: '📈', text: "Analyze my experience gaps" },
+    { icon: '💡', text: "Improve my profile" },
     { icon: '🔍', text: "Review my work history" },
   ];
 
@@ -175,10 +175,10 @@ export default function CoachPage() {
     return content.split('\n').map((line, i) => {
       // Handle headers
       if (line.startsWith('### ')) {
-        return <h3 key={i} className="font-semibold text-lg mt-4 mb-2">{line.slice(4)}</h3>;
+        return <h3 key={i} className="font-semibold text-base md:text-lg mt-4 mb-2">{line.slice(4)}</h3>;
       }
       if (line.startsWith('## ')) {
-        return <h2 key={i} className="font-bold text-xl mt-4 mb-2">{line.slice(3)}</h2>;
+        return <h2 key={i} className="font-bold text-lg md:text-xl mt-4 mb-2">{line.slice(3)}</h2>;
       }
       // Handle bullet points
       if (line.startsWith('- ') || line.startsWith('• ')) {
@@ -207,28 +207,28 @@ export default function CoachPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 py-6">
+    <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] max-w-5xl mx-auto px-3 md:px-4 py-3 md:py-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-4 md:mb-6"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <div className="relative">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden">
-                <span className="font-display text-2xl font-bold text-white leading-none">T</span>
+              <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden">
+                <span className="font-display text-lg md:text-2xl font-bold text-white leading-none">T</span>
               </div>
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
-                <Sparkles className="w-3 h-3 text-white" />
+              <div className="absolute -bottom-0.5 -right-0.5 md:-bottom-1 md:-right-1 w-4 h-4 md:w-5 md:h-5 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
+                <Sparkles className="w-2 h-2 md:w-3 md:h-3 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight">
+              <h1 className="font-display text-xl md:text-3xl font-bold tracking-tight">
                 T<span className="text-primary">AI</span>LOR
               </h1>
-              <p className="text-muted-foreground text-sm">Your AI Career Coach</p>
+              <p className="text-muted-foreground text-xs md:text-sm">Your AI Career Coach</p>
             </div>
           </div>
           {messages.length > 0 && (
@@ -236,40 +236,40 @@ export default function CoachPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={clearChat}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+              className="flex items-center gap-1 md:gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
-              New Chat
+              <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">New Chat</span>
             </motion.button>
           )}
         </div>
       </motion.div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto mb-4 rounded-2xl glass-card border border-border p-6 shadow-sm bg-gradient-to-b from-card/50 to-card">
+      <div className="flex-1 overflow-y-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl glass-card border border-border p-3 md:p-6 shadow-sm bg-gradient-to-b from-card/50 to-card">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
+          <div className="flex flex-col items-center justify-center h-full text-center px-2">
             {/* Welcome Animation */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="relative mb-8"
+              className="relative mb-6 md:mb-8"
             >
-              <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-primary/20 via-violet-500/20 to-emerald-500/20 flex items-center justify-center border border-primary/20">
+              <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/20 via-violet-500/20 to-emerald-500/20 flex items-center justify-center border border-primary/20">
                 <motion.div
                   animate={{ rotate: [0, 5, -5, 0] }}
                   transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Bot className="w-14 h-14 text-primary" />
+                  <Bot className="w-10 h-10 md:w-14 md:h-14 text-primary" />
                 </motion.div>
               </div>
               <motion.div
-                className="absolute -top-2 -right-2"
+                className="absolute -top-1 -right-1 md:-top-2 md:-right-2"
                 animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <Sparkles className="w-6 h-6 text-amber-500" />
+                <Sparkles className="w-4 h-4 md:w-6 md:h-6 text-amber-500" />
               </motion.div>
             </motion.div>
 
@@ -277,7 +277,7 @@ export default function CoachPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="font-display text-2xl font-bold mb-3"
+              className="font-display text-xl md:text-2xl font-bold mb-2 md:mb-3"
             >
               Hi, I&apos;m T<span className="text-primary">AI</span>LOR! 👋
             </motion.h2>
@@ -285,21 +285,20 @@ export default function CoachPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-muted-foreground max-w-lg mb-8 leading-relaxed"
+              className="text-sm md:text-base text-muted-foreground max-w-lg mb-6 md:mb-8 leading-relaxed"
             >
-              I&apos;m your personal AI career coach. I know your resume inside and out, and I&apos;m here to help you
+              I&apos;m your AI career coach. I know your resume and can help you
               <span className="text-primary font-medium"> ace interviews</span>,
-              <span className="text-emerald-500 font-medium"> navigate career transitions</span>, and
+              <span className="text-emerald-500 font-medium"> plan career moves</span>, and
               <span className="text-amber-500 font-medium"> build confidence</span>.
-              What can I help you with today?
             </motion.p>
 
-            {/* Category Buttons */}
+            {/* Category Buttons - Scrollable on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="flex flex-wrap justify-center gap-3 mb-8"
+              className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8 w-full"
             >
               {suggestionCategories.map((category, index) => (
                 <motion.button
@@ -308,13 +307,13 @@ export default function CoachPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 + index * 0.1 }}
                   onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br ${category.color} border transition-all duration-200 ${activeCategory === category.id
+                  className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl bg-gradient-to-br ${category.color} border transition-all duration-200 ${activeCategory === category.id
                       ? 'ring-2 ring-primary/50 scale-105'
                       : 'hover:scale-105'
                     }`}
                 >
                   {category.icon}
-                  <span className="font-medium text-sm">{category.label}</span>
+                  <span className="font-medium text-xs md:text-sm">{category.label}</span>
                 </motion.button>
               ))}
             </motion.div>
@@ -327,9 +326,9 @@ export default function CoachPage() {
                   initial={{ opacity: 0, y: 10, height: 0 }}
                   animate={{ opacity: 1, y: 0, height: 'auto' }}
                   exit={{ opacity: 0, y: -10, height: 0 }}
-                  className="w-full max-w-2xl mb-8"
+                  className="w-full max-w-2xl mb-6 md:mb-8"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
                     {suggestionCategories
                       .find(c => c.id === activeCategory)
                       ?.suggestions.map((suggestion, index) => (
@@ -339,9 +338,9 @@ export default function CoachPage() {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
                           onClick={() => handleSuggestionClick(suggestion)}
-                          className="p-4 text-left rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                          className="p-3 md:p-4 text-left rounded-lg md:rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
                         >
-                          <span className="text-sm leading-relaxed group-hover:text-primary transition-colors">
+                          <span className="text-xs md:text-sm leading-relaxed group-hover:text-primary transition-colors">
                             {suggestion}
                           </span>
                         </motion.button>
@@ -357,7 +356,7 @@ export default function CoachPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full"
+                className="grid grid-cols-2 gap-2 md:gap-3 max-w-2xl w-full"
               >
                 {quickPrompts.map((prompt, index) => (
                   <motion.button
@@ -366,17 +365,17 @@ export default function CoachPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 + index * 0.1 }}
                     onClick={() => setInput(prompt.text)}
-                    className="p-4 text-left rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                    className="p-3 md:p-4 text-left rounded-lg md:rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
                   >
-                    <span className="mr-2 text-xl group-hover:scale-110 inline-block transition-transform">{prompt.icon}</span>
-                    <span className="font-medium text-sm">{prompt.text}</span>
+                    <span className="mr-1.5 md:mr-2 text-base md:text-xl group-hover:scale-110 inline-block transition-transform">{prompt.icon}</span>
+                    <span className="font-medium text-xs md:text-sm">{prompt.text}</span>
                   </motion.button>
                 ))}
               </motion.div>
             )}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <AnimatePresence initial={false}>
               {messages.map((message) => (
                 <motion.div
@@ -385,31 +384,31 @@ export default function CoachPage() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${message.role === 'user'
+                  <div className={`flex gap-2 md:gap-3 max-w-[90%] md:max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${message.role === 'user'
                         ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md'
                         : 'bg-gradient-to-br from-primary via-primary/80 to-violet-600 shadow-md'
                       }`}>
                       {message.role === 'user' ? (
-                        <User className="w-5 h-5" />
+                        <User className="w-4 h-4 md:w-5 md:h-5" />
                       ) : (
-                        <span className="font-display font-bold text-sm text-white leading-none">T</span>
+                        <span className="font-display font-bold text-xs md:text-sm text-white leading-none">T</span>
                       )}
                     </div>
                     <div
-                      className={`px-5 py-3.5 rounded-2xl shadow-sm ${message.role === 'user'
+                      className={`px-3 py-2.5 md:px-5 md:py-3.5 rounded-xl md:rounded-2xl shadow-sm ${message.role === 'user'
                           ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
                           : 'bg-card border border-border rounded-tl-sm'
                         }`}
                     >
-                      <div className="leading-relaxed prose prose-sm max-w-none dark:prose-invert">
+                      <div className="leading-relaxed prose prose-sm max-w-none dark:prose-invert text-sm md:text-base">
                         {message.role === 'assistant'
                           ? formatContent(message.content)
                           : message.content
                         }
                       </div>
                       <div
-                        className={`text-[10px] mt-3 opacity-70 ${message.role === 'user'
+                        className={`text-[9px] md:text-[10px] mt-2 md:mt-3 opacity-70 ${message.role === 'user'
                             ? 'text-primary-foreground/80'
                             : 'text-muted-foreground'
                           }`}
@@ -428,27 +427,27 @@ export default function CoachPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-start"
               >
-                <div className="flex gap-3 max-w-[85%]">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-md overflow-hidden">
-                    <span className="font-display font-bold text-sm text-white leading-none">T</span>
+                <div className="flex gap-2 md:gap-3 max-w-[85%]">
+                  <div className="w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-gradient-to-br from-primary via-primary/80 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-md overflow-hidden">
+                    <span className="font-display font-bold text-xs md:text-sm text-white leading-none">T</span>
                   </div>
-                  <div className="px-5 py-4 rounded-2xl rounded-tl-sm bg-card border border-border shadow-sm flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground font-medium">T<span className="text-primary">AI</span>LOR is thinking</span>
-                    <div className="flex gap-1.5">
+                  <div className="px-3 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl rounded-tl-sm bg-card border border-border shadow-sm flex items-center gap-2 md:gap-3">
+                    <span className="text-xs md:text-sm text-muted-foreground font-medium">Thinking</span>
+                    <div className="flex gap-1 md:gap-1.5">
                       <motion.div
                         animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
-                        className="w-2 h-2 rounded-full bg-primary"
+                        className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary"
                       />
                       <motion.div
                         animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
-                        className="w-2 h-2 rounded-full bg-violet-500"
+                        className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-violet-500"
                       />
                       <motion.div
                         animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
-                        className="w-2 h-2 rounded-full bg-emerald-500"
+                        className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500"
                       />
                     </div>
                   </div>
@@ -466,26 +465,26 @@ export default function CoachPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
         onSubmit={handleSend}
-        className="flex gap-3"
+        className="flex gap-2 md:gap-3"
       >
         <div className="flex-1 relative">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask TAILOR anything about your career..."
-            className="w-full px-5 py-4 pr-12 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 shadow-sm transition-all"
+            placeholder="Ask anything about your career..."
+            className="w-full px-4 py-3 md:px-5 md:py-4 pr-10 md:pr-12 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 shadow-sm transition-all text-sm md:text-base"
             disabled={loading}
           />
-          <MessageCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
+          <MessageCircle className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground/50" />
         </div>
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="px-6 py-4 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2"
+          className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-1.5 md:gap-2"
         >
-          <Send className="w-5 h-5" />
-          <span className="hidden sm:inline">Send</span>
+          <Send className="w-4 h-4 md:w-5 md:h-5" />
+          <span className="hidden sm:inline text-sm md:text-base">Send</span>
         </button>
       </motion.form>
     </div>

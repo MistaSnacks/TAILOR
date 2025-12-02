@@ -156,3 +156,4 @@ export function ClassicTemplate({ content, scale = 1 }: TemplatePreviewProps) {
   );
 }
 
+

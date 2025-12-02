@@ -66,3 +66,4 @@ fix: resume output issues - remove overly aggressive placeholder detection
 Fixes issues where legitimate resume content was being incorrectly removed.
 ```
 
+

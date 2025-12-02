@@ -272,3 +272,4 @@ export function TechnicalTemplate({ content, scale = 1 }: TemplatePreviewProps) 
   );
 }
 
+

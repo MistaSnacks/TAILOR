@@ -224,3 +224,4 @@ export function ModernTemplate({ content, scale = 1 }: TemplatePreviewProps) {
   );
 }
 
+

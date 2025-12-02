@@ -1,0 +1,20 @@
+{
+  "name": "T-AI-LOR - AI-Powered Resume Tailoring",
+  "short_name": "T-AI-LOR",
+  "description": "Tailor your resume to every job in minutes — powered by AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F1419",
+  "theme_color": "#00D9FF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business", "utilities"]
+}
+

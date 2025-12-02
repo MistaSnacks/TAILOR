@@ -13,3 +13,4 @@
 - things that dont align with the job description IF there are other bullets or experiences within other work experiences the user has that do align, if not its ok to have most recent jobs with decent bullets if there arent better things to add. must make that distinction
 - Example: "Satterberg Foundation role excluded - nonprofit grant management doesn't align with fraud/fintech domain"
 
+

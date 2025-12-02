@@ -39,30 +39,64 @@ export function useReducedMotion(): boolean {
 }
 
 /**
+ * Hook to detect if the user is on a mobile device
+ * Uses screen width as a proxy for mobile (< 768px)
+ */
+export function useIsMobile(): boolean {
+  return useSyncExternalStore(
+    (subscribe) => {
+      if (typeof window === 'undefined') {
+        return () => {};
+      }
+
+      const mediaQuery = window.matchMedia('(max-width: 767px)');
+      mediaQuery.addEventListener('change', subscribe);
+      
+      return () => {
+        mediaQuery.removeEventListener('change', subscribe);
+      };
+    },
+    () => {
+      if (typeof window === 'undefined') {
+        return false;
+      }
+      return window.matchMedia('(max-width: 767px)').matches;
+    },
+    () => false
+  );
+}
+
+/**
+ * Hook to check if we should reduce animations for performance
+ * Returns true on mobile OR when user prefers reduced motion
+ */
+export function useShouldReduceAnimations(): boolean {
+  const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  return prefersReducedMotion || isMobile;
+}
+
+/**
  * Returns motion props that respect the user's reduced motion preference
  * Use this to conditionally apply framer-motion animations
  * 
  * Usage:
  * ```tsx
- * const { safeAnimate, safeInitial, safeTransition } = useMotionSafe();
- * <motion.div animate={safeAnimate} initial={safeInitial} transition={safeTransition} />
+ * const { shouldReduce } = useMotionSafe();
+ * <motion.div animate={shouldReduce ? {} : floatAnimation} />
  * ```
- * 
- * Note: framer-motion treats undefined as "no animation override"
- * When reduced motion is preferred, we return undefined to disable animations
  */
 export function useMotionSafe() {
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  const shouldReduce = prefersReducedMotion || isMobile;
 
   return {
     prefersReducedMotion,
-    // Return undefined to disable animations when reduced motion is preferred
-    // When false, also return undefined to allow component's default animations
-    safeAnimate: undefined,
-    safeInitial: undefined,
+    isMobile,
+    shouldReduce,
     // Use duration: 0 for instant transitions when reduced motion is preferred
-    // When false, return undefined to use component's default transition
-    safeTransition: prefersReducedMotion ? { duration: 0 } : undefined,
+    safeTransition: shouldReduce ? { duration: 0 } : undefined,
   };
 }
 

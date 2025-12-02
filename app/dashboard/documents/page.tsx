@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { UploadCloud, FileText, Trash2, CheckCircle, AlertCircle, FileType } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { UploadCloud, FileText, Trash2, CheckCircle, AlertCircle, FileType, Calendar, HardDrive } from 'lucide-react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 // Proper type interface for documents
@@ -23,34 +23,13 @@ interface DocumentsResponse {
   documents: Document[];
 }
 
-// Extracted motion prop patterns for consistency
-const createMotionProps = (prefersReducedMotion: boolean) => ({
-  page: prefersReducedMotion
-    ? {}
-    : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } },
-  uploadArea: prefersReducedMotion
-    ? {}
-    : { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, transition: { delay: 0.1 } },
-  documentsList: prefersReducedMotion
-    ? {}
-    : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.2 } },
-  documentItem: (index: number): Variants | {} => prefersReducedMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, x: -20 },
-        transition: { delay: index * 0.05 },
-      },
-});
-
 export default function DocumentsPage() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const prefersReducedMotion = useReducedMotion();
-  const motionProps = createMotionProps(prefersReducedMotion);
 
   // Fetch documents on mount
   useEffect(() => {
@@ -73,7 +52,6 @@ export default function DocumentsPage() {
   };
 
   // Shared upload logic for both click and drag-drop
-  // Parallel file uploads for better performance
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
@@ -94,7 +72,6 @@ export default function DocumentsPage() {
     setUploading(true);
 
     try {
-      // Upload files in parallel for better performance
       const uploadPromises = validFiles.map(async (file) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -112,8 +89,6 @@ export default function DocumentsPage() {
       });
 
       await Promise.all(uploadPromises);
-
-      // Refresh documents list
       await fetchDocuments();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
@@ -127,7 +102,6 @@ export default function DocumentsPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     await uploadFiles(files);
-    // Reset file input to allow re-uploading the same file
     e.target.value = '';
   };
 
@@ -143,7 +117,6 @@ export default function DocumentsPage() {
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set dragging to false if we're leaving the drop zone entirely
     if (e.currentTarget === e.target) {
       setIsDragging(false);
     }
@@ -168,14 +141,14 @@ export default function DocumentsPage() {
   }, [uploading, uploadFiles]);
 
   const handleDelete = async (docId: string, fileName: string) => {
-    const confirmMessage = `Delete "${fileName}"? This will also remove all processed data from this document. This action cannot be undone.`;
+    const confirmMessage = `Delete "${fileName}"? This will also remove all processed data. This action cannot be undone.`;
 
     if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      // Optimistic update
+      setDeletingId(docId);
       setDocuments(prev => prev.filter(d => d.id !== docId));
 
       const response = await fetch(`/api/upload?id=${docId}`, {
@@ -189,13 +162,44 @@ export default function DocumentsPage() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
       alert(errorMessage);
-      fetchDocuments(); // Revert on error
+      fetchDocuments();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const getStatusConfig = (status: Document['parse_status']) => {
+    switch (status) {
+      case 'completed':
+        return {
+          icon: <CheckCircle className="w-3.5 h-3.5" />,
+          label: 'Processed',
+          className: 'bg-green-500/10 text-green-600 border-green-500/20',
+        };
+      case 'processing':
+        return {
+          icon: <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse" />,
+          label: 'Processing',
+          className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+        };
+      case 'failed':
+        return {
+          icon: <AlertCircle className="w-3.5 h-3.5" />,
+          label: 'Failed',
+          className: 'bg-red-500/10 text-red-600 border-red-500/20',
+        };
+      default:
+        return {
+          icon: <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground animate-pulse" />,
+          label: 'Pending',
+          className: 'bg-muted text-muted-foreground border-border',
+        };
     }
   };
 
   if (uploading) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
         <TailorLoading mode="upload" />
       </div>
     );
@@ -203,25 +207,26 @@ export default function DocumentsPage() {
 
   return (
     <motion.div
-      {...motionProps.page}
-      className="container mx-auto px-4 py-8 max-w-6xl"
+      {...(prefersReducedMotion ? {} : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } })}
+      className="container mx-auto px-4 py-4 md:py-8 max-w-4xl"
     >
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-primary/10 rounded-xl">
-          <UploadCloud className="w-6 h-6 text-primary" />
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2.5 bg-primary/10 rounded-xl flex-shrink-0">
+          <UploadCloud className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-4xl font-bold font-display">Documents</h1>
-          <p className="text-muted-foreground">
-            Upload your existing resumes or LinkedIn profiles to extract your experience.
+          <h1 className="text-2xl md:text-3xl font-bold font-display">Documents</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload resumes to build your profile.
           </p>
         </div>
       </div>
 
-      {/* Upload area with drag and drop */}
+      {/* Upload area - Compact on mobile */}
       <motion.div
-        {...motionProps.uploadArea}
-        className="mb-12"
+        {...(prefersReducedMotion ? {} : { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, transition: { delay: 0.1 } })}
+        className="mb-6 md:mb-8"
       >
         <div
           onDragEnter={handleDragEnter}
@@ -230,10 +235,10 @@ export default function DocumentsPage() {
           onDrop={handleDrop}
           className={`
             relative overflow-hidden
-            border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300
+            border-2 border-dashed rounded-xl p-6 md:p-10 text-center transition-all duration-300
             ${isDragging
-              ? 'border-primary bg-primary/5 scale-[1.02] shadow-xl'
-              : 'border-border hover:border-primary/50 hover:bg-muted/30'
+              ? 'border-primary bg-primary/5 scale-[1.01] shadow-lg'
+              : 'border-border hover:border-primary/50 hover:bg-muted/30 active:bg-muted/50'
             }
             glass-card
           `}
@@ -247,7 +252,6 @@ export default function DocumentsPage() {
             onChange={handleFileUpload}
             disabled={uploading}
             onClick={(e) => {
-              // Reset value on click to allow re-selecting the same file
               (e.target as HTMLInputElement).value = '';
             }}
           />
@@ -255,19 +259,16 @@ export default function DocumentsPage() {
             htmlFor="file-upload"
             className={`cursor-pointer block relative z-10 ${uploading ? 'pointer-events-none' : ''}`}
           >
-            <div className={`w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center transition-transform duration-300 ${isDragging ? 'scale-110 bg-primary/20' : ''}`}>
-              <UploadCloud className={`w-10 h-10 text-primary transition-all duration-300 ${isDragging ? 'scale-110' : ''}`} />
+            <div className={`w-14 h-14 md:w-16 md:h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center transition-transform duration-300 ${isDragging ? 'scale-110 bg-primary/20' : ''}`}>
+              <UploadCloud className={`w-7 h-7 md:w-8 md:h-8 text-primary transition-all duration-300 ${isDragging ? 'scale-110' : ''}`} />
             </div>
-            <h3 className="font-display text-2xl font-semibold mb-3">
-              {isDragging ? 'Drop files here!' : 'Upload Documents'}
+            <h3 className="font-display text-lg md:text-xl font-semibold mb-2">
+              {isDragging ? 'Drop here!' : 'Upload Documents'}
             </h3>
-            <p className="text-muted-foreground max-w-md mx-auto mb-6">
-              {isDragging
-                ? 'Release to upload your files instantly'
-                : 'Drag and drop your PDF or DOCX files here, or click to browse'
-              }
+            <p className="text-sm text-muted-foreground mb-4">
+              Tap to browse or drag & drop
             </p>
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground/60">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-full text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <FileType className="w-3 h-3" /> PDF
               </span>
@@ -281,11 +282,14 @@ export default function DocumentsPage() {
 
       {/* Documents list */}
       <motion.div
-        {...motionProps.documentsList}
+        {...(prefersReducedMotion ? {} : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.2 } })}
       >
-        <h2 className="font-display text-2xl font-semibold mb-6 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
+        <h2 className="font-display text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" />
           Your Documents
+          {documents.length > 0 && (
+            <span className="text-sm font-normal text-muted-foreground">({documents.length})</span>
+          )}
         </h2>
 
         {loading ? (
@@ -293,59 +297,84 @@ export default function DocumentsPage() {
             <TailorLoading mode="general" />
           </div>
         ) : documents.length === 0 ? (
-          <div className="text-center py-16 glass-card rounded-xl border border-dashed border-border">
-            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">No documents yet</h3>
-            <p className="text-muted-foreground">
-              Upload your resume to start building your profile.
+          <div className="text-center py-10 md:py-14 glass-card rounded-xl border border-dashed border-border">
+            <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <h3 className="text-base font-semibold mb-1">No documents yet</h3>
+            <p className="text-sm text-muted-foreground">
+              Upload your resume to get started.
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="space-y-3">
             <AnimatePresence>
-              {documents.map((doc, index) => (
-                <motion.div
-                  key={doc.id}
-                  {...(typeof motionProps.documentItem(index) === 'object' && 'variants' in motionProps.documentItem(index) ? motionProps.documentItem(index) : {})}
-                  className="p-4 rounded-xl glass-card border border-border flex items-center justify-between hover:border-primary/50 transition-all hover:shadow-md group"
-                >
-                  <div className="flex-1 flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-lg text-primary">
-                      <FileText className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-semibold text-lg">{doc.file_name}</h3>
-                        <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${doc.parse_status === 'completed'
-                          ? 'bg-green-500/10 text-green-600 border border-green-500/20'
-                          : doc.parse_status === 'processing'
-                            ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
-                            : 'bg-red-500/10 text-red-600 border border-red-500/20'
-                          }`}>
-                          {doc.parse_status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                          {doc.parse_status === 'processing' && <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />}
-                          {doc.parse_status === 'failed' && <AlertCircle className="w-3 h-3" />}
-                          <span className="capitalize">{doc.parse_status}</span>
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span className="uppercase">{doc.file_type.split('/').pop()}</span>
-                        <span>•</span>
-                        <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
-                        <span>•</span>
-                        <span>{new Date(doc.created_at).toLocaleDateString()}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(doc.id, doc.file_name)}
-                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete document"
+              {documents.map((doc, index) => {
+                const status = getStatusConfig(doc.parse_status);
+                const isDeleting = deletingId === doc.id;
+                
+                return (
+                  <motion.div
+                    key={doc.id}
+                    {...(prefersReducedMotion ? {} : {
+                      initial: { opacity: 0, y: 10 },
+                      animate: { opacity: 1, y: 0 },
+                      exit: { opacity: 0, x: -20 },
+                      transition: { delay: index * 0.03 }
+                    })}
+                    className={`glass-card rounded-xl border border-border overflow-hidden transition-all ${
+                      isDeleting ? 'opacity-50' : 'hover:border-primary/30 hover:shadow-md'
+                    }`}
                   >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </motion.div>
-              ))}
+                    {/* Main content area - tappable */}
+                    <div className="p-4">
+                      {/* Top row: Icon + File name + Status */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary flex-shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base leading-tight mb-1 break-words">
+                            {doc.file_name}
+                          </h3>
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border ${status.className}`}>
+                            {status.icon}
+                            {status.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom row: Metadata + Delete button */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(doc.created_at).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <HardDrive className="w-3 h-3" />
+                            {(doc.file_size / 1024).toFixed(0)} KB
+                          </span>
+                          <span className="uppercase font-medium">
+                            {doc.file_type.split('/').pop()?.replace('vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx')}
+                          </span>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleDelete(doc.id, doc.file_name)}
+                          disabled={isDeleting}
+                          className="p-2.5 -mr-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all active:scale-95"
+                          title="Delete document"
+                        >
+                          {isDeleting ? (
+                            <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         )}

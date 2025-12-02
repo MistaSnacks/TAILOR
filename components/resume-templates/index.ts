@@ -6,3 +6,4 @@ export { TechnicalTemplate } from './TechnicalTemplate';
 export { TEMPLATE_CONFIGS, SAMPLE_RESUME_CONTENT } from './types';
 export type { TemplateType, TemplateConfig, TemplatePreviewProps } from './types';
 
+
