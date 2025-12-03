@@ -217,12 +217,21 @@ function ResumesContent() {
   );
 
   useEffect(() => {
+    console.log('[DEBUG] Viewing resume state update (NO $):', {
+      hasViewingResume: !!viewingResume,
+      hasContent: !!viewingResume?.content,
+      hasNormalizedContent: !!normalizedViewingContent,
+      viewingResumeId: viewingResume?.id,
+    });
+    
     if (normalizedViewingContent) {
       setEditedContent(normalizedViewingContent);
+      console.log('[DEBUG] Set editedContent from normalizedViewingContent (NO $)');
     } else {
       setEditedContent(null);
+      console.log('[DEBUG] Cleared editedContent - normalizedViewingContent is null (NO $)');
     }
-  }, [normalizedViewingContent]);
+  }, [normalizedViewingContent, viewingResume]);
 
   const keywordSuggestions = useMemo(() => {
     const analysis = viewingResume?.ats_score?.analysis;
@@ -365,20 +374,50 @@ function ResumesContent() {
   const handleView = async (resume: any) => {
     setActiveTab('preview');
     setMobileModalView('preview');
-    setViewingResume(resume);
     setViewingLoading(true);
     setError(null);
+
+    console.log('[DEBUG] Opening view modal (IS $):', {
+      resumeId: resume.id,
+      hasContent: !!resume.content,
+      hasAtsScore: !!resume.ats_score,
+      contentType: typeof resume.content,
+    });
+
+    // Set initial state to open modal immediately
+    setViewingResume(resume);
 
     try {
       const response = await fetch(`/api/resumes/${resume.id}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('[DEBUG] API response received (IS $):', {
+          resumeId: data.resume?.id,
+          hasContent: !!data.resume?.content,
+          hasAtsScore: !!data.resume?.ats_score,
+          contentType: typeof data.resume?.content,
+        });
+        
+        // Always update with fresh data from API - this will trigger normalizedViewingContent to recompute
         setViewingResume(data.resume);
+        
+        // Explicitly update editedContent when API response arrives to ensure modal populates
+        const normalized = normalizeResumeContent(data.resume.content);
+        setEditedContent(normalized);
+        console.log('[DEBUG] Explicitly set editedContent from API response (NO $):', {
+          hasNormalized: !!normalized,
+          hasSummary: !!normalized.summary,
+          experienceCount: normalized.experience?.length || 0,
+        });
+        
         setResumes((prev) =>
           prev.map((item) => (item.id === data.resume.id ? data.resume : item))
         );
+      } else {
+        console.error('[DEBUG] API response not ok (IS $):', response.status);
       }
     } catch (err: unknown) {
+      console.error('[DEBUG] Failed to load resume details (IS $):', err);
       setError('Failed to load resume details');
     } finally {
       setViewingLoading(false);

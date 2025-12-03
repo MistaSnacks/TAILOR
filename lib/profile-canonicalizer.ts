@@ -56,6 +56,65 @@ const PLACEHOLDER_DATE_PATTERNS = [/Y{4}/i, /M{2}/i, /X{2,}/i, /not provided/i];
 const ADJACENT_RANGE_WINDOW_MS = 1000 * 60 * 60 * 24 * 45; // ~45 days
 const FAR_FUTURE = new Date('9999-12-31T00:00:00.000Z');
 
+/**
+ * Check if two job titles are similar enough to be considered the same role.
+ * Only merges if titles share a common core (e.g., "PM" and "Senior PM").
+ * Keeps completely different roles separate (e.g., "Business Analyst" vs "Program Manager").
+ * 
+ * Uses the CORE TITLE (part before semicolon/dash) for comparison, not department names.
+ */
+function titlesAreSimilar(titleA: string, titleB: string): boolean {
+  if (!titleA || !titleB) return false;
+
+  // Extract the CORE job title (before any semicolon, dash, or department designation)
+  const extractCoreTitle = (t: string) => {
+    // Split on common separators and take the first meaningful part
+    const corePart = t
+      .split(/[;–—|]/)[0]  // Take part before semicolon or em-dash
+      .replace(/\s*[-]\s*(department|division|team|group).*$/i, '')  // Remove "- Department" suffixes
+      .trim();
+    return corePart || t;
+  };
+
+  const normalizeTitle = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/[,()]/g, ' ')
+      // Remove level indicators to compare core role
+      .replace(/\b(i{1,3}|iv|v|vi|senior|sr|junior|jr|lead|principal|staff|associate|assistant|intern|head of|director of|vp of|chief|1|2|3)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  // Compare CORE titles (not full titles with department names)
+  const coreA = normalizeTitle(extractCoreTitle(titleA));
+  const coreB = normalizeTitle(extractCoreTitle(titleB));
+
+  // Exact match after normalization
+  if (coreA === coreB) return true;
+
+  // Check if one core title contains the other (e.g., "Program Manager" in "Technical Program Manager")
+  if (coreA.includes(coreB) || coreB.includes(coreA)) return true;
+
+  // Check significant word overlap in CORE TITLE
+  // Exclude generic words that appear in many titles
+  const genericWords = new Set(['manager', 'analyst', 'engineer', 'developer', 'specialist', 'coordinator', 'administrator', 'consultant', 'officer', 'executive', 'representative']);
+  
+  const wordsA = new Set(coreA.split(' ').filter((w) => w.length > 2 && !genericWords.has(w)));
+  const wordsB = new Set(coreB.split(' ').filter((w) => w.length > 2 && !genericWords.has(w)));
+
+  // If one or both have no specific words (just generic like "Manager"), compare the full core
+  if (wordsA.size === 0 || wordsB.size === 0) {
+    // Fall back to checking if the full normalized cores are very similar
+    return coreA === coreB;
+  }
+
+  const intersection = [...wordsA].filter((w) => wordsB.has(w));
+  const minSize = Math.min(wordsA.size, wordsB.size);
+
+  // Require >50% overlap of SPECIFIC (non-generic) words
+  return minSize > 0 && intersection.length / minSize > 0.5;
+}
+
 type CanonicalExperienceRecord = {
   id: string;
   normalizedCompany: string;
@@ -387,10 +446,15 @@ export async function buildCanonicalExperiences(
 
     const range = buildDateRange(experience);
 
+    // Only merge experiences if:
+    // 1. Same company (normalized)
+    // 2. Date ranges overlap or are adjacent
+    // 3. Titles are similar (prevents merging "Business Analyst" with "Program Manager")
     let targetGroup = groups.find(
       (group) =>
         group.normalizedCompany === normalizedCompany.normalized &&
-        rangesOverlapOrAdjacent(group.range, range)
+        rangesOverlapOrAdjacent(group.range, range) &&
+        titlesAreSimilar(group.experiences[0]?.title || '', experience.title)
     );
 
     if (!targetGroup) {

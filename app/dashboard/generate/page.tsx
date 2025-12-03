@@ -152,6 +152,8 @@ export default function GeneratePage() {
   const [userProfile, setUserProfile] = useState<ResumeContent | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showLivePreview, setShowLivePreview] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [currentStep, setCurrentStep] = useState<string>('');
 
   // Fetch user profile for live preview
   useEffect(() => {
@@ -231,11 +233,46 @@ export default function GeneratePage() {
     };
   }, [userProfile]);
 
+  // Timer for generation progress
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (generating) {
+      setElapsedTime(0);
+      interval = setInterval(() => {
+        setElapsedTime((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [generating]);
+
+  // Progress steps that match API logging
+  const progressSteps = [
+    { step: 1, label: 'Fetching job details', emoji: '📋' },
+    { step: 2, label: 'Loading your documents', emoji: '📄' },
+    { step: 3, label: 'Analyzing job description', emoji: '🔍' },
+    { step: 4, label: 'Generating embeddings', emoji: '🧮' },
+    { step: 5, label: 'Selecting relevant experiences', emoji: '👤' },
+    { step: 6, label: 'Generating tailored resume', emoji: '✍️' },
+    { step: 7, label: 'Running quality checks', emoji: '🔍' },
+    { step: 8, label: 'Finalizing and scoring', emoji: '💾' },
+  ];
+
+  // Estimate current step based on elapsed time (rough estimates)
+  const estimatedStep = Math.min(
+    Math.floor(elapsedTime / 8) + 1,
+    progressSteps.length
+  );
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setGenerating(true);
+    setElapsedTime(0);
+    setCurrentStep('');
 
     try {
+      setCurrentStep('Creating job record...');
       // Create job record
       const jobResponse = await fetch('/api/jobs', {
         method: 'POST',
@@ -254,6 +291,7 @@ export default function GeneratePage() {
 
       const { job } = await jobResponse.json();
 
+      setCurrentStep('Generating resume...');
       // Generate resume
       const generateResponse = await fetch('/api/generate', {
         method: 'POST',
@@ -278,25 +316,69 @@ export default function GeneratePage() {
       console.error('Generation error:', error);
       alert(error.message || 'Failed to generate resume');
       setGenerating(false);
+      setCurrentStep('');
+      setElapsedTime(0);
     }
   };
 
   // Full-screen generating state on mobile
   if (generating) {
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
+    const timeString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    const showTimeoutWarning = elapsedTime > 90; // Show warning after 90 seconds
+    const currentStepInfo = progressSteps[estimatedStep - 1] || progressSteps[progressSteps.length - 1];
+
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
-        <div className="text-center">
+        <div className="text-center max-w-md w-full">
           <TailorLoading mode="generate" />
-          <div className="mt-6 space-y-2">
-            <p className="text-lg font-medium text-foreground">
-              Tailoring for {jobTitle || 'your role'}
-            </p>
-            {company && (
-              <p className="text-sm text-muted-foreground">at {company}</p>
+          <div className="mt-6 space-y-4">
+            <div>
+              <p className="text-lg font-medium text-foreground">
+                Tailoring for {jobTitle || 'your role'}
+              </p>
+              {company && (
+                <p className="text-sm text-muted-foreground">at {company}</p>
+              )}
+            </div>
+
+            {/* Progress indicator */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <span>{currentStepInfo.emoji}</span>
+                <span>{currentStepInfo.label}...</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-1.5">
+                <div
+                  className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${(estimatedStep / progressSteps.length) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Step {estimatedStep} of {progressSteps.length}
+              </p>
+            </div>
+
+            {/* Time elapsed */}
+            <div className="text-xs text-muted-foreground">
+              Elapsed time: <span className="font-medium">{timeString}</span>
+            </div>
+
+            {/* Timeout warning */}
+            {showTimeoutWarning && (
+              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-xs text-yellow-600">
+                  ⏱️ Generation is taking longer than usual. This is normal for complex resumes. Please wait...
+                </p>
+              </div>
             )}
-            <p className="text-xs text-primary mt-4">
-              AI is analyzing job requirements and tailoring your experience...
-            </p>
+
+            {currentStep && (
+              <p className="text-xs text-primary mt-2">
+                {currentStep}
+              </p>
+            )}
           </div>
         </div>
       </div>

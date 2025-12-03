@@ -17,6 +17,7 @@ console.log('⚡ Generate API - Environment check:', {
 });
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
   console.log('⚡ Generate API - POST request received');
 
   try {
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('📋 [1/8] Fetching job details...');
     // Fetch job details
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
@@ -48,7 +50,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+    console.log('✅ [1/8] Job details fetched:', { jobTitle: job.title, company: job.company });
 
+    console.log('📄 [2/8] Fetching user documents...');
     // Fetch user documents
     const { data: documents, error: docsError } = await supabaseAdmin
       .from('documents')
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.log('✅ [2/8] Documents fetched:', { count: documents.length });
 
     // Collect file URIs and parsed content
     const documentFileRefs = documents
@@ -89,9 +94,14 @@ export async function POST(request: NextRequest) {
       parsedDocs: parsedDocuments.length,
     });
 
+    console.log('🔍 [3/8] Parsing job description...');
     const parsedJob = await parseJobDescriptionToContext({
       title: job.title,
       description: job.description,
+    });
+    console.log('✅ [3/8] Job description parsed:', { 
+      normalizedTitle: parsedJob.normalizedTitle,
+      hardSkills: parsedJob.hardSkills?.length || 0,
     });
 
     const jobDescriptionSeed =
@@ -101,6 +111,7 @@ export async function POST(request: NextRequest) {
       job.title ||
       'general role';
 
+    console.log('🧮 [4/8] Generating embeddings...');
     const jobEmbedding = await embedText(jobDescriptionSeed.substring(0, 8000));
     const querySeeds = parsedJob.queries.length
       ? parsedJob.queries
@@ -108,7 +119,12 @@ export async function POST(request: NextRequest) {
     const queryEmbeddings = await Promise.all(
       querySeeds.slice(0, 5).map((query) => embedText(query))
     );
+    console.log('✅ [4/8] Embeddings generated:', { 
+      jobEmbedding: !!jobEmbedding,
+      queryEmbeddings: queryEmbeddings.length,
+    });
 
+    console.log('👤 [5/8] Retrieving profile and selecting experiences...');
     // Retrieve atomic profile
     const profile = await retrieveProfileForJob(userId, job.description);
     const inferenceSignals = buildInferenceSignals(profile);
@@ -128,7 +144,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log('🎯 Target-aware selection summary:', {
+    console.log('✅ [5/8] Profile retrieved and experiences selected:', {
       totalExperiences: selection.diagnostics.totalExperiences,
       eligibleExperiences: selection.diagnostics.eligibleExperiences,
       selectedCount: selection.experiences.length,
@@ -231,12 +247,14 @@ export async function POST(request: NextRequest) {
       sample: candidateSkillUniverse.slice(0, 10),
     });
 
+    console.log('✍️ [6/8] Generating tailored resume with AI...');
     // Generate tailored resume (Atomic)
     const rawResumeContent = await generateTailoredResumeAtomic(
       job.description,
       template,
       targetedProfile
     );
+    console.log('✅ [6/8] Resume draft generated');
 
     const normalizedDraft = normalizeResumeContent(rawResumeContent);
 
@@ -248,6 +266,7 @@ export async function POST(request: NextRequest) {
     let validatorMetadata: ValidatorMetadata | null = null;
 
     // Step 1: Run critic to improve bullet quality and structure
+    console.log('🔍 [7/8] Running quality checks and refinements...');
     try {
       const criticResult = await runResumeCritic({
         resumeDraft: finalResumeContent,
@@ -288,6 +307,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ Resume validator error:', validatorError);
       // Continue with critic output if validator fails
     }
+    console.log('✅ [7/8] Quality checks completed');
 
     // Final pass: remove any remaining ghost data after all processing
     const finalCleanedContent = removeGhostData(finalResumeContent);
@@ -306,6 +326,7 @@ export async function POST(request: NextRequest) {
       storedContent.validator = validatorMetadata;
     }
 
+    console.log('💾 [8/8] Saving resume and calculating ATS score...');
     // Create resume version
     const { data: resumeVersion, error: resumeError } = await supabaseAdmin
       .from('resume_versions')
@@ -325,6 +346,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    console.log('✅ Resume saved:', { resumeId: resumeVersion.id });
 
     // Calculate ATS score in background
     try {
@@ -365,6 +387,10 @@ export async function POST(request: NextRequest) {
       });
       // Don't fail the request if ATS scoring fails
     }
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`✅ [8/8] Generation complete! Total time: ${totalTime}s`);
+    console.log('🎉 Resume generation finished successfully');
 
     return NextResponse.json({ resumeVersion });
   } catch (error: any) {
