@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
           .eq('user_id', userId);
         
         if (existingExps && existingExps.length > 0) {
-          const expIds = existingExps.map(e => e.id);
+          const expIds = existingExps.map((e: { id: string }) => e.id);
           
           // Get bullet IDs for these experiences
           const { data: existingBullets } = await supabaseAdmin
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
             .in('experience_id', expIds);
           
           if (existingBullets && existingBullets.length > 0) {
-            const bulletIds = existingBullets.map(b => b.id);
+            const bulletIds = existingBullets.map((b: { id: string }) => b.id);
             await supabaseAdmin.from('experience_bullet_sources').delete().in('bullet_id', bulletIds);
           }
           
