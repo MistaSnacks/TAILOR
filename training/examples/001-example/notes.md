@@ -14,3 +14,4 @@
 - Example: "Satterberg Foundation role excluded - nonprofit grant management doesn't align with fraud/fintech domain"
 
 
+

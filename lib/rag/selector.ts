@@ -1,6 +1,6 @@
 import type { RetrievedProfile, RetrievedExperience, RetrievedSkill, RetrievedBullet } from './retriever';
 import type { ParsedJobDescription } from './parser';
-import type { WriterExperience, WriterBulletCandidate } from './selection-types';
+import type { WriterExperience, WriterBulletCandidate, ScoreBreakdown } from './selection-types';
 import {
   filterEligibleExperiences,
   type FilteredExperience,
@@ -44,6 +44,7 @@ export type TargetedBullet = {
   hasMetric: boolean;
   toolMatches: string[];
   sourceIds: string[];
+  scoreBreakdown: ScoreBreakdown;
 };
 
 type PreparedExperience = ResumeExperience & {
@@ -356,6 +357,13 @@ function scoreBullets(
       const metricBoost = hasMetric ? 0.15 : 0;
       const score = clamp(similarity * 0.65 + toolBoost + metricBoost);
 
+      const scoreBreakdown: ScoreBreakdown = {
+        similarity: Number(similarity.toFixed(3)),
+        toolBoost: Number(toolBoost.toFixed(3)),
+        metricBoost: Number(metricBoost.toFixed(3)),
+        final: Number(score.toFixed(3)),
+      };
+
       return {
         id: bullet.id,
         experienceId: bullet.experienceId,
@@ -365,6 +373,7 @@ function scoreBullets(
         hasMetric,
         toolMatches,
         sourceIds: bullet.sourceIds || [],
+        scoreBreakdown,
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -437,6 +446,7 @@ function buildWriterContext(
     has_metric: bullet.hasMetric,
     tool_matches: bullet.toolMatches,
     similarity: Number(bullet.similarity.toFixed(3)),
+    score_breakdown: bullet.scoreBreakdown,
   }));
 
   return {

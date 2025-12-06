@@ -71,3 +71,4 @@ CREATE TRIGGER update_canonical_skills_updated_at BEFORE UPDATE ON canonical_ski
 
 
 
+

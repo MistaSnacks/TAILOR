@@ -611,7 +611,7 @@ Quality Guardrails:
 - Each bullet must follow the Action + Context + Result rubric, highlight measurable scope/impact when available, and remain grounded in the supporting achievements for that role.
 - Respect the bullet_budget per experience. If the candidate pool is smaller than the budget, output only the vetted bullets; do not fabricate content.
 - When merging multiple candidate bullets, preserve the strongest metric and union of verified tools/regulations, then log the contributing candidate IDs in "merged_from".
-    - Professional summary must be a single cohesive paragraph of 3-4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics (percentages, dollar amounts, volume numbers) from canonical experiences, (3) mention 2-3 key tools or skills that match the target JD, and (4) close with a clear connection to the target role's core requirements. Do NOT write a generic summary — make it specific to THIS candidate's verified achievements.
+    - Professional summary must be a single cohesive paragraph of 3-4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 1-2 key achievements that demonstrate meaningful impact - metrics are optional, only include them if they are genuinely compelling and relevant to the target role, (3) mention 2-3 key tools or skills that directly match the target JD requirements, and (4) close with a clear connection to the target role's core responsibilities. Focus on telling a compelling career narrative rather than metric-stuffing. AVOID generic metrics like "Analyzed 100+ reports" - if a metric doesn't clearly demonstrate impact, omit it.
 - You may infer JD-aligned keywords or new bullet framings ONLY when they are obviously supported by the Global Canonical Highlights or Metric Signals above. Reference the supporting company or highlight inside the bullet (e.g., “(leveraging TD Bank AML program)”). If no supporting highlight exists, omit the inference.
 - Skills list must be a deduped subset of the normalized pool ordered by relevance to the target JD.
 
@@ -859,6 +859,32 @@ export type AtsMetrics = {
   searchability: number;
 };
 
+// 🚀 OPTIMIZATION: Shared/cached model instance for ATS scoring
+// Avoids cold model instantiation on each call (~2-5s savings)
+// Using gemini-2.0-flash-lite for faster responses (optimized for speed)
+let cachedAtsModel: ReturnType<typeof genAI.getGenerativeModel> | null = null;
+
+function getAtsModel() {
+  if (!genAI) {
+    throw new Error('Gemini API key not configured');
+  }
+  
+  if (!cachedAtsModel) {
+    console.log('🔧 (NO $) Creating shared ATS model instance (gemini-2.0-flash-lite)');
+    cachedAtsModel = genAI.getGenerativeModel({
+      // Using flash-lite for faster ATS scoring - optimized for speed over capabilities
+      // This tier is ~2-3x faster than gemini-2.5-flash for structured output tasks
+      model: 'gemini-2.0-flash-lite',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      },
+    });
+  }
+  
+  return cachedAtsModel;
+}
+
 // Calculate ATS score with detailed 5-metric breakdown
 export async function calculateAtsScore(
   jobDescription: string,
@@ -869,18 +895,10 @@ export async function calculateAtsScore(
   semanticSimilarity: number;
   analysis: any;
 }> {
-  if (!genAI) {
-    throw new Error('Gemini API key not configured');
-  }
-
+  const atsStartTime = Date.now();
+  
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-      },
-    });
+    const model = getAtsModel();
 
     // Truncate content if too long to avoid token limits
     const maxJobDescLength = 6000;
@@ -988,6 +1006,9 @@ Be STRICT in your scoring. A perfect 100 should be rare. Most resumes score 60-8
     const keywordMatch = Math.round((normalizedMetrics.keywords + normalizedMetrics.hardSkills) / 2);
     const semanticSimilarity = normalizedMetrics.semanticMatch;
 
+    const atsTotalMs = Date.now() - atsStartTime;
+    console.log(`✅ (IS $)[ATS Timing] Completed in ${atsTotalMs}ms, score: ${clampScore(weightedScore)}%`);
+
     return {
       score: clampScore(weightedScore),
       keywordMatch: clampScore(keywordMatch),
@@ -1002,7 +1023,8 @@ Be STRICT in your scoring. A perfect 100 should be rare. Most resumes score 60-8
       },
     };
   } catch (error: any) {
-    console.error('❌ Error calculating ATS score:', error.message);
+    const atsTotalMs = Date.now() - atsStartTime;
+    console.error(`❌ (IS $)[ATS Timing] Error after ${atsTotalMs}ms:`, error.message);
     if (error.stack) {
       console.error('ATS error stack:', error.stack.split('\n').slice(0, 3).join('\n'));
     }

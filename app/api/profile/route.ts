@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         // Fetch personal info from profiles table
         const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
-            .select('full_name, email, phone_number, address, linkedin_url, portfolio_url')
+            .select('full_name, email, phone_number, address, city, state, zip, linkedin_url, portfolio_url, remote_preference')
             .eq('user_id', userId)
             .single();
 
@@ -432,8 +432,12 @@ export async function PUT(request: NextRequest) {
                         full_name: data.full_name,
                         phone_number: data.phone_number || null,
                         address: data.address || null,
+                        city: data.city || null,
+                        state: data.state || null,
+                        zip: data.zip || null,
                         linkedin_url: data.linkedin_url || null,
                         portfolio_url: data.portfolio_url || null,
+                        remote_preference: data.remote_preference || 'any',
                         updated_at: new Date().toISOString(),
                     })
                     .eq('user_id', userId)
@@ -455,8 +459,12 @@ export async function PUT(request: NextRequest) {
                         full_name: data.full_name,
                         phone_number: data.phone_number || null,
                         address: data.address || null,
+                        city: data.city || null,
+                        state: data.state || null,
+                        zip: data.zip || null,
                         linkedin_url: data.linkedin_url || null,
                         portfolio_url: data.portfolio_url || null,
+                        remote_preference: data.remote_preference || 'any',
                         updated_at: new Date().toISOString(),
                     })
                     .eq('id', existingProfileByEmail.id)
@@ -479,8 +487,12 @@ export async function PUT(request: NextRequest) {
                         full_name: data.full_name,
                         phone_number: data.phone_number || null,
                         address: data.address || null,
+                        city: data.city || null,
+                        state: data.state || null,
+                        zip: data.zip || null,
                         linkedin_url: data.linkedin_url || null,
                         portfolio_url: data.portfolio_url || null,
+                        remote_preference: data.remote_preference || 'any',
                     })
                     .select();
                 profileError = error;

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthModal } from '@/components/auth-modal';
+import { Navbar } from '@/components/unauth/navbar';
 import { HeroSection } from '@/components/unauth/hero-section';
 import { FeatureCard } from '@/components/unauth/feature-card';
 import { HowItWorks } from '@/components/unauth/how-it-works';
@@ -11,7 +12,6 @@ import { TestimonialsSection } from '@/components/unauth/testimonials-section';
 import { FAQSection } from '@/components/unauth/faq-section';
 import { Footer } from '@/components/unauth/footer';
 import { Bot, FileSearch, Zap } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -22,37 +22,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground relative selection:bg-primary/30 bg-grid-pattern">
       <div className="relative z-10">
-        <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/50 backdrop-blur-md">
-          <div className="container mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
-            <div className="font-display font-bold text-xl md:text-2xl tracking-tight">
-              T<span className="text-primary">AI</span>LOR
-            </div>
-            <div className="flex items-center gap-3 md:gap-4">
-              <ThemeToggle />
-              {user ? (
-                <a
-                  href="/dashboard"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Dashboard
-                </a>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Sign In
-                </button>
-              )}
-            </div>
-          </div>
-        </nav>
+        <Navbar onOpenAuth={() => setShowAuthModal(true)} />
 
         <HeroSection onOpenAuth={() => setShowAuthModal(true)} />
 
         <TrustSection />
 
-        <section className="py-12 md:py-24 container px-4 mx-auto">
+        <section id="features" className="py-12 md:py-24 container px-4 mx-auto">
           <div className="grid md:grid-cols-3 gap-4 md:gap-8">
             <FeatureCard
               icon={FileSearch}

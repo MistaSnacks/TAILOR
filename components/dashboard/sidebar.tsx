@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   LogOut,
+  Briefcase,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/dashboard/documents', label: 'Documents', icon: FileText },
   { href: '/dashboard/generate', label: 'Generate', icon: Sparkles },
   { href: '/dashboard/resumes', label: 'Resumes', icon: Files },
+  { href: '/dashboard/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/dashboard/chat', label: 'Coach', icon: GraduationCap },
 ];
 

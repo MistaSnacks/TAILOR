@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Files, Sparkles, TrendingUp, ArrowRight, Plus, UploadCloud, UserCheck, Briefcase } from 'lucide-react';
+import { FileText, Files, Sparkles, TrendingUp, ArrowRight, Plus, UploadCloud, UserCheck, Briefcase, MapPin, Clock, ExternalLink, Building2, Bookmark, BookmarkCheck } from 'lucide-react';
 import Link from 'next/link';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import type { NormalizedJob } from '@/lib/jobs/types';
 
 type DashboardStats = {
   documentsCount: number;
@@ -26,6 +27,9 @@ type DashboardStats = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [freshJobs, setFreshJobs] = useState<NormalizedJob[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -44,6 +48,59 @@ export default function DashboardPage() {
     }
     fetchStats();
   }, []);
+
+  // Fetch fresh jobs for the dashboard widget
+  useEffect(() => {
+    async function fetchJobs() {
+      try {
+        const [feedRes, savedRes] = await Promise.all([
+          fetch('/api/jobs/feed?limit=3'),
+          fetch('/api/jobs/saved'),
+        ]);
+        
+        if (feedRes.ok) {
+          const data = await feedRes.json();
+          setFreshJobs(data.jobs || []);
+        }
+        
+        if (savedRes.ok) {
+          const savedData = await savedRes.json();
+          setSavedJobIds(new Set((savedData.jobs || []).map((j: any) => j.job.id)));
+        }
+      } catch {
+        // Silent fail
+      } finally {
+        setJobsLoading(false);
+      }
+    }
+    fetchJobs();
+  }, []);
+
+  const toggleSaveJob = async (job: NormalizedJob) => {
+    const isSaved = savedJobIds.has(job.id);
+    try {
+      if (isSaved) {
+        await fetch(`/api/jobs/saved?jobId=${encodeURIComponent(job.id)}`, { method: 'DELETE' });
+        setSavedJobIds(prev => { const next = new Set(prev); next.delete(job.id); return next; });
+      } else {
+        await fetch('/api/jobs/saved', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job }),
+        });
+        setSavedJobIds(prev => new Set([...prev, job.id]));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const formatRelativeTime = (date: Date | string) => {
+    const d = new Date(date);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return `${Math.floor(diffDays / 7)}w ago`;
+  };
 
   if (loading) {
     return (
@@ -253,16 +310,104 @@ export default function DashboardPage() {
 
               <Link href="/dashboard/profile" className="group glass-card p-3 md:p-4 rounded-xl border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center gap-3 md:gap-4">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                  <Briefcase className="w-5 h-5 md:w-6 md:h-6" />
+                  <UserCheck className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-semibold text-sm md:text-base">Update Profile</h3>
                   <p className="text-[10px] md:text-xs text-muted-foreground">Manage experience</p>
                 </div>
               </Link>
+
+              <Link href="/dashboard/jobs" className="group glass-card p-3 md:p-4 rounded-xl border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                  <Briefcase className="w-5 h-5 md:w-6 md:h-6" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-sm md:text-base">Find Jobs</h3>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">Browse openings</p>
+                </div>
+              </Link>
             </div>
           </motion.div>
         </div>
+
+        {/* Fresh Jobs Widget - Always rendered to fix animation timing issue */}
+        <motion.div variants={item} className="space-y-4 md:space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg md:text-xl font-bold font-display flex items-center gap-2">
+              <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              Fresh Jobs for You
+            </h2>
+            <Link href="/dashboard/jobs" className="text-xs md:text-sm text-primary hover:underline flex items-center gap-1">
+              View All <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          
+          {jobsLoading ? (
+            <div className="glass-card p-6 rounded-xl border border-border/50 flex items-center justify-center">
+              <div className="animate-pulse text-muted-foreground text-sm">Loading jobs...</div>
+            </div>
+          ) : freshJobs.length === 0 ? (
+            <div className="glass-card p-6 rounded-xl border border-dashed border-border text-center">
+              <p className="text-sm text-muted-foreground">No fresh jobs found. Check back later!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              {freshJobs.slice(0, 3).map((job, i) => {
+                const isSaved = savedJobIds.has(job.id);
+                return (
+                  <motion.div
+                    key={job.id}
+                    {...(prefersReducedMotion ? {} : { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.05 } })}
+                    className="glass-card p-3 md:p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        {job.companyLogo ? (
+                          <img src={job.companyLogo} alt={job.company} className="w-6 h-6 rounded object-cover" />
+                        ) : (
+                          <Building2 className="w-5 h-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm text-foreground truncate">{job.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{job.company}</p>
+                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {job.isRemote ? 'Remote' : job.location?.split(',')[0] || 'N/A'}
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" />
+                            {formatRelativeTime(job.postedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => toggleSaveJob(job)}
+                          className={`p-1.5 rounded transition-colors ${isSaved ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                          title={isSaved ? 'Unsave' : 'Save'}
+                        >
+                          {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                        </button>
+                        <a
+                          href={job.applyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded text-muted-foreground hover:text-primary transition-colors"
+                          title="Apply"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
       </motion.div>
     </div>
   );

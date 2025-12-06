@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Trash2, FileText, Download, Edit, CheckCircle, FolderPlus, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Sparkles, ArrowRight } from 'lucide-react';
 import { normalizeResumeContent, type ResumeContent } from '@/lib/resume-content';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { TemplatePreview } from '@/components/resume-templates';
@@ -198,17 +198,30 @@ function ResumesContent() {
   const [addingToDocs, setAddingToDocs] = useState<string | null>(null);
   const [viewingResume, setViewingResume] = useState<any | null>(null);
   const [editedContent, setEditedContent] = useState<ResumeContent | null>(null);
-  const [activeTab, setActiveTab] = useState<'preview' | 'edit' | 'keywords'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'edit' | 'keywords' | 'ai-changes'>('preview');
   const [savingResume, setSavingResume] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewingLoading, setViewingLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [mobileModalView, setMobileModalView] = useState<'preview' | 'details'>('preview');
+  const [previewScale, setPreviewScale] = useState(0.72);
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('id');
+  const isMountedRef = useRef(true);
+  const activePollsRef = useRef<Map<string, AbortController>>(new Map());
+
+  // Zoom controls
+  const zoomIn = () => setPreviewScale(s => Math.min(s + 0.1, 1.0));
+  const zoomOut = () => setPreviewScale(s => Math.max(s - 0.1, 0.3));
+  const resetZoom = () => setPreviewScale(0.72);
 
   useEffect(() => {
     fetchResumes();
+    return () => {
+      isMountedRef.current = false;
+      activePollsRef.current.forEach((controller) => controller.abort());
+      activePollsRef.current.clear();
+    };
   }, []);
 
   const normalizedViewingContent = useMemo(
@@ -248,6 +261,23 @@ function ResumesContent() {
     () => viewingResume?.ats_score?.analysis || null,
     [viewingResume]
   );
+
+  // Extract AI changes from quality pass metadata
+  const aiChanges = useMemo(() => {
+    const qualityPass = viewingResume?.content?.qualityPass;
+    if (!qualityPass?.aiChanges) return [];
+    return qualityPass.aiChanges;
+  }, [viewingResume]);
+
+  const aiChangesStats = useMemo(() => {
+    const qualityPass = viewingResume?.content?.qualityPass;
+    return {
+      bulletsRewritten: qualityPass?.bulletsRewritten || 0,
+      summaryChanged: qualityPass?.summaryChanged || false,
+      skillsChanged: qualityPass?.skillsChanged || false,
+      keywordsAdded: qualityPass?.jdKeywordsAdded?.length || 0,
+    };
+  }, [viewingResume]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!normalizedViewingContent || !editedContent) return false;
@@ -371,6 +401,69 @@ function ResumesContent() {
     }
   };
 
+  // Poll for ATS score if pending
+  const pollForAtsScore = async (resumeId: string) => {
+    // Avoid multiple concurrent polls per resume
+    if (activePollsRef.current.has(resumeId)) {
+      console.log('[DEBUG] ATS polling already active (NO $):', { resumeId });
+      return;
+    }
+
+    const controller = new AbortController();
+    activePollsRef.current.set(resumeId, controller);
+
+    const maxAttempts = 20; // Poll for up to ~60 seconds
+    const pollInterval = 3000; // 3 seconds
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+       // Stop if unmounted or canceled
+       if (!isMountedRef.current || controller.signal.aborted) {
+         console.log('[DEBUG] ATS polling stopped (NO $):', { resumeId, reason: 'unmounted_or_aborted' });
+         break;
+       }
+      
+      try {
+        const response = await fetch(`/api/resumes/${resumeId}/ats-score`, { signal: controller.signal });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.atsScore && !data.pending) {
+            console.log('[DEBUG] ATS score received via polling (IS $):', data.atsScore.score);
+            
+            // Update the viewing resume with the new ATS score
+            setViewingResume((prev: any) => {
+              if (prev?.id === resumeId) {
+                return { ...prev, ats_score: data.atsScore };
+              }
+              return prev;
+            });
+            
+            // Update in the resumes list too
+            setResumes((prev) =>
+              prev.map((item) => 
+                item.id === resumeId 
+                  ? { ...item, ats_score: data.atsScore }
+                  : item
+              )
+            );
+            
+            activePollsRef.current.delete(resumeId);
+            return; // Stop polling
+          }
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          console.log('[DEBUG] ATS polling aborted (NO $):', { resumeId });
+          break;
+        }
+        console.error('[DEBUG] ATS polling error (IS $):', err);
+      }
+    }
+    console.log('[DEBUG] ATS polling timed out for resume:', resumeId);
+    activePollsRef.current.delete(resumeId);
+  };
+
   const handleView = async (resume: any) => {
     setActiveTab('preview');
     setMobileModalView('preview');
@@ -413,6 +506,12 @@ function ResumesContent() {
         setResumes((prev) =>
           prev.map((item) => (item.id === data.resume.id ? data.resume : item))
         );
+
+        // 🚀 OPTIMIZATION: If no ATS score yet, start polling in background
+        if (!data.resume?.ats_score) {
+          console.log('[DEBUG] No ATS score yet, starting background poll (NO $)');
+          pollForAtsScore(data.resume.id);
+        }
       } else {
         console.error('[DEBUG] API response not ok (IS $):', response.status);
       }
@@ -431,6 +530,7 @@ function ResumesContent() {
     setViewingLoading(false);
     setSuccessMessage(null);
     setMobileModalView('preview');
+    setPreviewScale(0.72);
   };
 
   const resetEdits = () => {
@@ -819,14 +919,19 @@ function ResumesContent() {
                 <div className="text-xs text-muted-foreground">
                   {new Date(resume.created_at).toLocaleDateString()}
                 </div>
-                {resume.ats_score?.score != null && (
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full ${resume.ats_score.score >= 80 ? 'bg-green-500/10 text-green-500' :
-                    resume.ats_score.score >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
-                      'bg-red-500/10 text-red-500'
-                    }`}>
-                    ATS: {resume.ats_score.score}%
-                  </div>
-                )}
+                              {resume.ats_score?.score != null ? (
+                                  <div className={`text-xs font-medium px-2 py-1 rounded-full ${resume.ats_score.score >= 80 ? 'bg-green-500/10 text-green-500' :
+                                    resume.ats_score.score >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
+                                      'bg-red-500/10 text-red-500'
+                                    }`}>
+                                    ATS: {resume.ats_score.score}%
+                                  </div>
+                                ) : (
+                                  <div className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
+                                    <div className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin" />
+                                    Scoring...
+                                  </div>
+                                )}
               </div>
             </motion.div>
           ))}
@@ -917,23 +1022,62 @@ function ResumesContent() {
               {/* Modal Content - Split Panel on Desktop, Single on Mobile */}
               <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                 {/* Left Panel - Resume Preview */}
-                <div className={`${mobileModalView === 'preview' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-col flex-1 overflow-y-auto p-4 md:p-6 bg-muted/10 md:border-r border-border`}>
-                  <div 
-                    className="bg-white rounded-lg shadow-lg mx-auto w-full"
-                    style={{ maxWidth: '600px' }}
-                  >
-                    <div 
-                      style={{ 
-                        transform: 'scale(0.5)',
-                        transformOrigin: 'top left',
-                        width: '200%',
-                      }}
-                    >
-                      <TemplatePreview 
-                        template={(viewingResume.template || 'modern') as TemplateType} 
-                        content={editedContent || normalizedViewingContent || {}} 
-                        scale={1}
-                      />
+                <div className={`${mobileModalView === 'preview' ? 'flex' : 'hidden'} md:flex md:w-1/2 flex-col flex-1 overflow-hidden bg-muted/10 md:border-r border-border`}>
+                  {/* Zoom Controls */}
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(previewScale * 100)}%
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={zoomOut}
+                        disabled={previewScale <= 0.3}
+                        className="p-1.5 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom out (min 30%)"
+                      >
+                        <ZoomOut className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={resetZoom}
+                        className="px-2 py-1 text-xs rounded hover:bg-muted transition-colors"
+                        title="Reset zoom to fit"
+                      >
+                        Fit
+                      </button>
+                      <button
+                        onClick={zoomIn}
+                        disabled={previewScale >= 1.0}
+                        className="p-1.5 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom in (max 100%)"
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </button>
+                      <div className="w-px h-4 bg-border mx-1" />
+                      <button
+                        onClick={() => setPreviewScale(1.0)}
+                        className="p-1.5 rounded hover:bg-muted transition-colors"
+                        title="View at 100%"
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Scrollable Preview Area */}
+                  <div className="flex-1 overflow-auto p-4 md:p-6">
+                    <div className="flex justify-center">
+                      <div 
+                        className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-200"
+                        style={{ 
+                          width: `calc(210mm * ${previewScale})`,
+                        }}
+                      >
+                        <TemplatePreview 
+                          template={(viewingResume.template || 'modern') as TemplateType} 
+                          content={editedContent || normalizedViewingContent || {}} 
+                          scale={previewScale}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -951,6 +1095,21 @@ function ResumesContent() {
                           }`}
                       >
                         Analysis
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('ai-changes')}
+                        className={`flex-1 px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1 ${activeTab === 'ai-changes'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <span className="hidden sm:inline">AI</span>
+                        {aiChanges.length > 0 && (
+                          <span className="ml-0.5 px-1.5 py-0.5 text-[10px] bg-primary/20 text-primary rounded-full">
+                            {aiChanges.length}
+                          </span>
+                        )}
                       </button>
                       <button
                         onClick={() => setActiveTab('keywords')}
@@ -979,7 +1138,7 @@ function ResumesContent() {
                     {activeTab === 'preview' && (
                       <div className="space-y-3 md:space-y-4">
                         {/* ATS Score */}
-                        {viewingResume.ats_score?.score != null && (
+                        {viewingResume.ats_score?.score != null ? (
                           <div className="glass-card p-3 md:p-4 rounded-xl">
                             <div className="flex items-center justify-between mb-3">
                               <h3 className="font-semibold text-sm md:text-base">Overall Score</h3>
@@ -1025,6 +1184,22 @@ function ResumesContent() {
                               </div>
                             )}
                           </div>
+                        ) : (
+                          <div className="glass-card p-3 md:p-4 rounded-xl">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-semibold text-sm md:text-base">ATS Score</h3>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <span className="text-sm">Calculating...</span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2 mb-4">
+                              <div className="h-2 rounded-full bg-muted-foreground/30 animate-pulse" style={{ width: '60%' }} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Your ATS compatibility score is being calculated. This usually takes 10-30 seconds.
+                            </p>
+                          </div>
                         )}
 
                         {/* Strengths */}
@@ -1066,6 +1241,112 @@ function ResumesContent() {
                             )}
                           </ul>
                         </div>
+                      </div>
+                    )}
+
+                    {/* AI Changes Tab */}
+                    {activeTab === 'ai-changes' && (
+                      <div className="space-y-3 md:space-y-4">
+                        {/* AI Summary Stats */}
+                        <div className="glass-card p-3 md:p-4 rounded-xl bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20">
+                          <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm md:text-base">
+                            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                            AI Enhancements
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="p-2 rounded-lg bg-background/50">
+                              <div className="text-lg md:text-xl font-bold text-primary">{aiChangesStats.bulletsRewritten}</div>
+                              <div className="text-[10px] md:text-xs text-muted-foreground">Bullets Rewritten</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50">
+                              <div className="text-lg md:text-xl font-bold text-secondary">{aiChangesStats.keywordsAdded}</div>
+                              <div className="text-[10px] md:text-xs text-muted-foreground">Keywords Added</div>
+                            </div>
+                            {aiChangesStats.summaryChanged && (
+                              <div className="col-span-2 p-2 rounded-lg bg-primary/10 text-xs flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-primary" />
+                                <span>Summary enhanced for JD alignment</span>
+                              </div>
+                            )}
+                            {aiChangesStats.skillsChanged && (
+                              <div className="col-span-2 p-2 rounded-lg bg-secondary/10 text-xs flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-secondary" />
+                                <span>Skills optimized and reordered</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* AI Changes List */}
+                        {aiChanges.length > 0 ? (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+                              Change Details
+                            </h4>
+                            {aiChanges.map((change: any, index: number) => (
+                              <div 
+                                key={index} 
+                                className="glass-card p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
+                              >
+                                <div className="flex items-start gap-2 mb-2">
+                                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                                    change.type === 'bullet_rewritten' ? 'bg-primary/10 text-primary' :
+                                    change.type === 'summary_enhanced' ? 'bg-blue-500/10 text-blue-500' :
+                                    change.type === 'skill_added' ? 'bg-green-500/10 text-green-500' :
+                                    change.type === 'keyword_injected' ? 'bg-secondary/10 text-secondary' :
+                                    'bg-muted text-muted-foreground'
+                                  }`}>
+                                    {change.type?.replace(/_/g, ' ').toUpperCase()}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {change.section}
+                                    {change.experienceIndex !== undefined && ` • Experience ${change.experienceIndex + 1}`}
+                                  </span>
+                                </div>
+                                
+                                {change.description && (
+                                  <p className="text-xs text-muted-foreground mb-2">{change.description}</p>
+                                )}
+                                
+                                {change.original && change.revised && (
+                                  <div className="space-y-1.5">
+                                    <div className="p-2 rounded bg-red-500/5 border-l-2 border-red-500/50">
+                                      <div className="text-[10px] text-red-500/70 font-medium mb-0.5">ORIGINAL</div>
+                                      <p className="text-xs text-muted-foreground line-through">{change.original}</p>
+                                    </div>
+                                    <div className="flex justify-center">
+                                      <ArrowRight className="w-3 h-3 text-primary" />
+                                    </div>
+                                    <div className="p-2 rounded bg-primary/5 border-l-2 border-primary">
+                                      <div className="text-[10px] text-primary font-medium mb-0.5">AI ENHANCED</div>
+                                      <p className="text-xs">{change.revised}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {change.keywords && change.keywords.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {change.keywords.map((kw: string, ki: number) => (
+                                      <span key={ki} className="px-2 py-0.5 text-[10px] bg-secondary/10 text-secondary rounded-full">
+                                        +{kw}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="glass-card p-4 rounded-xl text-center">
+                            <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              No AI changes recorded for this resume.
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              This may be an older resume generated before change tracking was added.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 

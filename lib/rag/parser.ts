@@ -56,7 +56,7 @@ export async function parseResumeToJSON(text: string): Promise<ParsedResumeData>
     }
 
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         generationConfig: {
             responseMimeType: "application/json",
         }
@@ -139,29 +139,23 @@ type JobParsingInput = {
     description: string;
 };
 
-const JOB_CONTEXT_PROMPT = `You are an expert ATS keyword analyst. Extract ALL keywords and phrases that an ATS system would scan for.
+const JOB_CONTEXT_PROMPT = `You are an expert ATS keyword analyst. Extract ALL keywords and phrases an ATS would scan for. Focus on accurate keyword coverage over creativity.
 
 Return tight JSON with:
-- normalizedTitle: concise role title (no company, no level words like "Lead" unless crucial)
+- normalizedTitle: concise role title (no company; keep crucial level words only if present)
 - level: one of ["IC","Senior IC","Manager","Director","VP","Executive"]
-- domain: dominant problem space (e.g. "fintech fraud", "trust & safety", "non-profit ops")
-- responsibilities: up to 12 action items capturing scope/outcomes (use exact phrasing from JD)
-- hardSkills: array of 30-50 technical keywords including:
-  * Tools & software (SQL, Python, Excel, Tableau, Salesforce, etc.)
-  * Platforms & systems (AWS, Stripe, billing systems, CRM, etc.)
-  * Methodologies (Agile, Six Sigma, process improvement, etc.)
-  * Regulations & compliance (SOX, GDPR, PCI, KYC, AML, etc.)
-  * Technical concepts (data analysis, ETL, API, automation, etc.)
-  * Include BOTH single words AND multi-word phrases (e.g., "cross-functional collaboration", "data-driven")
-  * Include common variations (e.g., both "MS Excel" and "Excel")
-- softSkills: array of 15-20 soft skill keywords including:
-  * Communication traits (written communication, verbal communication, presentation skills)
-  * Collaboration (cross-functional, stakeholder management, team collaboration)
-  * Leadership (mentoring, coaching, leading teams)
-  * Problem-solving (analytical thinking, critical thinking, troubleshooting)
-  * Work style (detail-oriented, self-starter, fast-paced environment)
-- queries: 5-8 semantic search phrases (<80 chars) for retrieval
-- keyPhrases: array of 10-15 exact multi-word phrases from the JD that are important (e.g., "attention to detail", "client-facing", "high-growth environment")`;
+- domain: dominant problem space (e.g., "trust & safety", "fraud prevention", "payments risk", "platform abuse", "data analytics", etc.)
+- responsibilities: up to 12 action items capturing scope/outcomes (reuse exact JD phrasing where possible)
+- hardSkills: 30-50 technical/operational keywords. Be exhaustive and include BOTH single words AND multi-word phrases:
+  * Tools/platforms/systems (e.g., SQL, dashboards, alerting systems, internal tooling)
+  * Methods/techniques (e.g., anomaly detection, rule tuning, incident response)
+  * Domain nouns (e.g., fraud detection, chargebacks, disputes, abuse vectors, platform abuse, phishing, malware, CSAM, DMCA/IP, risk rules, queue management, case management, ticketing systems)
+  * Data/analytics (e.g., metrics, KPIs, reporting, trend analysis)
+  * AI/ML/LLM mentions (if present)
+  * Include common variants/synonyms and exact JD phrases
+- softSkills: 15-20 skills (e.g., cross-functional collaboration, stakeholder management, communication, attention to detail, analytical thinking, fast-paced environment)
+- queries: 5-8 semantic search phrases (<80 chars) that reflect the JD’s focus areas
+- keyPhrases: 10-15 exact multi-word phrases copied from the JD that are important for ATS`;
 
 export async function parseJobDescriptionToContext(
     job: JobParsingInput

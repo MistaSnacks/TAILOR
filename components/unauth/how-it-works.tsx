@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { UploadCloud, Sparkles, FileText, GraduationCap, Zap, Target } from 'lucide-react';
+import { UploadCloud, Sparkles, FileText, GraduationCap, Zap, Target, Briefcase } from 'lucide-react';
 import { TutorialSlides } from './tutorial-slides';
 
 const steps = [
@@ -21,6 +21,11 @@ const steps = [
         description: "View, edit, and download your tailored resumes. See your ATS match score and optimize for each role."
     },
     {
+        icon: Briefcase,
+        title: "Smart Job Search",
+        description: "Find tailored jobs based on your career profile. Our AI scans top job boards to bring you the best matches."
+    },
+    {
         icon: GraduationCap,
         title: "Career Coach",
         description: "Chat with your AI career coach who knows your entire work history and helps you prepare for interviews."
@@ -36,7 +41,7 @@ export function HowItWorks() {
                         How it <span className="text-primary">Works</span>
                     </h2>
                     <p className="text-muted-foreground max-w-2xl mx-auto text-base md:text-lg">
-                        Four simple steps to your dream job. No more hours spent tweaking bullet points.
+                        Five simple steps to your dream job. No more hours spent tweaking bullet points.
                     </p>
                 </div>
 
@@ -55,9 +60,6 @@ export function HowItWorks() {
                                 <div className="flex-shrink-0">
                                     <div className="w-10 md:w-12 h-10 md:h-12 rounded-xl md:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative">
                                         <step.icon className="w-5 md:w-6 h-5 md:h-6 text-primary" />
-                                        <span className="absolute -top-1.5 md:-top-2 -left-1.5 md:-left-2 w-5 md:w-6 h-5 md:h-6 rounded-full bg-primary text-primary-foreground text-[10px] md:text-xs font-bold flex items-center justify-center">
-                                            {index + 1}
-                                        </span>
                                     </div>
                                 </div>
                                 <div>

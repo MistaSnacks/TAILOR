@@ -540,24 +540,15 @@ export default function GeneratePage() {
                   </div>
                 </div>
               ) : (
-                <div 
-                  className="bg-white rounded-lg shadow-lg overflow-hidden"
-                  style={{ height: '500px', position: 'relative' }}
-                >
-                  <div 
-                    className="absolute inset-0 overflow-auto"
-                    style={{ 
-                      transform: 'scale(0.45)', 
-                      transformOrigin: 'top left',
-                      width: '222%',
-                      height: '222%',
-                    }}
-                  >
-                    <TemplatePreview 
-                      template={template} 
-                      content={showLivePreview ? previewContent : SAMPLE_RESUME_CONTENT} 
-                      scale={1}
-                    />
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                  <div className="max-h-[500px] overflow-auto flex justify-center p-4">
+                    <div style={{ width: 'calc(210mm * 0.5)' }}>
+                      <TemplatePreview 
+                        template={template} 
+                        content={showLivePreview ? previewContent : SAMPLE_RESUME_CONTENT} 
+                        scale={0.5}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

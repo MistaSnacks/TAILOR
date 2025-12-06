@@ -38,9 +38,8 @@ export function TechnicalTemplate({ content, scale = 1 }: TemplatePreviewProps) 
       className="bg-white text-black shadow-lg origin-top-left"
       style={{
         fontFamily: config.font,
-        transform: `scale(${scale})`,
+        zoom: scale,
         width: '210mm',
-        minHeight: '297mm',
         padding: '16mm',
         fontSize: '10px',
         lineHeight: '1.4',
@@ -271,5 +270,6 @@ export function TechnicalTemplate({ content, scale = 1 }: TemplatePreviewProps) 
     </div>
   );
 }
+
 
 

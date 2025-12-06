@@ -11,9 +11,8 @@ export function ClassicTemplate({ content, scale = 1 }: TemplatePreviewProps) {
       className="bg-white text-black shadow-lg origin-top-left"
       style={{
         fontFamily: config.font,
-        transform: `scale(${scale})`,
+        zoom: scale,
         width: '210mm',
-        minHeight: '297mm',
         padding: '20mm',
         fontSize: '11px',
         lineHeight: '1.4',
@@ -32,6 +31,7 @@ export function ClassicTemplate({ content, scale = 1 }: TemplatePreviewProps) {
           {content.contact?.phone && <span>• {content.contact.phone}</span>}
           {content.contact?.location && <span>• {content.contact.location}</span>}
           {content.contact?.linkedin && <span>• {content.contact.linkedin}</span>}
+          {content.contact?.portfolio && <span>• {content.contact.portfolio}</span>}
         </div>
       </div>
 
@@ -155,5 +155,6 @@ export function ClassicTemplate({ content, scale = 1 }: TemplatePreviewProps) {
     </div>
   );
 }
+
 
 

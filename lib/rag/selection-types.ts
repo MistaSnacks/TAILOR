@@ -1,5 +1,12 @@
 import type { ParsedJobDescription } from './job-types';
 
+export type ScoreBreakdown = {
+  similarity: number;
+  toolBoost: number;
+  metricBoost: number;
+  final: number;
+};
+
 export type WriterBulletCandidate = {
   id: string;
   text: string;
@@ -9,6 +16,7 @@ export type WriterBulletCandidate = {
   has_metric: boolean;
   tool_matches: string[];
   similarity: number;
+  score_breakdown?: ScoreBreakdown;
 };
 
 export type WriterExperience = {
