@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { canonicalizeProfile } from '@/lib/profile-canonicalizer';
+import { embedText } from '@/lib/gemini';
 
 const TEST_EMAILS = [
   'principal.engineer@test.tailor.dev',
