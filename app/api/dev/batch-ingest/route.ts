@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
           .eq('user_id', userId);
         
         if (existingSkills && existingSkills.length > 0) {
-          const skillIds = existingSkills.map(s => s.id);
+          const skillIds = existingSkills.map((s: { id: string }) => s.id);
           await supabaseAdmin.from('skill_aliases').delete().in('skill_id', skillIds);
         }
         
