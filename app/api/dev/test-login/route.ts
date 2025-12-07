@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       name: 'next-auth.session-token',
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV?.toString() === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 30 * 24 * 60 * 60, // 30 days

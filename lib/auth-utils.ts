@@ -34,7 +34,7 @@ export async function getUserId(): Promise<string | null> {
     const sanitizedEmail = sanitizeEmail(email);
     console.log('[Auth] Session info:', { 
       email: sanitizedEmail, 
-      sessionUserId: sessionUserId ? sessionUserId.slice(0, 8) + '...' : 'not set'
+      sessionUserId: sessionUserId ? sessionUserId.slice(0, 8) + '...' : null
     });
 
     // 1) Try to find by session user id (fastest, guarantees stable UUID)

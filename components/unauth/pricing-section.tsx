@@ -3,11 +3,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Assuming cn exists, otherwise I'll use template strings or clsx if available. I see cn is common in shadcn/ui setups. 
-// Checking imports in other files... I don't see cn imported in hero-section. Let me check if lib/utils exists.
-// Actually, I'll stick to template strings or conditional classes to be safe, or check if existing components use a utility.
-// feature-card uses standard class strings. hero-section uses standard class strings. 
-// I will avoid cn for now and just use template literals.
 
 interface PricingTier {
   name: string;
