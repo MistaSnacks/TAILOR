@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase';
-import { embedText } from '../gemini';
+import { embedText } from '../openai';
 import { parseResumeToJSON, ParsedExperience, ParsedEducation, ParsedCertification } from './parser';
 import { sanitizeField, sanitizeTextBlock } from '../document-analysis';
 import { canonicalizeProfile } from '../profile-canonicalizer';

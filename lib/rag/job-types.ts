@@ -8,6 +8,7 @@ export type JobSeniorityLevel =
 
 export type ParsedJobDescription = {
   normalizedTitle: string;
+  company: string;
   level: JobSeniorityLevel;
   domain: string;
   responsibilities: string[];
@@ -19,6 +20,7 @@ export type ParsedJobDescription = {
 
 export const DEFAULT_PARSED_JOB_DESCRIPTION: ParsedJobDescription = {
   normalizedTitle: '',
+  company: '',
   level: 'IC',
   domain: 'general',
   responsibilities: [],
@@ -33,6 +35,7 @@ export function ensureParsedJobDescription(
 ): ParsedJobDescription {
   return {
     normalizedTitle: partial?.normalizedTitle?.trim() || '',
+    company: partial?.company?.trim() || '',
     level: partial?.level || 'IC',
     domain: partial?.domain?.trim() || 'general',
     responsibilities: Array.isArray(partial?.responsibilities)

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { supabaseAdmin } from './supabase';
-import { embedText } from './gemini';
+import { embedText } from './openai';
 import {
   MAX_CANONICAL_BULLETS,
   MAX_CANONICAL_SKILLS,

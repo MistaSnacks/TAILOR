@@ -1,8 +1,8 @@
 import { genAI } from '../gemini';
 import {
-  DEFAULT_PARSED_JOB_DESCRIPTION,
-  ensureParsedJobDescription,
-  type ParsedJobDescription,
+    DEFAULT_PARSED_JOB_DESCRIPTION,
+    ensureParsedJobDescription,
+    type ParsedJobDescription,
 } from './job-types';
 
 export type ParsedExperience = {
@@ -142,6 +142,7 @@ type JobParsingInput = {
 const JOB_CONTEXT_PROMPT = `You are an expert ATS keyword analyst. Extract ALL keywords and phrases an ATS would scan for. Focus on accurate keyword coverage over creativity.
 
 Return tight JSON with:
+- company: Extract the company/organization name from the job posting. Look for patterns like "About [Company]", "Join [Company]", "[Company] is hiring", company name in headers, or the employer mentioned in context. If unclear, return empty string.
 - normalizedTitle: concise role title (no company; keep crucial level words only if present)
 - level: one of ["IC","Senior IC","Manager","Director","VP","Executive"]
 - domain: dominant problem space (e.g., "trust & safety", "fraud prevention", "payments risk", "platform abuse", "data analytics", etc.)
@@ -154,7 +155,7 @@ Return tight JSON with:
   * AI/ML/LLM mentions (if present)
   * Include common variants/synonyms and exact JD phrases
 - softSkills: 15-20 skills (e.g., cross-functional collaboration, stakeholder management, communication, attention to detail, analytical thinking, fast-paced environment)
-- queries: 5-8 semantic search phrases (<80 chars) that reflect the JD’s focus areas
+- queries: 5-8 semantic search phrases (<80 chars) that reflect the JD's focus areas
 - keyPhrases: 10-15 exact multi-word phrases copied from the JD that are important for ATS`;
 
 export async function parseJobDescriptionToContext(

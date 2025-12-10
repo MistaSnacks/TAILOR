@@ -9,28 +9,38 @@ console.log('💼 Jobs API - Environment check:', {
 
 export async function POST(request: NextRequest) {
   console.log('💼 Jobs API - POST request received');
-  
+
   try {
     // Get authenticated user
     const userId = await requireAuth();
     console.log('🔐 Jobs API - User authenticated:', userId ? '✅' : '❌');
 
     const body = await request.json();
-    const { title, company, description } = body;
+    const { title, company, description, parsedTitle, parsedCompany } = body;
 
-    if (!title || !description) {
+    if (!description) {
       return NextResponse.json(
-        { error: 'Title and description are required' },
+        { error: 'Description is required' },
         { status: 400 }
       );
     }
+
+    // Use provided title/company or fall back to parsed values
+    const finalTitle = title || parsedTitle || 'Untitled Position';
+    const finalCompany = company || parsedCompany || '';
+
+    console.log('💼 Jobs API - Creating job:', {
+      title: finalTitle,
+      company: finalCompany,
+      descriptionLength: description.length,
+    });
 
     // Extract skills from description (simple keyword extraction)
     const skillKeywords = [
       'javascript', 'typescript', 'python', 'java', 'react', 'node',
       'aws', 'docker', 'kubernetes', 'sql', 'nosql', 'agile', 'scrum',
     ];
-    
+
     const requiredSkills = skillKeywords.filter((skill) =>
       description.toLowerCase().includes(skill)
     );
@@ -39,8 +49,8 @@ export async function POST(request: NextRequest) {
       .from('jobs')
       .insert({
         user_id: userId,
-        title,
-        company,
+        title: finalTitle,
+        company: finalCompany || null,
         description,
         required_skills: requiredSkills,
       })
@@ -58,14 +68,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ job });
   } catch (error: any) {
     console.error('❌ Job creation error:', error);
-    
+
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -75,7 +85,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   console.log('💼 Jobs API - GET request received');
-  
+
   try {
     const userId = await requireAuth();
     console.log('🔐 Jobs API - User authenticated:', userId ? '✅' : '❌');
@@ -97,14 +107,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ jobs });
   } catch (error: any) {
     console.error('❌ Fetch error:', error);
-    
+
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

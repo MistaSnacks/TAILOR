@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion } from 'framer-motion';
-import { Sparkles, Briefcase, Building2, FileText, LayoutTemplate, Check, Eye, ChevronDown } from 'lucide-react';
-import { 
-  TemplatePreview, 
-  TEMPLATE_CONFIGS, 
+import { Sparkles, FileText, LayoutTemplate, Eye, ChevronDown, Check } from 'lucide-react';
+import {
+  TemplatePreview,
+  TEMPLATE_CONFIGS,
   SAMPLE_RESUME_CONTENT,
-  type TemplateType 
+  type TemplateType
 } from '@/components/resume-templates';
 import type { ResumeContent } from '@/lib/resume-content';
 
@@ -31,12 +31,11 @@ function MobileTemplateSelector({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full px-4 py-3 rounded-lg bg-background border border-border flex items-center justify-between transition-all ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'
-        }`}
+        className={`w-full px-4 py-3 rounded-lg bg-background border border-border flex items-center justify-between transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'
+          }`}
       >
         <div className="flex items-center gap-3">
-          <span 
+          <span
             className="w-4 h-4 rounded-md"
             style={{ backgroundColor: config.accentColor }}
           />
@@ -61,11 +60,10 @@ function MobileTemplateSelector({
                   onChange(t);
                   setIsOpen(false);
                 }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
-                  selected === t ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-                }`}
+                className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${selected === t ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+                  }`}
               >
-                <span 
+                <span
                   className="w-4 h-4 rounded-md"
                   style={{ backgroundColor: tConfig.accentColor }}
                 />
@@ -84,26 +82,25 @@ function MobileTemplateSelector({
 }
 
 // Mini preview card component for template selection (desktop)
-function TemplateCard({ 
-  type, 
-  selected, 
-  onClick 
-}: { 
-  type: TemplateType; 
-  selected: boolean; 
+function TemplateCard({
+  type,
+  selected,
+  onClick
+}: {
+  type: TemplateType;
+  selected: boolean;
   onClick: () => void;
 }) {
   const config = TEMPLATE_CONFIGS[type];
-  
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative p-3 rounded-xl border-2 transition-all duration-300 text-left group overflow-hidden ${
-        selected
-          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
-          : 'border-border hover:border-primary/50 hover:bg-muted/30'
-      }`}
+      className={`relative p-3 rounded-xl border-2 transition-all duration-300 text-left group overflow-hidden ${selected
+        ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
+        : 'border-border hover:border-primary/50 hover:bg-muted/30'
+        }`}
     >
       {/* Selection indicator */}
       {selected && (
@@ -115,9 +112,9 @@ function TemplateCard({
           <Check className="w-3 h-3 text-primary-foreground" />
         </motion.div>
       )}
-      
+
       {/* Mini preview */}
-      <div 
+      <div
         className="w-full h-32 mb-3 rounded-lg overflow-hidden bg-white border border-border/50 shadow-sm"
         style={{ transform: 'scale(1)', transformOrigin: 'top left' }}
       >
@@ -125,11 +122,11 @@ function TemplateCard({
           <TemplatePreview template={type} content={SAMPLE_RESUME_CONTENT} scale={1} />
         </div>
       </div>
-      
+
       {/* Template info */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span 
+          <span
             className="w-3 h-3 rounded-sm"
             style={{ backgroundColor: config.accentColor }}
           />
@@ -144,8 +141,6 @@ function TemplateCard({
 }
 
 export default function GeneratePage() {
-  const [jobTitle, setJobTitle] = useState('');
-  const [company, setCompany] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [template, setTemplate] = useState<TemplateType>('modern');
   const [generating, setGenerating] = useState(false);
@@ -154,6 +149,14 @@ export default function GeneratePage() {
   const [showLivePreview, setShowLivePreview] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentStep, setCurrentStep] = useState<string>('');
+
+  // Parsed JD state (used during generation)
+  const [parsedJobInfo, setParsedJobInfo] = useState<{
+    title: string;
+    company: string;
+    domain: string;
+    level: string;
+  } | null>(null);
 
   // Fetch user profile for live preview
   useEffect(() => {
@@ -214,7 +217,7 @@ export default function GeneratePage() {
   // Preview content: use user profile if available, otherwise sample
   const previewContent = useMemo(() => {
     if (!userProfile) return SAMPLE_RESUME_CONTENT;
-    
+
     // Merge user profile with sample data for any missing fields
     return {
       contact: {
@@ -249,9 +252,9 @@ export default function GeneratePage() {
 
   // Progress steps that match API logging
   const progressSteps = [
-    { step: 1, label: 'Fetching job details', emoji: '📋' },
-    { step: 2, label: 'Loading your documents', emoji: '📄' },
-    { step: 3, label: 'Analyzing job description', emoji: '🔍' },
+    { step: 1, label: 'Analyzing job description', emoji: '🔍' },
+    { step: 2, label: 'Creating job record', emoji: '📋' },
+    { step: 3, label: 'Loading your documents', emoji: '📄' },
     { step: 4, label: 'Generating embeddings', emoji: '🧮' },
     { step: 5, label: 'Selecting relevant experiences', emoji: '👤' },
     { step: 6, label: 'Generating tailored resume', emoji: '✍️' },
@@ -272,14 +275,41 @@ export default function GeneratePage() {
     setCurrentStep('');
 
     try {
+      // Step 1: Parse the JD to extract title and company
+      setCurrentStep('Analyzing job description...');
+      let parsedTitle = '';
+      let parsedCompany = '';
+
+      try {
+        const parseResponse = await fetch('/api/jobs/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: jobDescription }),
+        });
+
+        if (parseResponse.ok) {
+          const parseData = await parseResponse.json();
+          parsedTitle = parseData.title || '';
+          parsedCompany = parseData.company || '';
+          setParsedJobInfo({
+            title: parsedTitle,
+            company: parsedCompany,
+            domain: parseData.domain || '',
+            level: parseData.level || '',
+          });
+        }
+      } catch (parseError) {
+        console.warn('JD parsing failed, continuing with defaults:', parseError);
+      }
+
+      // Step 2: Create job record with parsed title/company
       setCurrentStep('Creating job record...');
-      // Create job record
       const jobResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: jobTitle,
-          company,
+          parsedTitle,
+          parsedCompany,
           description: jobDescription,
         }),
       });
@@ -336,10 +366,10 @@ export default function GeneratePage() {
           <div className="mt-6 space-y-4">
             <div>
               <p className="text-lg font-medium text-foreground">
-                Tailoring for {jobTitle || 'your role'}
+                Tailoring for {parsedJobInfo?.title || 'your role'}
               </p>
-              {company && (
-                <p className="text-sm text-muted-foreground">at {company}</p>
+              {parsedJobInfo?.company && (
+                <p className="text-sm text-muted-foreground">at {parsedJobInfo.company}</p>
               )}
             </div>
 
@@ -415,37 +445,6 @@ export default function GeneratePage() {
         >
           <form onSubmit={handleGenerate} className="space-y-4 md:space-y-6">
             <div className="glass-card p-4 md:p-6 rounded-xl space-y-4 md:space-y-6">
-              {/* Job Title */}
-              <div>
-                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-primary" />
-                  Job Title *
-                </label>
-                <input
-                  type="text"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary transition-all text-base"
-                  placeholder="e.g. Senior Software Engineer"
-                  required
-                />
-              </div>
-
-              {/* Company */}
-              <div>
-                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-primary" />
-                  Company
-                </label>
-                <input
-                  type="text"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary transition-all text-base"
-                  placeholder="e.g. Google"
-                />
-              </div>
-
               {/* Job Description */}
               <div>
                 <label className="block text-sm font-medium mb-2 flex items-center gap-2">
@@ -455,7 +454,7 @@ export default function GeneratePage() {
                 <textarea
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary min-h-[140px] md:min-h-[180px] transition-all text-base"
+                  className="w-full px-4 py-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary min-h-[180px] md:min-h-[220px] transition-all text-base"
                   placeholder="Paste the full job description here..."
                   required
                 />
@@ -468,7 +467,7 @@ export default function GeneratePage() {
                 <LayoutTemplate className="w-4 h-4 text-primary" />
                 Select Template
               </label>
-              
+
               {/* Mobile: Dropdown selector */}
               <div className="md:hidden">
                 <MobileTemplateSelector
@@ -520,11 +519,10 @@ export default function GeneratePage() {
               <button
                 type="button"
                 onClick={() => setShowLivePreview(!showLivePreview)}
-                className={`text-xs px-3 py-1.5 rounded-full transition-all mt-2 ${
-                  showLivePreview 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
+                className={`text-xs px-3 py-1.5 rounded-full transition-all mt-2 ${showLivePreview
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
               >
                 {showLivePreview ? 'Your Data' : 'Sample Data'}
               </button>
@@ -543,9 +541,9 @@ export default function GeneratePage() {
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                   <div className="max-h-[500px] overflow-auto flex justify-center p-4">
                     <div style={{ width: 'calc(210mm * 0.5)' }}>
-                      <TemplatePreview 
-                        template={template} 
-                        content={showLivePreview ? previewContent : SAMPLE_RESUME_CONTENT} 
+                      <TemplatePreview
+                        template={template}
+                        content={showLivePreview ? previewContent : SAMPLE_RESUME_CONTENT}
                         scale={0.5}
                       />
                     </div>
@@ -557,7 +555,7 @@ export default function GeneratePage() {
             {/* Preview Footer */}
             <div className="p-4 border-t border-border bg-muted/20">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span 
+                <span
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: TEMPLATE_CONFIGS[template].accentColor }}
                 />

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase';
-import { embedText } from '../gemini';
+import { embedText } from '../openai';
 import {
     canonicalizeProfile,
     getCanonicalProfile,

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { embedText, GeminiFileReference } from './gemini';
+import { embedText, GeminiFileReference } from './openai';
 
 export const MAX_CHUNK_SIZE = 800;
 export const MAX_CHUNKS_PER_DOCUMENT = 24;

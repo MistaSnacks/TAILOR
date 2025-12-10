@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { embedText } from './gemini';
+import { embedText } from './openai';
 import {
   BULLET_SIMILARITY_THRESHOLD,
   MAX_CANONICAL_BULLETS,

@@ -14,6 +14,7 @@
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.1",
     "@google/generative-ai": "^0.21.0",
+    "openai": "^4.67.0",
     "@react-pdf/renderer": "^4.3.1",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.47.10",
