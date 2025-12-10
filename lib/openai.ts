@@ -9,9 +9,10 @@ logSecretUsage('OPENAI_API_KEY', !!apiKey);
 
 export const openai = apiKey ? new OpenAI({ apiKey }) : null as any;
 
-// File reference type (OpenAI doesn't use file URIs like Gemini - we'll pass text directly)
+// File reference type (supports both OpenAI text-based and Gemini URI-based references)
 export type OpenAIFileReference = {
-  text: string;
+  text?: string;
+  uri?: string;
   mimeType: string;
 };
 
@@ -86,7 +87,7 @@ function buildFileParts(references: OpenAIFileReference[] = []) {
     .filter(ref => ref.text)
     .map(ref => ({
       role: 'user' as const,
-      content: ref.text,
+      content: ref.text!,
     }));
 }
 

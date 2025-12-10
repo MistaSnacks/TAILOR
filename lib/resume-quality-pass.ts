@@ -36,7 +36,7 @@ const DEFAULT_KEYWORD_INJECTION_LIMIT = 12;
 // Types for AI Change Tracking
 // ============================================================================
 
-export type AIChangeType = 
+export type AIChangeType =
   | 'bullet_rewritten'
   | 'bullet_added'
   | 'bullet_removed'
@@ -95,7 +95,7 @@ export type QualityPassResult = {
 const normalizeKeyword = (keyword?: string | null) =>
   (keyword || '').trim().toLowerCase();
 
-const generateVariantsForMatch = (value: string): string[] => {
+export const generateVariantsForMatch = (value: string): string[] => {
   const raw = (value || '').trim();
   if (!raw) return [];
 
@@ -414,15 +414,15 @@ Return JSON ONLY:
     const rawMetadata = parsed?.metadata || {};
     const aiChanges: AIChange[] = Array.isArray(rawMetadata?.aiChanges)
       ? rawMetadata.aiChanges.map((change: any) => ({
-          type: change.type || 'bullet_rewritten',
-          section: change.section || 'experience',
-          description: change.description || '',
-          original: change.original,
-          revised: change.revised,
-          experienceIndex: change.experienceIndex,
-          bulletIndex: change.bulletIndex,
-          keywords: change.keywords,
-        }))
+        type: change.type || 'bullet_rewritten',
+        section: change.section || 'experience',
+        description: change.description || '',
+        original: change.original,
+        revised: change.revised,
+        experienceIndex: change.experienceIndex,
+        bulletIndex: change.bulletIndex,
+        keywords: change.keywords,
+      }))
       : [];
 
     // Compute diff-based changes if LLM didn't provide them
@@ -441,7 +441,7 @@ Return JSON ONLY:
       // Skills changes
       const originalSkills = new Set(normalizedDraft.skills || []);
       const refinedSkills = new Set(refinedResume.skills || []);
-      
+
       (refinedResume.skills || []).forEach((skill) => {
         if (!originalSkills.has(skill)) {
           aiChanges.push({
