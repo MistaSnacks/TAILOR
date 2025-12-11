@@ -354,11 +354,12 @@ ${budgetInstructions}
    - Order by JD relevance, remove unrelated items, and include JD phrases only when they are supported by the candidate's verified history.
    - Add a JD skill only if it is truthful based on candidate data and materially improves alignment.
 
-3. **Bullets (JD alignment without forcing it)**:
-   - Incorporate JD keywords naturally when they are already supported by the candidate's verified achievements.
-   - Consider rewriting or replacing a bullet, or adding a new bullet (when under the max per experience), **only if** it clearly improves JD match while staying 100% truthful. If alignment is weak or would require invention, do not force it.
-   - Respect the per-experience bullet limits shown above; prefer replacing weaker bullets over exceeding the limit.
-   - Use Level 1-2 inference only (direct skills or logically implied). Block Level 3 (speculation).
+3. **Bullets (Optimization Strategy)**:
+   - **Default Stance**: Favor rewriting over preserving. Passive retention of generic bullets is discouraged if a JD-aligned version can be truthfully constructed.
+   - **Budget Utilization**: Maximize the use of the allowed bullet budget. A higher bullet count (up to the limit) provides more surface area for keyword matching. Do not artificially restrict the count if verified content exists.
+   - **Inference**: usage of Level 2 inference (logical implications) is encouraged to bridge gaps.
+   - **Target**: Aim to refresh ~50% of bullets for Primary roles to ensure they feel "tailored" rather than "reused".
+   - **Constraint**: Stop ONLY if you hit the budget limit OR if further expansion would require inventing facts (Level 3).Truth is the only hard brake.
 
 === TASK 3: Track AI Changes ===
 
