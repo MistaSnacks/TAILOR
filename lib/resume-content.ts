@@ -508,7 +508,7 @@ export function removeGhostData(content: ResumeContent): ResumeContent {
             } else {
               return null;
             }
-            
+
             const cleaned = scrubField(bulletText);
             return cleaned.placeholder ? null : cleaned.value;
           })

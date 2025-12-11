@@ -72,11 +72,26 @@ const PLACEHOLDER_EXACT = new Set(
 
 const PLACEHOLDER_SNIPPETS = ['lorem ipsum', 'placeholder', 'sample text', 'dummy text', 'your@email.com'];
 
-const MAX_EXPERIENCES_FOR_PROMPT = 5;
-const MAX_BULLET_CONTEXT_PER_ROLE = 8;
-export const MAX_BULLETS_PER_ROLE = 6;
-const MAX_SKILLS_FOR_PROMPT = 40; // Increased to 40 for fuller skill coverage
-const MAX_INFERENCE_CONTEXT_LINES = 12;
+// Import from centralized config
+import {
+  MAX_EXPERIENCES_FOR_PROMPT as CONFIG_MAX_EXPERIENCES,
+  MAX_BULLET_CONTEXT_PER_ROLE as CONFIG_MAX_BULLET_CONTEXT,
+  MAX_BULLETS_PER_ROLE as CONFIG_MAX_BULLETS,
+  MAX_SKILLS_FOR_PROMPT as CONFIG_MAX_SKILLS,
+  MAX_INFERENCE_CONTEXT_LINES as CONFIG_MAX_INFERENCE,
+} from './resume-config';
+import {
+  INFERENCE_RULES,
+  DOMAIN_INFERENCE_RULES,
+  HALLUCINATION_CHECKPOINT,
+} from './inference-rules';
+
+// Use imported config (keeping local exports for backward compatibility)
+const MAX_EXPERIENCES_FOR_PROMPT = CONFIG_MAX_EXPERIENCES;
+const MAX_BULLET_CONTEXT_PER_ROLE = CONFIG_MAX_BULLET_CONTEXT;
+export const MAX_BULLETS_PER_ROLE = CONFIG_MAX_BULLETS;
+const MAX_SKILLS_FOR_PROMPT = CONFIG_MAX_SKILLS;
+const MAX_INFERENCE_CONTEXT_LINES = CONFIG_MAX_INFERENCE;
 
 type PreparedWriterProfile = {
   experiences: WriterExperience[];
@@ -603,6 +618,10 @@ ${certificationContext}
 Canonical Contact Information (only include fields with values, NEVER include address):
 ${contactInfoContext}
 
+${INFERENCE_RULES}
+
+${DOMAIN_INFERENCE_RULES}
+
 Quality Guardrails:
 - Use ONLY the canonical experiences and skills supplied above. Never invent new companies, titles, dates, or credentials.
 - Preserve the experience order exactly as provided; the inventory is already most recent first.
@@ -611,9 +630,10 @@ Quality Guardrails:
 - Each bullet must follow the Action + Context + Result rubric, highlight measurable scope/impact when available, and remain grounded in the supporting achievements for that role.
 - Respect the bullet_budget per experience. If the candidate pool is smaller than the budget, output only the vetted bullets; do not fabricate content.
 - When merging multiple candidate bullets, preserve the strongest metric and union of verified tools/regulations, then log the contributing candidate IDs in "merged_from".
-    - Professional summary must be a single cohesive paragraph of 3-4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 1-2 key achievements that demonstrate meaningful impact - metrics are optional, only include them if they are genuinely compelling and relevant to the target role, (3) mention 2-3 key tools or skills that directly match the target JD requirements, and (4) close with a clear connection to the target role's core responsibilities. Focus on telling a compelling career narrative rather than metric-stuffing. AVOID generic metrics like "Analyzed 100+ reports" - if a metric doesn't clearly demonstrate impact, omit it.
-- You may infer JD-aligned keywords or new bullet framings ONLY when they are obviously supported by the Global Canonical Highlights or Metric Signals above. Reference the supporting company or highlight inside the bullet (e.g., “(leveraging TD Bank AML program)”). If no supporting highlight exists, omit the inference.
+- Professional summary must be a single cohesive paragraph of 4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics from canonical experiences, (3) mention 2-3 key tools or skills that directly match the target JD requirements, and (4) close with a clear connection to the target role's core responsibilities. Focus on telling a compelling career narrative. AVOID generic metrics like "Analyzed 100+ reports" - if a metric doesn't clearly demonstrate impact, omit it.
 - Skills list must be a deduped subset of the normalized pool ordered by relevance to the target JD.
+
+${HALLUCINATION_CHECKPOINT}
 
 ${atsFormatGuide}
 
@@ -868,7 +888,7 @@ function getAtsModel() {
   if (!genAI) {
     throw new Error('Gemini API key not configured');
   }
-  
+
   if (!cachedAtsModel) {
     console.log('🔧 (NO $) Creating shared ATS model instance (gemini-2.0-flash-lite)');
     cachedAtsModel = genAI.getGenerativeModel({
@@ -881,7 +901,7 @@ function getAtsModel() {
       },
     });
   }
-  
+
   return cachedAtsModel;
 }
 
@@ -896,7 +916,7 @@ export async function calculateAtsScore(
   analysis: any;
 }> {
   const atsStartTime = Date.now();
-  
+
   try {
     const model = getAtsModel();
 

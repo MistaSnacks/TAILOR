@@ -137,7 +137,7 @@ export function selectTargetAwareProfile(
   const scoredExperiences = experienceValidation.eligible.map((experience) => {
     const raw = experience.id ? experienceMap.get(experience.id) : undefined;
     const rawBullets = raw?.bullets || [];
-    
+
     // 🔍 Debug logging (REMOVE IN PRODUCTION)
     if (!rawBullets.length && raw) {
       console.warn('⚠️ Experience has no bullets:', {
@@ -146,7 +146,7 @@ export function selectTargetAwareProfile(
         title: experience.title,
       });
     }
-    
+
     const bulletCandidates = scoreBullets(rawBullets, signals);
     const bulletBudget = determineBulletBudget(experienceOrder.get(experience.id || '') ?? canonicalExperiences.length, raw);
     const selectedBullets = bulletCandidates.slice(0, bulletBudget);
@@ -237,12 +237,12 @@ export function selectTargetAwareProfile(
   }
 
   const prioritizedSkills = prioritizeSkills(profile.skills || [], job.requiredSkills);
-  
+
   // Filter out experiences without bullet candidates before building writer contexts
   const experiencesWithBullets = selected.filter(
     (entry) => entry.bulletCandidates.length > 0
   );
-  
+
   if (experiencesWithBullets.length === 0 && selected.length > 0) {
     console.warn('⚠️ All selected experiences have no bullet candidates:', {
       selectedCount: selected.length,
@@ -256,7 +256,7 @@ export function selectTargetAwareProfile(
       })),
     });
   }
-  
+
   // 🔍 Additional debug logging (REMOVE IN PRODUCTION)
   console.log('📊 Selection bullet analysis:', {
     totalSelected: selected.length,
@@ -271,7 +271,7 @@ export function selectTargetAwareProfile(
       bulletBudget: entry.bulletBudget,
     })),
   });
-  
+
   const writerExperiences = experiencesWithBullets
     .slice(0, maxWriterExperiences)
     .map((entry) => entry.writerContext);

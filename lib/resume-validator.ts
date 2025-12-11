@@ -212,8 +212,8 @@ export async function validateAndRefineResume({
   });
   const prioritizedKeywordList = keywordGuidance.prioritizedMissingKeywords.length
     ? keywordGuidance.prioritizedMissingKeywords
-        .map((keyword, index) => `${index + 1}. ${keyword}`)
-        .join('\n')
+      .map((keyword, index) => `${index + 1}. ${keyword}`)
+      .join('\n')
     : 'None (all verified JD keywords already covered).';
   const verifiedSkillPoolPreview = uniqueStrings(candidateSkillUniverse)
     .slice(0, 60)

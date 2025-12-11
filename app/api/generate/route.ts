@@ -98,23 +98,23 @@ export async function POST(request: NextRequest) {
     // ⚡ OPTIMIZATION: Check for cached parsed job context first
     console.log('🔍 [3/8] Parsing job description...');
     console.log('🧮 [4/8] Generating embeddings (parallel with parsing)...');
-    
+
     // Primary seed can be computed immediately without waiting for parsedJob
     // We avoid defaulting to 'general role' here so we can fall back to parsed job data later.
     const primarySeed =
       (job.description || '').trim() || (job.title || '').trim() || '';
     const embedSeed = primarySeed || 'general role';
-    
+
     const parseStartTime = Date.now();
-    
+
     // Check if we have a cached parsed job context
-    const hasCachedParsedJob = job.parsed_job_context && 
+    const hasCachedParsedJob = job.parsed_job_context &&
       typeof job.parsed_job_context === 'object' &&
       job.parsed_job_context.normalizedTitle;
-    
+
     let parsedJob: Awaited<ReturnType<typeof parseJobDescriptionToContext>>;
     let initialJobEmbedding: number[];
-    
+
     if (hasCachedParsedJob) {
       // ⚡ CACHE HIT: Skip Gemini parsing call entirely (saves ~8-20s)
       console.log('⚡ [3/8] Using cached parsed job context (NO $ - skipped Gemini call)');
@@ -129,10 +129,10 @@ export async function POST(request: NextRequest) {
         }),
         embedText(embedSeed.substring(0, 8000)),
       ]);
-      
+
       parsedJob = freshParsedJob;
       initialJobEmbedding = embedding;
-      
+
       // 🔄 Cache the parsed job context for future regenerations (fire-and-forget)
       supabaseAdmin
         .from('jobs')
@@ -146,9 +146,9 @@ export async function POST(request: NextRequest) {
           }
         });
     }
-    
+
     const parallelTime = ((Date.now() - parseStartTime) / 1000).toFixed(1);
-    console.log(`✅ [3/8] Job description parsed (${parallelTime}s${hasCachedParsedJob ? ' - CACHED' : ' - fresh'}):`, { 
+    console.log(`✅ [3/8] Job description parsed (${parallelTime}s${hasCachedParsedJob ? ' - CACHED' : ' - fresh'}):`, {
       normalizedTitle: parsedJob.normalizedTitle,
       hardSkills: parsedJob.hardSkills?.length || 0,
     });
@@ -171,26 +171,26 @@ export async function POST(request: NextRequest) {
     const querySeeds = parsedJob.queries.length
       ? parsedJob.queries
       : [jobDescriptionSeed];
-    
+
     // ⚡ PARALLEL OPTIMIZATION: Run query embeddings and profile retrieval concurrently
     console.log('🧮 [4/8] Generating query embeddings...');
     console.log('👤 [5/8] Retrieving profile (parallel with embeddings)...');
-    
+
     const embedProfileStartTime = Date.now();
-    
+
     const [queryEmbeddings, profile] = await Promise.all([
       // Generate query embeddings in parallel batch
       Promise.all(querySeeds.slice(0, 5).map((query) => embedText(query))),
       // Retrieve atomic profile concurrently
       retrieveProfileForJob(userId, job.description),
     ]);
-    
+
     const embedProfileTime = ((Date.now() - embedProfileStartTime) / 1000).toFixed(1);
-    console.log(`✅ [4/8] Embeddings generated (${embedProfileTime}s parallel):`, { 
+    console.log(`✅ [4/8] Embeddings generated (${embedProfileTime}s parallel):`, {
       jobEmbedding: !!jobEmbedding,
       queryEmbeddings: queryEmbeddings.length,
     });
-    
+
     const inferenceSignals = buildInferenceSignals(profile);
 
     // Select most relevant experiences/bullets for this job
@@ -378,7 +378,7 @@ export async function POST(request: NextRequest) {
     });
 
     const normalizedDraft = normalizeResumeContent(rawResumeContent);
-    
+
     // Ensure contact info (including LinkedIn/portfolio) is preserved from the user's profile
     if (targetedProfile.contactInfo) {
       const contact = normalizedDraft.contact || {};
@@ -397,7 +397,7 @@ export async function POST(request: NextRequest) {
         portfolio: normalizedDraft.contact.portfolio ? '✅' : '❌',
       });
     }
-    
+
     // Debug: Log what normalization produced
     console.log('🔬 [DEBUG] After normalizeResumeContent:', {
       experienceCount: normalizedDraft?.experience?.length || 0,
@@ -415,11 +415,28 @@ export async function POST(request: NextRequest) {
     let validatorMetadata: ValidatorMetadata | null = null;
 
     console.log('🔍 [7/8] Running quality checks and refinements...');
-    
+
     if (USE_MERGED_PASS) {
       // ⚡ OPTIMIZATION: Single merged quality pass (saves ~15-45s)
       try {
         const qualityStartTime = Date.now();
+
+        // Build per-experience bullet budgets from selection
+        const bulletBudgets = new Map<number, number>();
+        const experienceRoleTypes = new Map<number, 'primary' | 'context'>();
+
+        selection.writerExperiences?.forEach((exp, idx) => {
+          bulletBudgets.set(idx, exp.bullet_budget || 6);
+          // Classify as primary if alignment score > 0.6 (score is on the experience itself)
+          const alignmentScore = (exp as any).alignment_score ?? (exp as any).relevanceScore ?? 0.5;
+          experienceRoleTypes.set(idx, alignmentScore > 0.6 ? 'primary' : 'context');
+        });
+
+        console.log('📊 [BULLET BUDGETS] Per-experience allocations:', {
+          budgets: Object.fromEntries(bulletBudgets),
+          roleTypes: Object.fromEntries(experienceRoleTypes),
+        });
+
         const qualityResult = await runQualityPass({
           resumeDraft: finalResumeContent,
           jobDescription: job.description,
@@ -428,11 +445,13 @@ export async function POST(request: NextRequest) {
           candidateSkillUniverse,
           maxBulletsPerExperience: 6,
           keywordInjectionLimit: 12,
+          bulletBudgets,
+          experienceRoleTypes,
         });
 
         finalResumeContent = qualityResult.refinedResume;
         qualityMetadata = qualityResult.metadata;
-        
+
         const qualityTime = ((Date.now() - qualityStartTime) / 1000).toFixed(1);
         console.log(`✅ Merged quality pass completed (${qualityTime}s):`, {
           aiChanges: qualityMetadata.aiChanges.length,
@@ -447,7 +466,7 @@ export async function POST(request: NextRequest) {
         console.log('⚠️ Falling back to separate Critic + Validator passes...');
       }
     }
-    
+
     // Fallback: Run separate passes if merged pass failed or disabled
     if (!qualityMetadata) {
       // Step 1: Run critic to improve bullet quality and structure
@@ -491,7 +510,7 @@ export async function POST(request: NextRequest) {
         console.error('❌ Resume validator error:', validatorError);
       }
     }
-    
+
     console.log('✅ [7/8] Quality checks completed');
 
     // Final pass: remove any remaining ghost data after all processing
@@ -554,7 +573,7 @@ export async function POST(request: NextRequest) {
       console.log('📊 (IS $) Starting ATS scoring (synchronous) for resume:', resumeVersion.id);
       const { formatResumeForAts } = await import('@/lib/resume-content');
       const resumeTextForAts = formatResumeForAts(finalCleanedContent);
-      
+
       atsResult = await calculateAtsScore(
         job.description,
         resumeTextForAts
@@ -581,7 +600,7 @@ export async function POST(request: NextRequest) {
     console.log(`✅ [8/8] Generation complete! Total time: ${totalTime}s (ATS scoring synchronous)`);
     console.log('🎉 Resume generation finished successfully');
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       resumeVersion,
       atsScorePending: !atsResult,
       atsScore: atsResult?.score ?? null,

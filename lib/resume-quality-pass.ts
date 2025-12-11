@@ -25,6 +25,16 @@ import {
   formatResumeForAts,
 } from './resume-content';
 import type { ParsedJobDescription } from './rag/job-types';
+import {
+  getFullInferenceRules,
+  REWRITE_GUIDANCE,
+  HALLUCINATION_CHECKPOINT,
+} from './inference-rules';
+import {
+  MAX_BULLETS_PER_ROLE as CONFIG_MAX_BULLETS,
+  BULLET_BUDGETS,
+  type RoleType,
+} from './resume-config';
 
 // Toggle to easily switch back to separate passes
 export const USE_MERGED_PASS = true;
@@ -214,6 +224,10 @@ export async function runQualityPass({
   candidateSkillUniverse = [],
   maxBulletsPerExperience = MAX_BULLETS_PER_ROLE,
   keywordInjectionLimit = DEFAULT_KEYWORD_INJECTION_LIMIT,
+  // NEW: Per-experience bullet budgets (overrides maxBulletsPerExperience)
+  bulletBudgets,
+  // NEW: Per-experience role types for differentiated treatment
+  experienceRoleTypes,
 }: {
   resumeDraft: ResumeContent;
   jobDescription: string;
@@ -222,6 +236,8 @@ export async function runQualityPass({
   candidateSkillUniverse?: string[];
   maxBulletsPerExperience?: number;
   keywordInjectionLimit?: number;
+  bulletBudgets?: Map<number, number>;
+  experienceRoleTypes?: Map<number, RoleType>;
 }): Promise<QualityPassResult> {
   if (!genAI) {
     throw new Error('Gemini API key not configured');
@@ -253,9 +269,18 @@ export async function runQualityPass({
     experienceCount: normalizedDraft.experience?.length || 0,
     bulletCount: countBullets(normalizedDraft),
     maxBulletsPerExperience,
+    bulletBudgets: bulletBudgets ? Object.fromEntries(bulletBudgets) : 'using flat max',
+    experienceRoleTypes: experienceRoleTypes ? Object.fromEntries(experienceRoleTypes) : 'all primary',
     truthfulKeywords: truthfulKeywords.length,
     prioritizedMissing: prioritizedMissingKeywords.length,
   });
+
+  // Build per-experience budget instructions
+  const budgetInstructions = normalizedDraft.experience?.map((exp, idx) => {
+    const budget = bulletBudgets?.get(idx) ?? maxBulletsPerExperience;
+    const roleType = experienceRoleTypes?.get(idx) ?? 'primary';
+    return `Experience ${idx + 1} (${exp.company || 'Unknown'}): max ${budget} bullets, type: ${roleType.toUpperCase()}`;
+  }).join('\n') || `All experiences: max ${maxBulletsPerExperience} bullets`;
 
   const prioritizedKeywordList = prioritizedMissingKeywords.length
     ? prioritizedMissingKeywords.map((kw, i) => `${i + 1}. ${kw}`).join('\n')
@@ -308,10 +333,13 @@ Score every bullet 1-5 on:
 Rules:
 - Rewrite bullets scoring <3 using ACR rubric while staying truthful
 - Remove duplicate/overlapping bullets, keep best phrasing
-- Enforce max ${maxBulletsPerExperience} bullets per experience
+- Respect per-experience bullet limits:
+${budgetInstructions}
 - Strip ALL placeholder text ("Company Name", "N/A", "TBD", etc.)
 - Keep company/title/location/dates exactly as provided
 - Never reorder experiences
+- For PRIMARY roles: Optimize heavily, expand JD connections
+- For CONTEXT roles: Keep concise, focus on transferable skills
 
 === TASK 2: JD Alignment Optimization ===
 
@@ -329,7 +357,8 @@ Rules:
 3. **Bullets (JD alignment without forcing it)**:
    - Incorporate JD keywords naturally when they are already supported by the candidate's verified achievements.
    - Consider rewriting or replacing a bullet, or adding a new bullet (when under the max per experience), **only if** it clearly improves JD match while staying 100% truthful. If alignment is weak or would require invention, do not force it.
-   - Keep ≤ ${maxBulletsPerExperience} bullets per experience; prefer replacing weaker bullets over exceeding the limit.
+   - Respect the per-experience bullet limits shown above; prefer replacing weaker bullets over exceeding the limit.
+   - Use Level 1-2 inference only (direct skills or logically implied). Block Level 3 (speculation).
 
 === TASK 3: Track AI Changes ===
 
@@ -503,6 +532,22 @@ Return JSON ONLY:
       jdKeywordsMissing: coverageAfter.missing.slice(0, 20),
       issues: Array.isArray(rawMetadata?.issues) ? rawMetadata.issues : [],
     };
+
+    // Enhanced logging: Before/After diff for debugging
+    console.log('🔄 [GENERATION DIFF] Before vs After quality pass:', {
+      bulletCountBefore: countBullets(normalizedDraft),
+      bulletCountAfter: countBullets(refinedResume),
+      summaryLengthBefore: normalizedDraft.summary?.length || 0,
+      summaryLengthAfter: refinedResume.summary?.length || 0,
+      skillsCountBefore: normalizedDraft.skills?.length || 0,
+      skillsCountAfter: refinedResume.skills?.length || 0,
+      experienceDetails: normalizedDraft.experience?.map((exp, i) => ({
+        company: exp.company,
+        bulletsBefore: exp.bullets?.length || 0,
+        bulletsAfter: refinedResume.experience?.[i]?.bullets?.length || 0,
+        budgetUsed: bulletBudgets?.get(i) ?? maxBulletsPerExperience,
+      })),
+    });
 
     console.log('✅ Quality pass completed:', {
       aiChangesCount: aiChanges.length,
