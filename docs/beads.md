@@ -22,3 +22,4 @@ This repo is initialized with Beads (`bd`). The CLI binary is installed to `$HOM
 - Beads data lives in `.beads/` and is tracked by git (see `.gitattributes`).
 - If `bd` is ever missing, rerun the installer: `curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash` and re-add PATH.
 - `@beads/bd` is listed as a devDependency; use `bd` from your PATH for reliability.
+

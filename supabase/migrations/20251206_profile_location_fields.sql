@@ -17,3 +17,4 @@ COMMENT ON COLUMN profiles.zip IS 'User ZIP code for job search location';
 COMMENT ON COLUMN profiles.remote_preference IS 'User work location preference: any, remote_only, hybrid, onsite';
 
 
+

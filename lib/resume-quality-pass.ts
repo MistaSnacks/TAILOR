@@ -37,7 +37,7 @@ import {
 } from './resume-config';
 
 // Toggle to easily switch back to separate passes
-export const USE_MERGED_PASS = true;
+export const USE_MERGED_PASS = true; // Re-enabled for AI change tracking in UI
 
 const QUALITY_PASS_JOB_DESC_LIMIT = 6000;
 const DEFAULT_KEYWORD_INJECTION_LIMIT = 12;
@@ -294,7 +294,7 @@ export async function runQualityPass({
     model: 'gemini-2.0-flash',
     generationConfig: {
       responseMimeType: 'application/json',
-      temperature: 0.15,
+      temperature: 0.35, // Increased from 0.15 to encourage bullet rewrites
       topP: 0.85,
     },
   });
@@ -319,6 +319,10 @@ ${verifiedSkillPoolPreview}
 JD Keywords to Inject (only if truthful):
 ${prioritizedKeywordList}
 
+${REWRITE_GUIDANCE}
+
+${HALLUCINATION_CHECKPOINT}
+
 Current Resume JSON:
 ${JSON.stringify(normalizedDraft, null, 2)}
 
@@ -331,15 +335,17 @@ Score every bullet 1-5 on:
 4. Relevance: Alignment to JD needs
 
 Rules:
+- **PROACTIVE REWRITING**: You MUST rewrite 40-60% of bullets for PRIMARY roles. Do not passively retain bullets just because they "seem okay" - actively improve them for JD alignment.
 - Rewrite bullets scoring <3 using ACR rubric while staying truthful
+- ALSO rewrite bullets scoring 3-4 if JD terminology would improve ATS matching
 - Remove duplicate/overlapping bullets, keep best phrasing
 - Respect per-experience bullet limits:
 ${budgetInstructions}
 - Strip ALL placeholder text ("Company Name", "N/A", "TBD", etc.)
 - Keep company/title/location/dates exactly as provided
 - Never reorder experiences
-- For PRIMARY roles: Optimize heavily, expand JD connections
-- For CONTEXT roles: Keep concise, focus on transferable skills
+- For PRIMARY roles: Optimize heavily, expand JD connections, aim for 50%+ rewrites
+- For CONTEXT roles: Keep concise, focus on transferable skills, aim for 20-30% rewrites
 
 === TASK 2: JD Alignment Optimization ===
 
@@ -455,49 +461,76 @@ Return JSON ONLY:
       }))
       : [];
 
-    // Compute diff-based changes if LLM didn't provide them
-    if (aiChanges.length === 0) {
-      // Summary change
-      if (refinedResume.summary !== normalizedDraft.summary) {
-        aiChanges.push({
+    // Helper to avoid duplicate change entries
+    const addChangeIfMissing = (
+      change: AIChange,
+      matcher: (existing: AIChange) => boolean
+    ) => {
+      const exists = aiChanges.some(matcher);
+      if (!exists) {
+        aiChanges.push(change);
+      }
+    };
+
+    // Diff-based changes (runs even if LLM returned partial aiChanges)
+    const summaryChanged = refinedResume.summary !== normalizedDraft.summary;
+    if (summaryChanged) {
+      addChangeIfMissing(
+        {
           type: 'summary_enhanced',
           section: 'summary',
           description: 'Summary enhanced for JD alignment',
           original: normalizedDraft.summary?.substring(0, 150),
           revised: refinedResume.summary?.substring(0, 150),
-        });
-      }
+        },
+        (c) => c.section === 'summary' && c.type === 'summary_enhanced'
+      );
+    }
 
-      // Skills changes
-      const originalSkills = new Set(normalizedDraft.skills || []);
-      const refinedSkills = new Set(refinedResume.skills || []);
+    const originalSkills = new Set(normalizedDraft.skills || []);
+    const refinedSkills = new Set(refinedResume.skills || []);
 
-      (refinedResume.skills || []).forEach((skill) => {
-        if (!originalSkills.has(skill)) {
-          aiChanges.push({
+    (refinedResume.skills || []).forEach((skill) => {
+      if (!originalSkills.has(skill)) {
+        addChangeIfMissing(
+          {
             type: 'skill_added',
             section: 'skills',
             description: `Added skill: ${skill}`,
             revised: skill,
-          });
-        }
-      });
+          },
+          (c) => c.type === 'skill_added' && c.revised === skill
+        );
+      }
+    });
 
-      // Bullet changes
-      const originalExperiences = normalizedDraft.experience || [];
-      const refinedExperiences = refinedResume.experience || [];
+    (normalizedDraft.skills || []).forEach((skill) => {
+      if (!refinedSkills.has(skill)) {
+        addChangeIfMissing(
+          {
+            type: 'skill_removed',
+            section: 'skills',
+            description: `Removed skill: ${skill}`,
+            original: skill,
+          },
+          (c) => c.type === 'skill_removed' && c.original === skill
+        );
+      }
+    });
 
-      refinedExperiences.forEach((refinedExp, expIndex) => {
-        const originalExp = originalExperiences[expIndex];
-        if (!originalExp) return;
+    const originalExperiences = normalizedDraft.experience || [];
+    const refinedExperiences = refinedResume.experience || [];
 
-        const originalBullets = originalExp.bullets || [];
-        const refinedBullets = refinedExp.bullets || [];
+    refinedExperiences.forEach((refinedExp, expIndex) => {
+      const originalExp = originalExperiences[expIndex];
+      const originalBullets = originalExp?.bullets || [];
+      const refinedBullets = refinedExp.bullets || [];
 
-        refinedBullets.forEach((refinedBullet, bulletIndex) => {
-          const originalBullet = originalBullets[bulletIndex];
-          if (originalBullet && originalBullet !== refinedBullet) {
-            aiChanges.push({
+      refinedBullets.forEach((refinedBullet, bulletIndex) => {
+        const originalBullet = originalBullets[bulletIndex];
+        if (originalBullet && originalBullet !== refinedBullet) {
+          addChangeIfMissing(
+            {
               type: 'bullet_rewritten',
               section: 'experience',
               description: `Bullet rewritten for ${refinedExp.company || 'experience'}`,
@@ -505,11 +538,51 @@ Return JSON ONLY:
               revised: refinedBullet,
               experienceIndex: expIndex,
               bulletIndex,
-            });
-          }
-        });
+            },
+            (c) =>
+              c.type === 'bullet_rewritten' &&
+              c.experienceIndex === expIndex &&
+              c.bulletIndex === bulletIndex
+          );
+        } else if (!originalBullet) {
+          addChangeIfMissing(
+            {
+              type: 'bullet_added',
+              section: 'experience',
+              description: `New bullet added for ${refinedExp.company || 'experience'}`,
+              revised: refinedBullet,
+              experienceIndex: expIndex,
+              bulletIndex,
+            },
+            (c) =>
+              c.type === 'bullet_added' &&
+              c.experienceIndex === expIndex &&
+              c.bulletIndex === bulletIndex
+          );
+        }
       });
-    }
+
+      // Capture removed bullets
+      if (originalBullets.length > refinedBullets.length) {
+        for (let i = refinedBullets.length; i < originalBullets.length; i++) {
+          const originalBullet = originalBullets[i];
+          addChangeIfMissing(
+            {
+              type: 'bullet_removed',
+              section: 'experience',
+              description: `Removed bullet from ${refinedExp.company || 'experience'}`,
+              original: originalBullet,
+              experienceIndex: expIndex,
+              bulletIndex: i,
+            },
+            (c) =>
+              c.type === 'bullet_removed' &&
+              c.experienceIndex === expIndex &&
+              c.bulletIndex === i
+          );
+        }
+      }
+    });
 
     // Compute keyword coverage
     const coverageAfter = analyzeKeywordCoverage(refinedResume, truthfulKeywords);
@@ -580,4 +653,3 @@ Return JSON ONLY:
     };
   }
 }
-

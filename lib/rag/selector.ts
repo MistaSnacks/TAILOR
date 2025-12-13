@@ -148,9 +148,21 @@ export function selectTargetAwareProfile(
     }
 
     const bulletCandidates = scoreBullets(rawBullets, signals);
-    const bulletBudget = determineBulletBudget(experienceOrder.get(experience.id || '') ?? canonicalExperiences.length, raw);
+
+    // NEW: Compute preliminary relevance score from ALL bullet candidates
+    // This allows us to use relevance-based budgeting
+    const preliminaryBulletScore = computeBulletScore(bulletCandidates.slice(0, 8));
+    const preliminaryKeywordScore = computeKeywordScore(experience, bulletCandidates.slice(0, 8), jobKeywords.slice(0, 40));
+    const preliminaryRelevance = clamp(
+      preliminaryBulletScore * 0.6 + preliminaryKeywordScore * 0.4
+    );
+
+    // Now determine budget using relevance score
+    const orderIndex = experienceOrder.get(experience.id || '') ?? canonicalExperiences.length;
+    const bulletBudget = determineBulletBudget(orderIndex, raw, preliminaryRelevance);
     const selectedBullets = bulletCandidates.slice(0, bulletBudget);
 
+    // Compute final scores from selected bullets
     const bulletScore = computeBulletScore(selectedBullets);
     const keywordScore = computeKeywordScore(experience, selectedBullets, jobKeywords.slice(0, 40));
     const recencyScore = computeRecencyScore(experience);
@@ -322,11 +334,48 @@ export function selectTargetAwareProfile(
 }
 
 function buildExperienceOrder(experiences: RetrievedExperience[]): Map<string, number> {
+  // Sort experiences by recency: current/present first, then by end date descending
+  const sorted = [...experiences].sort((a, b) => {
+    // Current/present roles always come first
+    const aIsCurrent = a.isCurrent || isPresent(a.endDate);
+    const bIsCurrent = b.isCurrent || isPresent(b.endDate);
+
+    if (aIsCurrent && !bIsCurrent) return -1;
+    if (!aIsCurrent && bIsCurrent) return 1;
+
+    // Both current or both not current: sort by end date descending
+    const aEnd = parseEndDate(a.endDate);
+    const bEnd = parseEndDate(b.endDate);
+
+    return bEnd.getTime() - aEnd.getTime();
+  });
+
   const order = new Map<string, number>();
-  experiences.forEach((experience, index) => {
+  sorted.forEach((experience, index) => {
     order.set(experience.id, index);
   });
   return order;
+}
+
+/**
+ * Check if a date string represents "present" or current
+ */
+function isPresent(dateString?: string | null): boolean {
+  if (!dateString) return false;
+  const lower = dateString.toLowerCase().trim();
+  return lower === 'present' || lower === 'current' || lower === 'now' || lower === '';
+}
+
+/**
+ * Parse end date string, treating present/current as far future
+ */
+function parseEndDate(dateString?: string | null): Date {
+  if (!dateString || isPresent(dateString)) {
+    return new Date(9999, 11, 31); // Far future for present roles
+  }
+
+  const parsed = parseToDate(dateString);
+  return parsed || new Date(0); // Default to epoch if unparseable
 }
 
 function scoreBullets(
@@ -404,28 +453,83 @@ function computeSemanticSimilarity(
 
 function determineBulletBudget(
   orderIndex: number,
-  experience?: RetrievedExperience
+  experience?: RetrievedExperience,
+  relevanceScore?: number
 ): number {
-  // More generous bullet budgets to produce fuller resumes
+  // START with order-based budget (proven to work)
+  let baseBudget: number;
+
   if (orderIndex <= 1) {
-    return 6;  // Most recent: 6 bullets
-  }
-  if (orderIndex === 2) {
-    return 5;  // Second: 5 bullets
-  }
-  if (orderIndex <= 4) {
-    return 4;  // Third/Fourth: 4 bullets
+    baseBudget = 6;  // Most recent: 6 bullets
+  } else if (orderIndex === 2) {
+    baseBudget = 5;  // Second: 5 bullets
+  } else if (orderIndex <= 4) {
+    baseBudget = 4;  // Third/Fourth: 4 bullets
+  } else {
+    // Older positions: tenure-based
+    const tenureMonths = experience?.tenureMonths ?? 12;
+    if (tenureMonths >= 48) {
+      baseBudget = 4;
+    } else if (tenureMonths >= 24) {
+      baseBudget = 3;
+    } else {
+      baseBudget = 2;
+    }
   }
 
-  // Older experiences: base on tenure
-  const tenureMonths = experience?.tenureMonths ?? 12;
-  if (tenureMonths >= 48) {
-    return 4;  // 4+ years: 4 bullets
+  // MODIFIER: Adjust based on relevance (if available)
+  // Using realistic thresholds based on actual scoring (0.30 = alignment floor)
+  if (relevanceScore !== undefined && relevanceScore >= 0) {
+    // High relevance (top tier): boost to max
+    if (relevanceScore > 0.45) {
+      baseBudget = Math.max(baseBudget, 6);  // Boost high-relevance roles
+    }
+    // Good relevance: keep or slight boost
+    else if (relevanceScore > 0.35) {
+      baseBudget = Math.max(baseBudget, 5);
+    }
+    // Moderate relevance: no change
+    else if (relevanceScore > 0.25) {
+      // Keep base budget
+    }
+    // Low relevance: reduce
+    else if (relevanceScore > 0.15) {
+      baseBudget = Math.min(baseBudget, 3);
+    }
+    // Minimal relevance: reduce further
+    else {
+      baseBudget = Math.min(baseBudget, 2);
+    }
+
+    // Age modifier: reduce bullets for very old experiences
+    // ONLY if relevance is also low
+    const endDate = experience?.endDate;
+    if (endDate && relevanceScore < 0.25) {
+      const monthsAgo = getMonthsAgo(endDate);
+      if (monthsAgo > 120) {  // 10+ years ago
+        baseBudget = Math.min(baseBudget, 2);
+      } else if (monthsAgo > 84) {  // 7+ years ago
+        baseBudget = Math.min(baseBudget, 3);
+      }
+    }
   }
-  if (tenureMonths >= 24) {
-    return 3;  // 2-4 years: 3 bullets
-  }
-  return 2;  // <2 years: 2 bullets
+
+  return baseBudget;
+}
+
+/**
+ * Helper to calculate months since a date
+ */
+function getMonthsAgo(dateString?: string): number {
+  if (!dateString) return 0;
+
+  const endDate = parseToDate(dateString);
+  if (!endDate) return 0;
+
+  const now = new Date();
+  const years = now.getFullYear() - endDate.getFullYear();
+  const months = now.getMonth() - endDate.getMonth();
+  return Math.max(0, years * 12 + months);
 }
 
 function buildWriterContext(

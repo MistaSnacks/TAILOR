@@ -107,9 +107,8 @@ export function PricingSection({ onOpenAuth }: { onOpenAuth: () => void }) {
               className="relative w-14 h-7 bg-muted rounded-full p-1 transition-colors hover:bg-muted/80"
             >
               <div
-                className={`w-5 h-5 bg-primary rounded-full shadow-sm transition-transform ${
-                  isQuarterly ? 'translate-x-7' : 'translate-x-0'
-                }`}
+                className={`w-5 h-5 bg-primary rounded-full shadow-sm transition-transform ${isQuarterly ? 'translate-x-7' : 'translate-x-0'
+                  }`}
               />
             </button>
             <span className={`text-sm font-medium ${isQuarterly ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -153,11 +152,10 @@ function PricingCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay }}
-      className={`relative p-8 rounded-2xl border flex flex-col ${
-        tier.highlight
+      className={`relative p-8 rounded-2xl border flex flex-col ${tier.highlight
           ? 'bg-gradient-to-b from-primary/10 via-background to-background border-primary/50 shadow-lg shadow-primary/10'
           : 'bg-background/50 border-border glass-card hover:border-primary/30 transition-colors'
-      }`}
+        }`}
     >
       {tier.popular && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground text-xs font-bold px-3 py-1 rounded-full shadow-lg">
@@ -203,11 +201,10 @@ function PricingCard({
 
       <button
         onClick={onOpenAuth}
-        className={`w-full py-3 px-6 rounded-xl font-semibold transition-all ${
-          tier.highlight
+        className={`w-full py-3 px-6 rounded-xl font-semibold transition-all ${tier.highlight
             ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20'
             : 'bg-muted/50 text-foreground hover:bg-muted border border-border'
-        }`}
+          }`}
       >
         {tier.monthlyPrice === 0 ? 'Get Started Free' : 'Choose Plan'}
       </button>

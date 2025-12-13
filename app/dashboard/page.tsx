@@ -57,12 +57,12 @@ export default function DashboardPage() {
           fetch('/api/jobs/feed?limit=3'),
           fetch('/api/jobs/saved'),
         ]);
-        
+
         if (feedRes.ok) {
           const data = await feedRes.json();
           setFreshJobs(data.jobs || []);
         }
-        
+
         if (savedRes.ok) {
           const savedData = await savedRes.json();
           setSavedJobIds(new Set((savedData.jobs || []).map((j: any) => j.job.id)));
@@ -342,7 +342,7 @@ export default function DashboardPage() {
               View All <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          
+
           {jobsLoading ? (
             <div className="glass-card p-6 rounded-xl border border-border/50 flex items-center justify-center">
               <div className="animate-pulse text-muted-foreground text-sm">Loading jobs...</div>

@@ -244,3 +244,4 @@
 2. Remove/archive OpenAI generator
 3. Update documentation
 4. Test with sample resumes to verify improvements
+

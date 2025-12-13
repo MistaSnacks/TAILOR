@@ -17,6 +17,7 @@
     "@react-pdf/renderer": "^4.3.1",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.47.10",
+    "@vercel/analytics": "^1.6.1",
     "autoprefixer": "^10.4.22",
     "clsx": "^2.1.1",
     "docx": "^9.0.2",

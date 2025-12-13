@@ -108,10 +108,31 @@ Every bullet should follow this pattern:
 - "Created automations using SQL, Python, Tableau, and Google App Scripts to generate productivity dashboards, chargeback worksheets, and Sonnet work queues, optimizing operational workflows for a 2-person team and increasing efficiency by 25%"
 
 ### Bullet Count per Experience
+
+**Primary allocation by JD relevance** (preferred):
+- High relevance (>0.7): 6 bullets
+- Good relevance (0.5-0.7): 4-5 bullets
+- Moderate relevance (0.3-0.5): 3-4 bullets  
+- Low relevance (0.1-0.3): 2 bullets
+- Minimal relevance (<0.1): 1 bullet or drop
+
+**Fallback by position** (when relevance unavailable):
 - Most recent role: 5-6 bullets
 - Second role: 4-5 bullets
 - Third/Fourth roles: 3-4 bullets
 - Older roles: 2-3 bullets
+
+**Age modifiers** (for low-relevance roles):
+- 7+ years ago: max 2 bullets
+- 10+ years ago: max 1 bullet or drop
+
+### Total Bullet Targets
+| Level | Min | Ideal | Max |
+|-------|-----|-------|-----|
+| Entry (0-2 yrs) | 8 | 10 | 12 |
+| Mid (2-7 yrs) | 12 | 16 | 18 |
+| Senior (7+ yrs) | 15 | 18 | 22 |
+| Executive (10+ yrs) | 18 | 21 | 25 |
 
 ---
 

@@ -92,3 +92,4 @@ CREATE TRIGGER update_saved_searches_updated_at BEFORE UPDATE ON saved_searches
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS parsed_job_context JSONB;
 
 
+

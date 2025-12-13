@@ -75,14 +75,14 @@ export function HowItWorks() {
                     {/* Right Column: Tutorial Slides */}
                     <div className="relative order-1 lg:order-2">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 blur-[60px] md:blur-[100px] rounded-full -z-10" />
-                        
+
                         <motion.div
                             animate={{ y: [-8, 8, -8] }}
                             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                             className="relative w-full max-w-sm md:max-w-md mx-auto"
                         >
                             <TutorialSlides />
-                            
+
                             {/* Floating Badge 1 (Lightning) - hidden on small mobile */}
                             <motion.div
                                 animate={{ y: [-10, 10, -10] }}

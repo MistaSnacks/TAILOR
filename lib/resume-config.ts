@@ -32,6 +32,74 @@ export const BULLET_BUDGETS = {
  */
 export const MAX_BULLETS_PER_ROLE = 6;
 
+/**
+ * Total resume bullet targets by seniority level.
+ * Research shows 15-18 is ideal for mid-to-senior professionals.
+ */
+export const TOTAL_BULLET_TARGETS = {
+    ENTRY: { min: 8, ideal: 10, max: 12 },
+    MID: { min: 12, ideal: 16, max: 18 },
+    SENIOR: { min: 15, ideal: 18, max: 22 },
+    EXEC: { min: 18, ideal: 21, max: 25 },
+} as const;
+
+export type SeniorityLevel = keyof typeof TOTAL_BULLET_TARGETS;
+
+/**
+ * Bullet budgets based on JD relevance score.
+ * Research recommends allocating bullets by relevance, not just recency.
+ */
+export const RELEVANCE_BASED_BUDGETS = {
+    HIGH: 6,      // relevance > 0.7
+    GOOD: 5,      // relevance 0.5-0.7  
+    MODERATE: 4,  // relevance 0.3-0.5
+    LOW: 2,       // relevance 0.1-0.3
+    MINIMAL: 1,   // relevance < 0.1 (consider dropping)
+} as const;
+
+/**
+ * Role age thresholds in months for bullet allocation decisions.
+ * Older roles should get fewer bullets unless highly relevant.
+ */
+export const ROLE_AGE_THRESHOLDS = {
+    RECENT: 24,      // 0-2 years ago - full budget
+    MID_CAREER: 84,  // 2-7 years ago - moderate budget
+    OLDER: 120,      // 7-10 years ago - minimal budget
+    ANCIENT: 180,    // 10+ years ago - consider dropping
+} as const;
+
+/**
+ * Validate total bullet count across a resume.
+ * Returns diagnostic info about whether the count is optimal.
+ */
+export function validateTotalBulletCount(
+    experiences: Array<{ bullets?: string[] }>,
+    userLevel: SeniorityLevel = 'MID'
+): { total: number; status: 'IDEAL' | 'LOW' | 'HIGH'; recommendation: string } {
+    const target = TOTAL_BULLET_TARGETS[userLevel];
+    const total = experiences.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0);
+
+    if (total < target.min) {
+        return {
+            total,
+            status: 'LOW',
+            recommendation: `Resume may appear thin (${total} bullets). Target: ${target.ideal} for ${userLevel.toLowerCase()} level.`,
+        };
+    }
+    if (total > target.max) {
+        return {
+            total,
+            status: 'HIGH',
+            recommendation: `Resume is dense (${total} bullets). Consider trimming to ~${target.ideal} for better scannability.`,
+        };
+    }
+    return {
+        total,
+        status: 'IDEAL',
+        recommendation: `Bullet count is optimal (${total} bullets) for ${userLevel.toLowerCase()} level.`,
+    };
+}
+
 // =============================================================================
 // EXPERIENCE LIMITS
 // =============================================================================

@@ -310,7 +310,7 @@ export default function DocumentsPage() {
               {documents.map((doc, index) => {
                 const status = getStatusConfig(doc.parse_status);
                 const isDeleting = deletingId === doc.id;
-                
+
                 return (
                   <motion.div
                     key={doc.id}
@@ -320,9 +320,8 @@ export default function DocumentsPage() {
                       exit: { opacity: 0, x: -20 },
                       transition: { delay: index * 0.03 }
                     })}
-                    className={`glass-card rounded-xl border border-border overflow-hidden transition-all ${
-                      isDeleting ? 'opacity-50' : 'hover:border-primary/30 hover:shadow-md'
-                    }`}
+                    className={`glass-card rounded-xl border border-border overflow-hidden transition-all ${isDeleting ? 'opacity-50' : 'hover:border-primary/30 hover:shadow-md'
+                      }`}
                   >
                     {/* Main content area - tappable */}
                     <div className="p-4">
@@ -357,7 +356,7 @@ export default function DocumentsPage() {
                             {doc.file_type.split('/').pop()?.replace('vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx')}
                           </span>
                         </div>
-                        
+
                         <button
                           onClick={() => handleDelete(doc.id, doc.file_name)}
                           disabled={isDeleting}

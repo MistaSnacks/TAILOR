@@ -12,3 +12,4 @@ COMMENT ON COLUMN jobs.parsed_job_context IS 'Cached ParsedJobDescription from G
 -- CREATE INDEX IF NOT EXISTS idx_jobs_has_parsed_context ON jobs ((parsed_job_context IS NOT NULL));
 
 
+

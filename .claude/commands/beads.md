@@ -27,3 +27,4 @@ Tips:
 - Run in repo root.
 - Data lives in `.beads/` and is tracked; commit along with code.
 - If `bd` is missing, rerun the installer: `curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash`.
+
