@@ -17,13 +17,6 @@ const JSEARCH_ENABLED = process.env.JSEARCH_ENABLED === 'true';
 const JSEARCH_API_KEY = process.env.JSEARCH_API_KEY || '';
 const JSEARCH_HOST = process.env.JSEARCH_HOST || 'jsearch.p.rapidapi.com';
 
-// 🔑 Environment sanity log (REMOVE IN PRODUCTION)
-console.log('🌐 JSearch env check (NO $):', {
-  enabled: JSEARCH_ENABLED ? '✅' : '❌',
-  host: JSEARCH_HOST,
-  apiKeyPresent: JSEARCH_API_KEY ? '✅' : '❌',
-});
-
 // Map employment types to normalized types
 function mapEmploymentType(type?: string): EmploymentType | undefined {
   if (!type) return undefined;

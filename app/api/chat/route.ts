@@ -5,11 +5,7 @@ import { requireAuth } from '@/lib/auth-utils';
 import { getRelevantChunks, mapChunksToFileRefs } from '@/lib/chunking';
 import { retrieveProfileForJob } from '@/lib/rag/retriever';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('💬 Chat API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 // TAILOR Career Coach System Prompt
 const TAILOR_SYSTEM_PROMPT = `You are TAILOR, an AI career coach with a warm, encouraging, and professional personality. Your name stands for "Tailored AI Leveraging Optimal Resumes" but you're much more than a resume tool—you're a trusted career mentor.

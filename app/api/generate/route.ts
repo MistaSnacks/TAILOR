@@ -11,15 +11,11 @@ import { validateAndRefineResume, type ValidatorMetadata } from '@/lib/resume-va
 import { runQualityPass, USE_MERGED_PASS, type QualityPassMetadata } from '@/lib/resume-quality-pass';
 import { parseJobDescriptionToContext } from '@/lib/rag/parser';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('⚡ Generate API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  console.log('⚡ Generate API - POST request received');
+  if (isDev) console.log('⚡ Generate API - POST request received');
 
   try {
     // Get authenticated user

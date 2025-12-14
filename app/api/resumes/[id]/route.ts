@@ -4,22 +4,18 @@ import { requireAuth } from '@/lib/auth-utils';
 import { normalizeResumeContent } from '@/lib/resume-content';
 import { calculateAtsScore } from '@/lib/gemini';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('✏️ Resume Detail API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  console.log('📄 Resume Detail API - GET request for resume:', id);
+  if (isDev) console.log('📄 Resume Detail API - GET request for resume:', id);
 
   try {
     const userId = await requireAuth();
-    console.log('🔐 Resume Detail API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Resume Detail API - User authenticated:', userId ? '✅' : '❌');
 
     const { data: resume, error } = await supabaseAdmin
       .from('resume_versions')

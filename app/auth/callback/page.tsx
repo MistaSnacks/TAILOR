@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase-client';
 import { motion } from 'framer-motion';
 import { CheckCircle, AlertCircle, Lock, Loader2 } from 'lucide-react';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 type CallbackType = 'signup' | 'recovery' | 'magiclink' | null;
 
 function CallbackContent() {
@@ -30,7 +32,7 @@ function CallbackContent() {
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
-    console.log('🔄 Auth Callback:', {
+    if (isDev) console.log('🔄 Auth Callback:', {
       type,
       error: errorParam,
       errorDescription,
@@ -60,7 +62,7 @@ function CallbackContent() {
         // Get the current session from Supabase (set by the magic link/email confirmation)
         const { data: { session: supabaseSession }, error: sessionError } = await supabase.auth.getSession();
 
-        console.log('🔄 Supabase session:', {
+        if (isDev) console.log('🔄 Supabase session:', {
           hasSession: !!supabaseSession,
           error: sessionError,
           type,
@@ -132,16 +134,16 @@ function CallbackContent() {
           default:
             // Standard OAuth callback (Google)
             if (status === 'authenticated' && session) {
-              console.log('✅ Authenticated! Redirecting to dashboard...');
+              if (isDev) console.log('✅ Authenticated! Redirecting to dashboard...');
               router.push('/dashboard');
             } else if (status === 'unauthenticated') {
-              console.log('❌ Not authenticated, redirecting to home...');
+              if (isDev) console.log('❌ Not authenticated, redirecting to home...');
               router.push('/');
             }
             break;
         }
       } catch (err) {
-        console.error('❌ Callback error:', err);
+        if (isDev) console.error('❌ Callback error:', err);
         setError('An unexpected error occurred. Please try again.');
         setIsProcessing(false);
       }
@@ -197,7 +199,7 @@ function CallbackContent() {
       await supabase.auth.signOut();
       setTimeout(() => router.push('/'), 2000);
     } catch (err: any) {
-      console.error('❌ Password update error:', err);
+      if (isDev) console.error('❌ Password update error:', err);
       setError(err.message || 'Failed to update password. Please try again.');
     } finally {
       setIsUpdatingPassword(false);

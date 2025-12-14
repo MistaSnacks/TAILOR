@@ -17,7 +17,7 @@ export function useAuth() {
         redirect: true,
       });
     } catch (error) {
-      console.error('❌ Google sign in error:', error);
+      if (isDev) console.error('❌ Google sign in error:', error);
       throw error;
     }
   };
@@ -39,7 +39,7 @@ export function useAuth() {
       });
 
       if (supabaseError) {
-        console.error('❌ Supabase sign in error:', supabaseError);
+        if (isDev) console.error('❌ Supabase sign in error:', supabaseError);
         throw supabaseError;
       }
 
@@ -55,14 +55,14 @@ export function useAuth() {
       });
 
       if (result?.error) {
-        console.error('❌ NextAuth sign in error:', result.error);
+        if (isDev) console.error('❌ NextAuth sign in error:', result.error);
         throw new Error(result.error);
       }
 
       if (isDev) console.log('✅ NextAuth sign in successful');
       return { success: true };
     } catch (error) {
-      console.error('❌ Email sign in error:', error);
+      if (isDev) console.error('❌ Email sign in error:', error);
       throw error;
     }
   };
@@ -89,7 +89,7 @@ export function useAuth() {
       });
 
       if (supabaseError) {
-        console.error('❌ Supabase sign up error:', supabaseError);
+        if (isDev) console.error('❌ Supabase sign up error:', supabaseError);
         throw supabaseError;
       }
 
@@ -97,7 +97,7 @@ export function useAuth() {
 
       // Check if user already exists (Supabase returns user with empty identities to prevent email enumeration)
       if (data.user && data.user.identities && data.user.identities.length === 0) {
-        console.log('⚠️ User already exists (empty identities)');
+        if (isDev) console.log('⚠️ User already exists (empty identities)');
         throw new Error('This email is already registered. Try signing in instead.');
       }
 
@@ -108,7 +108,7 @@ export function useAuth() {
         user: data.user,
       };
     } catch (error) {
-      console.error('❌ Email sign up error:', error);
+      if (isDev) console.error('❌ Email sign up error:', error);
       throw error;
     }
   };
@@ -128,14 +128,14 @@ export function useAuth() {
       });
 
       if (resetError) {
-        console.error('❌ Password reset error:', resetError);
+        if (isDev) console.error('❌ Password reset error:', resetError);
         throw resetError;
       }
 
       if (isDev) console.log('✅ Password reset email sent');
       return { success: true };
     } catch (error) {
-      console.error('❌ Password reset error:', error);
+      if (isDev) console.error('❌ Password reset error:', error);
       throw error;
     }
   };
@@ -155,14 +155,14 @@ export function useAuth() {
       });
 
       if (updateError) {
-        console.error('❌ Password update error:', updateError);
+        if (isDev) console.error('❌ Password update error:', updateError);
         throw updateError;
       }
 
       if (isDev) console.log('✅ Password updated successfully');
       return { success: true };
     } catch (error) {
-      console.error('❌ Password update error:', error);
+      if (isDev) console.error('❌ Password update error:', error);
       throw error;
     }
   };

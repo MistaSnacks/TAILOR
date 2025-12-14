@@ -3,10 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth-utils';
 import { generateResumeDocx, parseResumeContent } from '@/lib/docx-generator';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📥 Download API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +11,7 @@ export async function GET(
 ) {
   // Await params in Next.js 15
   const { id } = await params;
-  console.log('📥 Download API - GET request for resume:', id);
+  if (isDev) console.log('📥 Download API - GET request for resume:', id);
 
   try {
     // Get authenticated user

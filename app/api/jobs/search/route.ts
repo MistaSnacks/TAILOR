@@ -8,16 +8,10 @@ import {
 import { hasEnabledProviders } from '@/lib/jobs/providers';
 import type { JobSearchParams } from '@/lib/jobs/types';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('🔍 Jobs Search API - Environment check (NO $):', {
-  linkedInEnabled: process.env.LINKEDIN_RAPID_ENABLED === 'true' ? '✅' : '❌',
-  rapidHost: process.env.LINKEDIN_RAPID_HOST || 'not set',
-  rapidKeyPresent: process.env.LINKEDIN_RAPID_API_KEY ? '✅' : '❌',
-  hasProviders: hasEnabledProviders() ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function GET(request: NextRequest) {
-  console.log('🔍 Jobs Search API - GET request received (NO $)');
+  if (isDev) console.log('🔍 Jobs Search API - GET request received');
   
   try {
     const userId = await requireAuth();

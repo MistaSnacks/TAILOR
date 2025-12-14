@@ -7,16 +7,15 @@ import {
 } from '@/lib/jobs/service';
 import type { JobSearchParams } from '@/lib/jobs/types';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('🔖 Saved Searches API loaded');
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - List saved searches
 export async function GET(request: NextRequest) {
-  console.log('🔖 Saved Searches API - GET request received');
+  if (isDev) console.log('🔖 Saved Searches API - GET request received');
   
   try {
     const userId = await requireAuth();
-    console.log('🔐 Saved Searches API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Saved Searches API - User authenticated:', userId ? '✅' : '❌');
     
     const savedSearches = await getSavedSearches(userId);
     

@@ -7,16 +7,15 @@ import {
 } from '@/lib/jobs/service';
 import type { JobPreferences } from '@/lib/jobs/types';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('⚙️ Job Preferences API loaded');
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - Get user job preferences
 export async function GET(request: NextRequest) {
-  console.log('⚙️ Job Preferences API - GET request received');
+  if (isDev) console.log('⚙️ Job Preferences API - GET request received');
   
   try {
     const userId = await requireAuth();
-    console.log('🔐 Job Preferences API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Job Preferences API - User authenticated:', userId ? '✅' : '❌');
     
     const { searchParams } = new URL(request.url);
     const derive = searchParams.get('derive') === 'true';

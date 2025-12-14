@@ -2,10 +2,14 @@
  * Environment Variable Logger
  * 
  * Logs all environment variables on startup to help debug configuration issues.
- * ⚠️ REMOVE OR DISABLE IN PRODUCTION
+ * Automatically disabled in production.
  */
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 export function logEnvironmentVariables() {
+  if (!isDev) return;
+  
   if (typeof window === 'undefined') {
     // Server-side logging
     console.log('\n🔑 ========== SERVER ENVIRONMENT CHECK ==========');
@@ -43,6 +47,7 @@ export function logEnvironmentVariables() {
  * Log when a specific secret is being used
  */
 export function logSecretUsage(secretName: string, exists: boolean) {
+  if (!isDev) return;
   console.log(`🔐 Using ${secretName}:`, exists ? '✅ Available' : '❌ Missing');
 }
 
@@ -72,10 +77,12 @@ export function validateEnvironmentVariables(): { valid: boolean; missing: strin
 
   const valid = missing.length === 0;
   
-  if (valid) {
-    console.log('✅ All required environment variables are set');
-  } else {
-    console.error(`❌ Missing ${missing.length} required environment variable(s)`);
+  if (isDev) {
+    if (valid) {
+      console.log('✅ All required environment variables are set');
+    } else {
+      console.error(`❌ Missing ${missing.length} required environment variable(s)`);
+    }
   }
 
   return { valid, missing };

@@ -8,16 +8,15 @@ import {
 } from '@/lib/jobs/service';
 import type { NormalizedJob } from '@/lib/jobs/types';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('💾 Saved Jobs API loaded');
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - List saved jobs
 export async function GET(request: NextRequest) {
-  console.log('💾 Saved Jobs API - GET request received');
+  if (isDev) console.log('💾 Saved Jobs API - GET request received');
   
   try {
     const userId = await requireAuth();
-    console.log('🔐 Saved Jobs API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Saved Jobs API - User authenticated:', userId ? '✅' : '❌');
     
     const savedJobs = await getSavedJobs(userId);
     

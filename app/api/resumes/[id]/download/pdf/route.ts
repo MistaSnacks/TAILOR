@@ -8,10 +8,7 @@ import { normalizeResumeContent } from '@/lib/resume-content';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📥 PDF Download API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function GET(
   request: NextRequest,
@@ -19,12 +16,12 @@ export async function GET(
 ) {
   // Await params in Next.js 15
   const { id } = await params;
-  console.log('📥 PDF Download API - GET request for resume:', id);
+  if (isDev) console.log('📥 PDF Download API - GET request for resume:', id);
 
   try {
     // Get authenticated user
     const userId = await requireAuth();
-    console.log('🔐 PDF Download API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 PDF Download API - User authenticated:', userId ? '✅' : '❌');
 
     const resumeId = id;
 
@@ -47,7 +44,7 @@ export async function GET(
       );
     }
 
-    console.log('📄 Generating PDF for resume:', {
+    if (isDev) console.log('📄 Generating PDF for resume:', {
       id: resume.id,
       template: resume.template,
       jobTitle: resume.job?.title,
@@ -70,7 +67,7 @@ export async function GET(
     const jobTitle = resume.job?.title || 'Resume';
     const filename = `${jobTitle.replace(/[^a-z0-9]/gi, '_')}_${resume.template}.pdf`;
 
-    console.log('✅ PDF generated:', filename);
+    if (isDev) console.log('✅ PDF generated:', filename);
 
     // Return file
     return new NextResponse(new Uint8Array(buffer), {
@@ -81,7 +78,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('❌ PDF Download error:', error);
+    if (isDev) console.error('❌ PDF Download error:', error);
 
     if (error.message === 'Unauthorized') {
       return NextResponse.json(

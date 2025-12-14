@@ -2,18 +2,8 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
-// Note: password-utils no longer needed - auth verification uses Supabase access tokens
 
-// Log NextAuth configuration on load (REMOVE IN PRODUCTION)
-console.log('\n🔐 ========== NEXTAUTH CONFIG LOADING ==========');
-console.log('NextAuth Environment:');
-console.log('  - NEXTAUTH_URL:', process.env.NEXTAUTH_URL || '❌ Not set');
-console.log('  - NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? '✅ Set' : '❌ Missing');
-console.log('  - GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing');
-console.log('  - GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Set' : '❌ Missing');
-console.log('  - Session Strategy: JWT (no database adapter)');
-console.log('  - Providers: Google, Credentials (Email/Password)');
-console.log('===============================================\n');
+const isDev = process.env.NODE_ENV !== 'production';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,17 +27,17 @@ export const authOptions: NextAuthOptions = {
         rememberMe: { label: 'Remember Me', type: 'text' },
       },
       async authorize(credentials) {
-        console.log('🔑 CredentialsProvider: Authorizing...', { email: credentials?.email });
+        if (isDev) console.log('🔑 CredentialsProvider: Authorizing...', { email: credentials?.email });
 
         if (!credentials?.email || !credentials?.accessToken) {
-          console.error('❌ CredentialsProvider: Missing email or access token');
+          if (isDev) console.error('❌ CredentialsProvider: Missing email or access token');
           return null;
         }
 
         try {
           // Verify with Supabase
           if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.error('❌ CredentialsProvider: Missing Supabase environment variables');
+            if (isDev) console.error('❌ CredentialsProvider: Missing Supabase environment variables');
             return null;
           }
 
@@ -63,17 +53,17 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (tokenError || !supabaseUser) {
-            console.error('❌ CredentialsProvider: Invalid or expired access token');
+            if (isDev) console.error('❌ CredentialsProvider: Invalid or expired access token');
             return null;
           }
 
           // Verify the token belongs to the claimed email
           if (supabaseUser.email !== credentials.email) {
-            console.error('❌ CredentialsProvider: Token email mismatch');
+            if (isDev) console.error('❌ CredentialsProvider: Token email mismatch');
             return null;
           }
 
-          console.log('✅ CredentialsProvider: Supabase token verified for:', supabaseUser.email);
+          if (isDev) console.log('✅ CredentialsProvider: Supabase token verified for:', supabaseUser.email);
 
           // Get or create user in public.users table
           let { data: user, error: userError } = await supabase
@@ -84,7 +74,7 @@ export const authOptions: NextAuthOptions = {
 
           // If user doesn't exist in public.users, create them
           if (userError || !user) {
-            console.log('👤 Creating user in public.users for:', credentials.email);
+            if (isDev) console.log('👤 Creating user in public.users for:', credentials.email);
             const { data: newUser, error: createError } = await supabase
               .from('users')
               .insert({
@@ -97,13 +87,13 @@ export const authOptions: NextAuthOptions = {
               .single();
 
             if (createError) {
-              console.error('❌ CredentialsProvider: Failed to create user:', createError);
+              if (isDev) console.error('❌ CredentialsProvider: Failed to create user:', createError);
               return null;
             }
             user = newUser;
           }
 
-          console.log('✅ CredentialsProvider: User authenticated:', user.id);
+          if (isDev) console.log('✅ CredentialsProvider: User authenticated:', user.id);
 
           return {
             id: user.id,
@@ -112,7 +102,7 @@ export const authOptions: NextAuthOptions = {
             image: user.image || '',
           };
         } catch (error) {
-          console.error('❌ CredentialsProvider: Authorization error:', error);
+          if (isDev) console.error('❌ CredentialsProvider: Authorization error:', error);
           return null;
         }
       },
@@ -129,7 +119,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account, profile }) {
       // Initial sign in
       if (user && user.email) {
-        console.log('🔑 JWT Callback: Initial sign in for', user.email);
+        if (isDev) console.log('🔑 JWT Callback: Initial sign in for', user.email);
 
         // Sync with Supabase to ensure user exists in 'users' table and has a 'profile'
         try {
@@ -149,10 +139,10 @@ export const authOptions: NextAuthOptions = {
               .single();
 
             if (existingUser) {
-              console.log('✅ Found existing user:', existingUser.id);
+              if (isDev) console.log('✅ Found existing user:', existingUser.id);
               userId = existingUser.id;
             } else {
-              console.log('👤 Creating new user in users table...');
+              if (isDev) console.log('👤 Creating new user in users table...');
               // Create new user
               const { data: newUser, error: createError } = await supabase
                 .from('users')
@@ -166,10 +156,10 @@ export const authOptions: NextAuthOptions = {
                 .single();
 
               if (newUser) {
-                console.log('✅ Created new user:', newUser.id);
+                if (isDev) console.log('✅ Created new user:', newUser.id);
                 userId = newUser.id;
               } else if (createError) {
-                console.error('❌ Error creating user:', createError);
+                if (isDev) console.error('❌ Error creating user:', createError);
               }
             }
 
@@ -181,7 +171,7 @@ export const authOptions: NextAuthOptions = {
               token.name = user.name || '';
               token.picture = user.image || '';
 
-              console.log('👤 Upserting profile for user:', userId);
+              if (isDev) console.log('👤 Upserting profile for user:', userId);
               const { error: profileError } = await supabase
                 .from('profiles')
                 .upsert({
@@ -194,9 +184,9 @@ export const authOptions: NextAuthOptions = {
                 });
 
               if (profileError) {
-                console.error('❌ Error upserting profile:', profileError);
+                if (isDev) console.error('❌ Error upserting profile:', profileError);
               } else {
-                console.log('✅ Profile synced successfully');
+                if (isDev) console.log('✅ Profile synced successfully');
               }
             } else {
               // Fallback to Google ID if DB sync failed (not ideal)
@@ -204,7 +194,7 @@ export const authOptions: NextAuthOptions = {
             }
           }
         } catch (err) {
-          console.error('❌ Error in JWT callback:', err);
+          if (isDev) console.error('❌ Error in JWT callback:', err);
           token.id = user.id;
         }
       }
@@ -231,6 +221,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   secret: process.env.NEXTAUTH_SECRET,
-  debug: true,
+  debug: isDev,
 };
 

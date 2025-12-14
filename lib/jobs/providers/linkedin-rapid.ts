@@ -19,13 +19,6 @@ const LINKEDIN_RAPID_ENABLED = process.env.LINKEDIN_RAPID_ENABLED === 'true';
 const LINKEDIN_RAPID_API_KEY = process.env.LINKEDIN_RAPID_API_KEY || '';
 const LINKEDIN_RAPID_HOST = process.env.LINKEDIN_RAPID_HOST || 'linkedin-job-search-api.p.rapidapi.com';
 
-// 🔑 Environment sanity log (REMOVE IN PRODUCTION)
-console.log('🌐 LinkedIn Rapid API env check (NO $):', {
-  enabled: LINKEDIN_RAPID_ENABLED ? '✅' : '❌',
-  host: LINKEDIN_RAPID_HOST,
-  apiKeyPresent: LINKEDIN_RAPID_API_KEY ? '✅' : '❌',
-});
-
 // Rate limiting
 const MAX_REQUESTS_PER_MINUTE = 30;
 const requestTimestamps: number[] = [];

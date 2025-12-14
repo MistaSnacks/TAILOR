@@ -3,8 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth-utils';
 import { embedText } from '@/lib/gemini';
 
-// 🔑 Environment check (REMOVE IN PRODUCTION)
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+const isDev = process.env.NODE_ENV !== 'production';
+
+// Environment check (dev only)
+if (isDev && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ SUPABASE_SERVICE_ROLE_KEY not set in profile enrichment route');
 }
 

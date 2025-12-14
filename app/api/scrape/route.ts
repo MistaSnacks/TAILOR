@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('⚡ Scrape API - Environment check:', {
-  hasAuth: true,
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * POST /api/scrape
@@ -16,7 +13,7 @@ console.log('⚡ Scrape API - Environment check:', {
  * For production, consider using a dedicated scraping service like Firecrawl.
  */
 export async function POST(request: NextRequest) {
-  console.log('🔄 Scrape API - POST request received');
+  if (isDev) console.log('🔄 Scrape API - POST request received');
 
   try {
     await requireAuth();

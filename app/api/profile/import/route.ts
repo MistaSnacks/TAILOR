@@ -13,11 +13,7 @@ import {
   type ExternalProject,
 } from '@/lib/external-profile-parser';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('⚡ Profile Import API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-  gemini: process.env.GEMINI_API_KEY ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * POST /api/profile/import

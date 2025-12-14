@@ -9,12 +9,11 @@ import {
 import { getCacheStats } from '@/lib/jobs/cache';
 import { getEnabledProviders, hasEnabledProviders } from '@/lib/jobs/providers';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📊 Jobs Stats API loaded');
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - Get job provider stats (admin/debug)
 export async function GET(request: NextRequest) {
-  console.log('📊 Jobs Stats API - GET request received');
+  if (isDev) console.log('📊 Jobs Stats API - GET request received');
   
   try {
     await requireAuth();

@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import type { User } from '@supabase/supabase-js';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 type AuthContextType = {
   user: User | null;
   loading: boolean;
@@ -26,15 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    // Log client-side Supabase status (REMOVE IN PRODUCTION)
-    console.log('🔐 Auth Provider - Supabase client:', supabase ? '✅ Initialized' : '❌ Not initialized');
-    console.log('🔐 Auth Provider - Env check:', {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌',
-      anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅' : '❌',
-    });
+    // Log client-side Supabase status (dev only)
+    if (isDev) {
+      console.log('🔐 Auth Provider - Supabase client:', supabase ? '✅ Initialized' : '❌ Not initialized');
+      console.log('🔐 Auth Provider - Env check:', {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌',
+        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅' : '❌',
+      });
+    }
     
     if (!supabase) {
-      console.error('❌ Cannot initialize Supabase client - check environment variables');
+      if (isDev) console.error('❌ Cannot initialize Supabase client - check environment variables');
       setLoading(false);
       return;
     }

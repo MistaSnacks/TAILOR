@@ -2,17 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth-utils';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📄 Resumes API - Environment check:', {
-  supabase: !!supabaseAdmin ? '✅' : '❌',
-});
+const isDev = process.env.NODE_ENV !== 'production';
 
 export async function GET(request: NextRequest) {
-  console.log('📄 Resumes API - GET request received');
+  if (isDev) console.log('📄 Resumes API - GET request received');
   
   try {
     const userId = await requireAuth();
-    console.log('🔐 Resumes API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Resumes API - User authenticated:', userId ? '✅' : '❌');
 
     const { data: resumes, error } = await supabaseAdmin
       .from('resume_versions')

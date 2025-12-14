@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { getSearchHistory } from '@/lib/jobs/service';
 
-// 🔑 Environment variable logging (REMOVE IN PRODUCTION)
-console.log('📜 Search History API loaded');
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - List search history
 export async function GET(request: NextRequest) {
-  console.log('📜 Search History API - GET request received');
+  if (isDev) console.log('📜 Search History API - GET request received');
   
   try {
     const userId = await requireAuth();
-    console.log('🔐 Search History API - User authenticated:', userId ? '✅' : '❌');
+    if (isDev) console.log('🔐 Search History API - User authenticated:', userId ? '✅' : '❌');
     
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 50);

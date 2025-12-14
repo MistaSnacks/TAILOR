@@ -17,6 +17,8 @@ import {
   User,
 } from 'lucide-react';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 type AuthView = 'signin' | 'signup' | 'forgot-password' | 'check-email' | 'reset-sent';
 
 interface AuthModalProps {
@@ -70,10 +72,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setIsLoading(true);
     setError(null);
     try {
-      console.log('🚀 Initiating Google sign in...');
+      if (isDev) console.log('🚀 Initiating Google sign in...');
       await signIn('google', { callbackUrl: '/dashboard' });
     } catch (err) {
-      console.error('❌ Google sign in error:', err);
+      if (isDev) console.error('❌ Google sign in error:', err);
       setError('Failed to sign in with Google. Please try again.');
       setIsLoading(false);
     }
@@ -84,7 +86,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setIsLoading(true);
     setError(null);
 
-    console.log('[AuthModal] Email sign in attempt:', { email, rememberMe });
+    if (isDev) console.log('[AuthModal] Email sign in attempt:', { email, rememberMe });
 
     try {
       const supabase = createClient();
@@ -98,7 +100,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
 
       if (signInError) {
-        console.error('❌ Supabase sign in error:', signInError);
+        if (isDev) console.error('❌ Supabase sign in error:', signInError);
         if (signInError.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please try again.');
         } else if (signInError.message.includes('Email not confirmed')) {
@@ -110,7 +112,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         return;
       }
 
-      console.log('✅ Supabase sign in successful:', data.user?.email);
+      if (isDev) console.log('✅ Supabase sign in successful:', data.user?.email);
 
       // Now sign in with NextAuth using the Supabase access token for secure verification
       // The server will verify this token cryptographically - no bypass possible
@@ -122,16 +124,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
 
       if (result?.error) {
-        console.error('❌ NextAuth sign in error:', result.error);
+        if (isDev) console.error('❌ NextAuth sign in error:', result.error);
         setError('Authentication failed. Please try again.');
         setIsLoading(false);
         return;
       }
 
-      console.log('✅ NextAuth sign in successful');
+      if (isDev) console.log('✅ NextAuth sign in successful');
       window.location.href = '/dashboard';
     } catch (err) {
-      console.error('❌ Sign in error:', err);
+      if (isDev) console.error('❌ Sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -142,7 +144,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setIsLoading(true);
     setError(null);
 
-    console.log('[AuthModal] Email sign up attempt:', { email, fullName });
+    if (isDev) console.log('[AuthModal] Email sign up attempt:', { email, fullName });
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -176,7 +178,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
 
       if (signUpError) {
-        console.error('❌ Supabase sign up error:', signUpError);
+        if (isDev) console.error('❌ Supabase sign up error:', signUpError);
         if (signUpError.message.includes('already registered')) {
           setError('This email is already registered. Try signing in instead.');
         } else {
@@ -186,14 +188,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         return;
       }
 
-      console.log('✅ Supabase sign up response:', data);
+      if (isDev) console.log('✅ Supabase sign up response:', data);
 
       // Check if user already exists (Supabase returns user with empty identities to prevent email enumeration)
       // This happens when:
       // 1. User already exists and is confirmed
       // 2. User exists but hasn't confirmed yet (they'll get a new confirmation email)
       if (data.user && data.user.identities && data.user.identities.length === 0) {
-        console.log('⚠️ User already exists (empty identities)');
+        if (isDev) console.log('⚠️ User already exists (empty identities)');
         setError('This email is already registered. Try signing in instead, or use "Forgot Password" if you need to reset your password.');
         setIsLoading(false);
         return;
@@ -208,7 +210,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         window.location.href = '/dashboard';
       }
     } catch (err) {
-      console.error('❌ Sign up error:', err);
+      if (isDev) console.error('❌ Sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -220,7 +222,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setIsLoading(true);
     setError(null);
 
-    console.log('[AuthModal] Password reset request:', { email });
+    if (isDev) console.log('[AuthModal] Password reset request:', { email });
 
     try {
       const supabase = createClient();
@@ -233,16 +235,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
 
       if (resetError) {
-        console.error('❌ Password reset error:', resetError);
+        if (isDev) console.error('❌ Password reset error:', resetError);
         setError(resetError.message);
         setIsLoading(false);
         return;
       }
 
-      console.log('✅ Password reset email sent');
+      if (isDev) console.log('✅ Password reset email sent');
       setView('reset-sent');
     } catch (err) {
-      console.error('❌ Forgot password error:', err);
+      if (isDev) console.error('❌ Forgot password error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
