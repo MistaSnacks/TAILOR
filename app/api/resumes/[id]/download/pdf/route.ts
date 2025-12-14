@@ -4,6 +4,10 @@ import { requireAuth } from '@/lib/auth-utils';
 import { generateResumePdf } from '@/lib/pdf-generator';
 import { normalizeResumeContent } from '@/lib/resume-content';
 
+// CRITICAL: @react-pdf/renderer requires Node.js runtime (not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // 🔑 Environment variable logging (REMOVE IN PRODUCTION)
 console.log('📥 PDF Download API - Environment check:', {
   supabase: !!supabaseAdmin ? '✅' : '❌',

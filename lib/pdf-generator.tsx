@@ -11,36 +11,22 @@ import {
 } from '@react-pdf/renderer';
 import { ResumeContent, normalizeResumeContent } from './resume-content';
 
-// Register fonts for different templates
-Font.register({
-  family: 'Times New Roman',
-  fonts: [
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times%20New%20Roman.ttf' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times%20New%20Roman%20Bold.ttf', fontWeight: 'bold' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times%20New%20Roman%20Italic.ttf', fontStyle: 'italic' },
-  ],
-});
+// Disable hyphenation to prevent potential issues
+Font.registerHyphenationCallback((word) => [word]);
 
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2' },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYAZ9hiJ-Ek-_EeA.woff2', fontWeight: 'bold' },
-  ],
-});
+// Use built-in PDF fonts to avoid CDN loading issues in server environment
+// These are guaranteed to work without external dependencies:
+// - Helvetica, Helvetica-Bold, Helvetica-Oblique, Helvetica-BoldOblique
+// - Times-Roman, Times-Bold, Times-Italic, Times-BoldItalic
+// - Courier, Courier-Bold, Courier-Oblique, Courier-BoldOblique
 
-Font.register({
-  family: 'Roboto Mono',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/robotomono/v23/L0xuDF4xlVMF-BfR8bXMIhJHg45mwgGEFl0_3vq_ROW4.woff2' },
-    { src: 'https://fonts.gstatic.com/s/robotomono/v23/L0xuDF4xlVMF-BfR8bXMIhJHg45mwgGEFl0_Of2_ROW4.woff2', fontWeight: 'bold' },
-  ],
-});
+// Note: For custom fonts, you would need to embed .ttf files locally
+// For now, using built-in PDF standard fonts for reliability
 
-// Template configurations
+// Template configurations using built-in PDF fonts
 const TEMPLATE_STYLES = {
   classic: {
-    fontFamily: 'Times New Roman',
+    fontFamily: 'Times-Roman',  // Built-in PDF font
     accentColor: '#000000',
     headerSize: 22,
     sectionHeaderSize: 12,
@@ -48,7 +34,7 @@ const TEMPLATE_STYLES = {
     spacing: 'compact' as const,
   },
   modern: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',  // Built-in PDF font (similar to Inter)
     accentColor: '#4FD1C5',
     headerSize: 24,
     sectionHeaderSize: 11,
@@ -56,7 +42,7 @@ const TEMPLATE_STYLES = {
     spacing: 'comfortable' as const,
   },
   technical: {
-    fontFamily: 'Roboto Mono',
+    fontFamily: 'Courier',  // Built-in PDF font (monospace)
     accentColor: '#00D9FF',
     headerSize: 20,
     sectionHeaderSize: 10,
@@ -71,7 +57,7 @@ type TemplateType = keyof typeof TEMPLATE_STYLES;
 function ClassicResumePDF({ data }: { data: ResumeContent }) {
   const styles = StyleSheet.create({
     page: {
-      fontFamily: 'Times New Roman',
+      fontFamily: 'Times-Roman',
       fontSize: 10,
       padding: 50,
       backgroundColor: '#ffffff',
@@ -255,10 +241,10 @@ function ClassicResumePDF({ data }: { data: ResumeContent }) {
 // Modern Template PDF
 function ModernResumePDF({ data }: { data: ResumeContent }) {
   const accentColor = '#4FD1C5';
-  
+
   const styles = StyleSheet.create({
     page: {
-      fontFamily: 'Inter',
+      fontFamily: 'Helvetica',
       fontSize: 10,
       padding: 45,
       backgroundColor: '#ffffff',
@@ -487,7 +473,7 @@ function ModernResumePDF({ data }: { data: ResumeContent }) {
 // Technical Template PDF
 function TechnicalResumePDF({ data }: { data: ResumeContent }) {
   const accentColor = '#00D9FF';
-  
+
   // Categorize skills
   const categorizeSkills = (skills: string[]) => {
     const categories: Record<string, string[]> = {
@@ -495,10 +481,10 @@ function TechnicalResumePDF({ data }: { data: ResumeContent }) {
       'Frameworks': [],
       'Tools & Cloud': [],
     };
-    
+
     const languageKeywords = ['typescript', 'javascript', 'python', 'java', 'c++', 'c#', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'scala', 'sql', 'html', 'css'];
     const frameworkKeywords = ['react', 'angular', 'vue', 'next', 'node', 'express', 'django', 'flask', 'spring', 'rails', '.net', 'fastapi', 'graphql', 'redux', 'tailwind'];
-    
+
     skills.forEach(skill => {
       const lower = skill.toLowerCase();
       if (languageKeywords.some(kw => lower.includes(kw))) {
@@ -509,15 +495,15 @@ function TechnicalResumePDF({ data }: { data: ResumeContent }) {
         categories['Tools & Cloud'].push(skill);
       }
     });
-    
+
     return categories;
   };
 
   const skillCategories = data.skills ? categorizeSkills(data.skills) : {};
-  
+
   const styles = StyleSheet.create({
     page: {
-      fontFamily: 'Roboto Mono',
+      fontFamily: 'Courier',
       fontSize: 9,
       padding: 40,
       backgroundColor: '#ffffff',
@@ -793,9 +779,9 @@ export async function generateResumePdf(
     console.log('📄 Generating PDF resume with template:', template);
 
     const data = normalizeResumeContent(resumeData);
-    
+
     let PdfDocument: React.ReactElement;
-    
+
     switch (template) {
       case 'classic':
         PdfDocument = <ClassicResumePDF data={data} />;

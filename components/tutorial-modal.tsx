@@ -489,36 +489,61 @@ export function TutorialModal({ isOpen, onClose, onComplete }: TutorialModalProp
 }
 
 // Hook for managing tutorial state
-export function useTutorial() {
+export function useTutorial(userId?: string | null) {
   const [showTutorial, setShowTutorial] = useState(false);
   const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
 
+  // Get user-specific storage key
+  const getUserStorageKey = useCallback(() => {
+    if (!userId) return null;
+    return `${STORAGE_KEY}_${userId}`;
+  }, [userId]);
+
   useEffect(() => {
-    // Check localStorage on mount
-    const completed = localStorage.getItem(STORAGE_KEY);
+    // Only check if user is logged in
+    if (!userId) {
+      setHasCheckedStorage(true);
+      setShowTutorial(false);
+      return;
+    }
+
+    // Check localStorage with user-specific key
+    const userStorageKey = getUserStorageKey();
+    if (!userStorageKey) {
+      setHasCheckedStorage(true);
+      return;
+    }
+
+    const completed = localStorage.getItem(userStorageKey);
     if (!completed) {
       setShowTutorial(true);
     }
     setHasCheckedStorage(true);
+  }, [userId, getUserStorageKey]);
+
+  const completeTutorial = useCallback(() => {
+    const userStorageKey = getUserStorageKey();
+    if (userStorageKey) {
+      localStorage.setItem(userStorageKey, 'true');
+    }
+    setShowTutorial(false);
+  }, [getUserStorageKey]);
+
+  const closeTutorial = useCallback(() => {
+    setShowTutorial(false);
   }, []);
 
-  const completeTutorial = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
-    setShowTutorial(false);
-  };
-
-  const closeTutorial = () => {
-    setShowTutorial(false);
-  };
-
-  const openTutorial = () => {
+  const openTutorial = useCallback(() => {
     setShowTutorial(true);
-  };
+  }, []);
 
-  const resetTutorial = () => {
-    localStorage.removeItem(STORAGE_KEY);
+  const resetTutorial = useCallback(() => {
+    const userStorageKey = getUserStorageKey();
+    if (userStorageKey) {
+      localStorage.removeItem(userStorageKey);
+    }
     setShowTutorial(true);
-  };
+  }, [getUserStorageKey]);
 
   return {
     showTutorial,

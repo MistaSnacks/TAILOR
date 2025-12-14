@@ -1,6 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
+// Note: password-utils no longer needed - auth verification uses Supabase access tokens
 
 // Log NextAuth configuration on load (REMOVE IN PRODUCTION)
 console.log('\n🔐 ========== NEXTAUTH CONFIG LOADING ==========');
@@ -10,6 +12,7 @@ console.log('  - NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? '✅ Set' : '�
 console.log('  - GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing');
 console.log('  - GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Set' : '❌ Missing');
 console.log('  - Session Strategy: JWT (no database adapter)');
+console.log('  - Providers: Google, Credentials (Email/Password)');
 console.log('===============================================\n');
 
 export const authOptions: NextAuthOptions = {
@@ -24,6 +27,95 @@ export const authOptions: NextAuthOptions = {
           response_type: "code"
         }
       }
+    }),
+    CredentialsProvider({
+      id: 'credentials',
+      name: 'Email',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        accessToken: { label: 'Access Token', type: 'text' }, // Supabase access token for verification
+        rememberMe: { label: 'Remember Me', type: 'text' },
+      },
+      async authorize(credentials) {
+        console.log('🔑 CredentialsProvider: Authorizing...', { email: credentials?.email });
+
+        if (!credentials?.email || !credentials?.accessToken) {
+          console.error('❌ CredentialsProvider: Missing email or access token');
+          return null;
+        }
+
+        try {
+          // Verify with Supabase
+          if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error('❌ CredentialsProvider: Missing Supabase environment variables');
+            return null;
+          }
+
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+          );
+
+          // SECURITY: Verify the Supabase access token is valid and belongs to this user
+          // This prevents auth bypass - the token must be cryptographically valid
+          const { data: { user: supabaseUser }, error: tokenError } = await supabase.auth.getUser(
+            credentials.accessToken
+          );
+
+          if (tokenError || !supabaseUser) {
+            console.error('❌ CredentialsProvider: Invalid or expired access token');
+            return null;
+          }
+
+          // Verify the token belongs to the claimed email
+          if (supabaseUser.email !== credentials.email) {
+            console.error('❌ CredentialsProvider: Token email mismatch');
+            return null;
+          }
+
+          console.log('✅ CredentialsProvider: Supabase token verified for:', supabaseUser.email);
+
+          // Get or create user in public.users table
+          let { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, email, name, image')
+            .eq('email', credentials.email)
+            .single();
+
+          // If user doesn't exist in public.users, create them
+          if (userError || !user) {
+            console.log('👤 Creating user in public.users for:', credentials.email);
+            const { data: newUser, error: createError } = await supabase
+              .from('users')
+              .insert({
+                id: supabaseUser.id, // Use the same ID as auth.users
+                email: supabaseUser.email,
+                name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0],
+                email_verified: new Date().toISOString(),
+              })
+              .select('id, email, name, image')
+              .single();
+
+            if (createError) {
+              console.error('❌ CredentialsProvider: Failed to create user:', createError);
+              return null;
+            }
+            user = newUser;
+          }
+
+          console.log('✅ CredentialsProvider: User authenticated:', user.id);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name || '',
+            image: user.image || '',
+          };
+        } catch (error) {
+          console.error('❌ CredentialsProvider: Authorization error:', error);
+          return null;
+        }
+      },
     }),
   ],
 

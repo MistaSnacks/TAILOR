@@ -41,7 +41,7 @@ export function DashboardSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { showTutorial, hasCheckedStorage, completeTutorial, closeTutorial, openTutorial } =
-    useTutorial();
+    useTutorial(user?.id);
 
   // Load collapsed state from local storage with error handling
   useEffect(() => {
