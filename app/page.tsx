@@ -11,7 +11,7 @@ import { TrustSection } from '@/components/unauth/trust-section';
 import { TestimonialsSection } from '@/components/unauth/testimonials-section';
 import { FAQSection } from '@/components/unauth/faq-section';
 import { Footer } from '@/components/unauth/footer';
-import { Bot, FileSearch, Zap } from 'lucide-react';
+import { Bot, FileSearch, Shield, Zap } from 'lucide-react';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -29,24 +29,30 @@ export default function Home() {
         <TrustSection />
 
         <section id="features" className="py-12 md:py-24 container px-4 mx-auto">
-          <div className="grid md:grid-cols-3 gap-4 md:gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <FeatureCard
               icon={FileSearch}
-              title="Smart Document Analysis"
-              description="Upload your resumes and we'll extract your skills, experience, and achievements to build your career profile."
+              title="One Upload, Every Job"
+              description="Upload your resumes once. We parse your entire career—roles, skills, achievements—into a searchable profile that powers every tailored resume."
               delay={0.1}
             />
             <FeatureCard
               icon={Bot}
-              title="AI-Powered Matching"
-              description="Our AI reads job descriptions and rewrites your resume to highlight exactly what employers are looking for."
+              title="RAG-Powered Tailoring"
+              description="Our AI doesn't guess. It retrieves the most relevant parts of YOUR experience for each job, then rewrites bullets to match the role."
               delay={0.2}
             />
             <FeatureCard
               icon={Zap}
-              title="Instant ATS Optimization"
-              description="Get a perfectly tailored resume with your match score in seconds—no more guessing if you'll pass the filter."
+              title="30-Second ATS Scores"
+              description="See exactly how well your resume matches before you apply. Real-time scoring helps you hit 80%+ and pass automated filters."
               delay={0.3}
+            />
+            <FeatureCard
+              icon={Shield}
+              title="100% Your Experience"
+              description="No hallucinations, no fabricated skills. Every bullet point traces back to your uploaded documents. Truthful tailoring you can stand behind."
+              delay={0.4}
             />
           </div>
         </section>

@@ -633,3 +633,4 @@ export async function runAtsScore(jobDescription: string, resumeText: string, ca
     return calculateDetailedScore(criticalRes, importantRes, bonusRes, combinedMetrics, candidateSkillPool);
 }
 
+

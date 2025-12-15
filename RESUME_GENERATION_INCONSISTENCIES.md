@@ -245,3 +245,4 @@
 3. Update documentation
 4. Test with sample resumes to verify improvements
 
+

@@ -214,6 +214,66 @@ const tutorialSteps: TutorialStep[] = [
     ),
   },
   {
+    id: 'jobs',
+    icon: <Briefcase className="w-6 h-6" />,
+    title: 'Smart Job Search',
+    description: 'Find tailored jobs based on your career profile and preferences. Our AI scans top job boards to bring you the best matches.',
+    points: [
+      { icon: <Target className="w-4 h-4" />, text: 'AI finds jobs matching your skills' },
+      { icon: <Sparkles className="w-4 h-4" />, text: 'Get match scores for each listing' },
+      { icon: <Briefcase className="w-4 h-4" />, text: 'Apply with tailored resumes' },
+    ],
+    illustration: (
+      <div className="relative w-full h-32 flex items-center justify-center gap-4">
+        {/* Profile Source */}
+        <div className="relative">
+          <div className="w-14 h-20 bg-card border border-border rounded-lg p-1.5 flex flex-col gap-1.5 shadow-sm z-10 relative">
+            <div className="w-full h-1.5 bg-primary/20 rounded-full" />
+            <div className="w-3/4 h-1.5 bg-muted rounded-full" />
+            <div className="w-1/2 h-1.5 bg-muted rounded-full" />
+            <div className="mt-auto w-full h-1.5 bg-muted/50 rounded-full" />
+          </div>
+          {/* Ripples */}
+          <motion.div
+            className="absolute inset-0 border border-primary/30 rounded-lg"
+            animate={{ scale: [1, 1.4], opacity: [1, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        </div>
+
+        {/* Arrow/Connection */}
+        <div className="text-muted-foreground/30">
+          <ChevronRight className="w-5 h-5" />
+        </div>
+
+        {/* Job Card */}
+        <motion.div
+          className="w-40 h-16 bg-card border border-primary/30 rounded-xl p-2 flex items-center gap-2.5 shadow-lg relative overflow-hidden"
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Briefcase className="w-4 h-4 text-primary" />
+          </div>
+          <div className="space-y-1.5 flex-1">
+            <div className="w-3/4 h-1.5 bg-primary/20 rounded-full" />
+            <div className="w-1/2 h-1.5 bg-muted rounded-full" />
+          </div>
+
+          {/* Match Badge Animation */}
+          <motion.div
+            className="absolute top-0 right-0 bg-primary text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-bl-lg font-bold"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 1, 0] }}
+            transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
+          >
+            98% MATCH
+          </motion.div>
+        </motion.div>
+      </div>
+    ),
+  },
+  {
     id: 'coach',
     icon: <GraduationCap className="w-6 h-6" />,
     title: 'Get Career Coaching',
@@ -431,13 +491,12 @@ export function TutorialModal({ isOpen, onClose, onComplete }: TutorialModalProp
                       setDirection(i > currentStep ? 1 : -1);
                       setCurrentStep(i);
                     }}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      i === currentStep
+                    className={`w-2 h-2 rounded-full transition-all ${i === currentStep
                         ? 'w-6 bg-primary'
                         : i < currentStep
-                        ? 'bg-primary/50'
-                        : 'bg-muted-foreground/30'
-                    }`}
+                          ? 'bg-primary/50'
+                          : 'bg-muted-foreground/30'
+                      }`}
                   />
                 ))}
               </div>

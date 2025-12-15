@@ -13,3 +13,4 @@ COMMENT ON COLUMN jobs.parsed_job_context IS 'Cached ParsedJobDescription from G
 
 
 
+

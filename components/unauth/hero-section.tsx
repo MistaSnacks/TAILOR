@@ -28,7 +28,7 @@ export function HeroSection({ onOpenAuth }: { onOpenAuth: () => void }) {
                         transition={{ duration: 0.5, delay: 0.1 }}
                         className="text-4xl sm:text-6xl md:text-8xl font-bold font-display tracking-tight mb-4 md:mb-6 text-foreground"
                     >
-                        Tailor your resume <br className="hidden sm:block" />
+                        T<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto]">AI</span>LOR your resume <br className="hidden sm:block" />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto]">
                             to every job
                         </span>
@@ -40,7 +40,7 @@ export function HeroSection({ onOpenAuth }: { onOpenAuth: () => void }) {
                         transition={{ duration: 0.5, delay: 0.2 }}
                         className="text-base md:text-xl text-muted-foreground mb-8 md:mb-10 max-w-2xl"
                     >
-                        Stop sending generic resumes. Our AI analyzes job descriptions and rewrites your resume to highlight the perfect skills—in seconds.
+                        Generic resumes get ignored. <span className="text-foreground font-medium">TAILOR</span> learns your entire career, then rewrites your resume for each job description—truthfully, ATS-optimized, in 30 seconds.
                     </motion.p>
 
                     <motion.div

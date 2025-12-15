@@ -85,6 +85,7 @@ import {
   DOMAIN_INFERENCE_RULES,
   HALLUCINATION_CHECKPOINT,
 } from './inference-rules';
+import { buildWriterPromptWithCache } from './resume-prompts';
 
 // Use imported config (keeping local exports for backward compatibility)
 const MAX_EXPERIENCES_FOR_PROMPT = CONFIG_MAX_EXPERIENCES;
@@ -583,110 +584,23 @@ ${inferenceGuidance}`;
 - education: each entry MUST include institution name, degree, field of study, and startDate/endDate or graduationDate if available from canonical data. Use "Month Year" format for dates.
 - certifications: each entry MUST include certification name and issuing organization from the canonical data.`;
 
-    const prompt = `You are an expert resume writer and ATS optimization specialist. Your only sources of truth are the canonical blocks below.
+    const cacheable = buildWriterPromptWithCache({
+      templateGuidance,
+      jobDescriptionSnippet,
+      canonicalSnapshot,
+      inferenceSnapshot,
+      preparedProfile,
+      experienceContext,
+      skillContext,
+      educationContext,
+      certificationContext,
+      contactInfoContext,
+      atsFormatGuide
+    });
 
-Template tone: ${templateGuidance}
-
-Target Job Description (truncated to 6k chars):
-${jobDescriptionSnippet || 'Not provided'}
-
-${canonicalSnapshot}
-
-${inferenceSnapshot}
-
-Parsed JD Summary:
-- Normalized Title: ${preparedProfile.parsedJD?.normalizedTitle || 'n/a'}
-- Seniority: ${preparedProfile.parsedJD?.level || 'IC'}
-- Domain: ${preparedProfile.parsedJD?.domain || 'general'}
-- Responsibilities: ${preparedProfile.parsedJD?.responsibilities?.slice(0, 8).join('; ') || 'n/a'}
-- Hard Skills (MUST include these in resume where truthful): ${preparedProfile.parsedJD?.hardSkills?.slice(0, 40).join(', ') || 'n/a'}
-- Soft Skills (weave into bullets naturally): ${preparedProfile.parsedJD?.softSkills?.slice(0, 15).join(', ') || 'n/a'}
-- Key Phrases (use exact phrasing when possible): ${preparedProfile.parsedJD?.keyPhrases?.slice(0, 15).join(', ') || 'n/a'}
-
-Canonical Experience Inventory (reverse chronological order, IDs are stable — do NOT reorder):
-${experienceContext}
-
-Normalized Skill Pool (deduped, limit ${MAX_SKILLS_FOR_PROMPT}):
-${skillContext}
-
-Canonical Education:
-${educationContext}
-
-Canonical Certifications:
-${certificationContext}
-
-Canonical Contact Information (only include fields with values, NEVER include address):
-${contactInfoContext}
-
-${INFERENCE_RULES}
-
-${DOMAIN_INFERENCE_RULES}
-
-Quality Guardrails:
-- Use ONLY the canonical experiences and skills supplied above. Never invent new companies, titles, dates, or credentials.
-- Preserve the experience order exactly as provided; the inventory is already most recent first.
-- Company, title, location, and date strings must match the canonical values verbatim (trim whitespace only).
-- CRITICAL: Strip ALL placeholder fragments from every field and bullet. This includes but is not limited to: "Company Name", "Job Title", "City, State", "N/A", "Not Provided", "Not Available", "TBD", "YYYY", "YYYY-MM", "20XX", "Example Company", "Your Company", "Insert Title", "Sample Text", "Lorem Ipsum", or any text containing placeholder patterns like {{}}, [[]], <>, or repeated X/Y/Z characters. If a field contains placeholder text, omit that field entirely rather than including placeholder content.
-- Each bullet must follow the Action + Context + Result rubric, highlight measurable scope/impact when available, and remain grounded in the supporting achievements for that role.
-- Respect the bullet_budget per experience as a TARGET. Maximize this allowance to provide depth, using Level 2 inference to bridge gaps where verified details are sparse but logically implied. Do not output fewer bullets unless you have absolutely no verifiable content left.
-- When merging multiple candidate bullets, preserve the strongest metric and union of verified tools/regulations, then log the contributing candidate IDs in "merged_from".
-- Professional summary must be a single cohesive paragraph of 4 impactful sentences (minimum 350 characters). Do NOT use bullet points. The summary must: (1) open with years of experience and primary domain expertise, (2) highlight 2-3 verified quantified achievements with specific metrics from canonical experiences, (3) mention 2-3 key tools or skills that directly match the target JD requirements, and (4) close with a clear connection to the target role's core responsibilities. Focus on telling a compelling career narrative. AVOID generic metrics like "Analyzed 100+ reports" - if a metric doesn't clearly demonstrate impact, omit it.
-- Skills list must be a deduped subset of the normalized pool ordered by relevance to the target JD.
-
-${HALLUCINATION_CHECKPOINT}
-
-${atsFormatGuide}
-
-Return JSON ONLY (no prose) using this schema:
-{
-  "contactInfo": {
-    "name": "Full Name (REQUIRED if available)",
-    "email": "email@example.com (optional)",
-    "phone": "phone number (optional)",
-    "linkedin": "linkedin.com/in/username (optional)",
-    "portfolio": "portfolio URL (optional)"
-  },
-  "summary": "...",
-  "experience": [
-    {
-      "company": "...",
-      "title": "...",
-      "location": "...",
-      "startDate": "Month Year (e.g., Nov 2024)",
-      "endDate": "Month Year or Present",
-      "bullets": [
-        {
-          "text": "...",
-          "source_ids": ["canonical-bullet-id"],
-          "merged_from": ["optional-candidate-ids"]
-        }
-      ]
-    }
-  ],
-  "skills": ["..."],
-  "education": [
-    {
-      "institution": "School/University Name (REQUIRED)",
-      "degree": "Degree Type",
-      "field": "Field of Study",
-      "startDate": "Month Year (optional)",
-      "endDate": "Month Year (optional)",
-      "graduationDate": "Month Year or Year (use if start/end not available)"
-    }
-  ],
-  "certifications": [
-    {
-      "name": "Certification Name",
-      "issuer": "Issuing Organization (REQUIRED)",
-      "date": "Month Year or Year"
-    }
-  ]
-}
-
-IMPORTANT: Only include contactInfo fields that have actual values from canonical data. Omit any empty or missing fields. NEVER include address.`;
-
+    // Use Gemini 1.5 Flash which supports Context Caching
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.4,
@@ -694,7 +608,23 @@ IMPORTANT: Only include contactInfo fields that have actual values from canonica
       },
     });
 
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: cacheable.staticPart,
+              // @ts-ignore - cacheControl is available in newer SDK versions but types might be lagging
+              cacheControl: { type: 'ephemeral' }
+            },
+            {
+              text: cacheable.dynamicPart
+            }
+          ]
+        }
+      ]
+    });
     const response = result.response.text();
     console.log('✅ Atomic Resume generated successfully');
     return response;

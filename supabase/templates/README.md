@@ -88,3 +88,4 @@ After applying templates:
 - Consider using a custom SMTP provider (Resend, Postmark, SendGrid)
 - Keep emails under 102KB to avoid Gmail clipping
 - Test across email clients (Gmail, Outlook, Apple Mail)
+

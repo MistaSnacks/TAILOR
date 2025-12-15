@@ -13,6 +13,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Briefcase,
+  User,
+  Edit,
+  Plus,
 } from 'lucide-react';
 
 type TutorialSlide = {
@@ -24,6 +27,62 @@ type TutorialSlide = {
 };
 
 const tutorialSlides: TutorialSlide[] = [
+  {
+    id: 'profile',
+    icon: <User className="w-5 h-5" />,
+    title: 'Build Your Profile',
+    description: 'Add your skills and work experience directly, or upload documents to extract them automatically.',
+    illustration: (
+      <div className="relative w-full h-32 md:h-40 flex items-center justify-center">
+        <div className="w-52 md:w-60 bg-card border border-border rounded-xl p-3 md:p-4 shadow-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 md:w-10 h-8 md:h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="w-4 md:w-5 h-4 md:h-5 text-primary" />
+            </div>
+            <div>
+              <div className="text-xs md:text-sm font-bold">John Doe</div>
+              <div className="text-[10px] md:text-[11px] text-muted-foreground">john@email.com</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1 mb-2">
+            <motion.span
+              className="px-2 py-0.5 text-[8px] md:text-[9px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              React
+            </motion.span>
+            <motion.span
+              className="px-2 py-0.5 text-[8px] md:text-[9px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              TypeScript
+            </motion.span>
+            <motion.span
+              className="px-2 py-0.5 text-[8px] md:text-[9px] bg-primary/10 text-primary rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              Node.js
+            </motion.span>
+          </div>
+          <motion.div
+            className="flex items-center gap-1 text-[9px] md:text-[10px] text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Briefcase className="w-3 md:w-3.5 h-3 md:h-3.5" />
+            <span>3 work experiences</span>
+          </motion.div>
+        </div>
+      </div>
+    ),
+  },
   {
     id: 'documents',
     icon: <UploadCloud className="w-5 h-5" />,
@@ -158,7 +217,7 @@ const tutorialSlides: TutorialSlide[] = [
         </div>
 
         {/* Job Card */}
-        <motion.div 
+        <motion.div
           className="w-32 md:w-40 h-14 md:h-16 bg-card border border-primary/30 rounded-xl p-2 flex items-center gap-2.5 shadow-lg relative overflow-hidden"
           animate={{ y: [0, -4, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -170,7 +229,7 @@ const tutorialSlides: TutorialSlide[] = [
             <div className="w-3/4 h-1.5 bg-primary/20 rounded-full" />
             <div className="w-1/2 h-1.5 bg-muted rounded-full" />
           </div>
-          
+
           {/* Match Badge Animation */}
           <motion.div
             className="absolute top-0 right-0 bg-primary text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-bl-lg font-bold"
@@ -347,13 +406,12 @@ export function TutorialSlides() {
                 <button
                   key={i}
                   onClick={() => setCurrentSlide(i)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === currentSlide
-                      ? 'w-5 md:w-6 bg-primary'
-                      : i < currentSlide
+                  className={`w-2 h-2 rounded-full transition-all ${i === currentSlide
+                    ? 'w-5 md:w-6 bg-primary'
+                    : i < currentSlide
                       ? 'bg-primary/50'
                       : 'bg-muted-foreground/30'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
