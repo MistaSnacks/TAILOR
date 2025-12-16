@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { TutorialModal, useTutorial } from '@/components/tutorial-modal';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { AccountDropdown } from '@/components/dashboard/account-dropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
@@ -122,11 +123,10 @@ export function DashboardSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
                 >
                   <item.icon className="w-4 h-4" />
                   <span>{item.label}</span>
@@ -187,15 +187,13 @@ export function DashboardSidebar() {
 
       {/* Desktop Sidebar - Hidden on Mobile */}
       <aside
-        className={`hidden md:flex ${
-          isCollapsed ? 'w-20' : 'w-64'
-        } min-h-screen border-r border-border bg-card/50 backdrop-blur-xl fixed left-0 top-0 z-40 transition-all duration-300 ease-in-out flex-col`}
+        className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'
+          } min-h-screen border-r border-border bg-card/50 backdrop-blur-xl fixed left-0 top-0 z-40 transition-all duration-300 ease-in-out flex-col`}
       >
         {/* Header */}
         <div
-          className={`p-6 flex items-center ${
-            isCollapsed ? 'justify-center' : 'justify-between'
-          } mb-2`}
+          className={`p-6 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'
+            } mb-2`}
         >
           {!isCollapsed && (
             <Link
@@ -229,13 +227,11 @@ export function DashboardSidebar() {
                 key={item.href}
                 href={item.href}
                 title={isCollapsed ? item.label : ''}
-                className={`relative flex items-center ${
-                  isCollapsed ? 'justify-center px-2' : 'px-4'
-                } py-3 text-sm font-medium rounded-lg transition-colors duration-200 group overflow-hidden ${
-                  isActive
+                className={`relative flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'
+                  } py-3 text-sm font-medium rounded-lg transition-colors duration-200 group overflow-hidden ${isActive
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'
-                }`}
+                  }`}
               >
                 {isActive && !prefersReducedMotion && (
                   <motion.div
@@ -251,9 +247,8 @@ export function DashboardSidebar() {
                   <div className="absolute inset-0 bg-primary/10 border-l-2 border-primary" />
                 )}
                 <span
-                  className={`relative z-10 flex items-center gap-3 ${
-                    isCollapsed ? 'justify-center' : ''
-                  }`}
+                  className={`relative z-10 flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''
+                    }`}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
                   {!isCollapsed && <span>{item.label}</span>}
@@ -267,9 +262,8 @@ export function DashboardSidebar() {
         <div className="p-4 border-t border-border/50 mt-auto">
           {user && (
             <div
-              className={`rounded-xl bg-card border border-border shadow-sm ${
-                isCollapsed ? 'p-2 flex justify-center' : 'p-4'
-              }`}
+              className={`rounded-xl bg-card border border-border shadow-sm ${isCollapsed ? 'p-2 flex justify-center' : 'p-4'
+                }`}
             >
               {!isCollapsed ? (
                 <>
@@ -298,9 +292,8 @@ export function DashboardSidebar() {
           {/* Help Button */}
           <button
             onClick={openTutorial}
-            className={`w-full mt-4 flex items-center ${
-              isCollapsed ? 'justify-center' : 'gap-2 px-3'
-            } p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors`}
+            className={`w-full mt-4 flex items-center ${isCollapsed ? 'justify-center' : 'gap-2 px-3'
+              } p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors`}
             title={isCollapsed ? 'Help & Tutorial' : ''}
           >
             <HelpCircle className="w-4 h-4" />
@@ -343,7 +336,7 @@ export function DashboardMainContent({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     setIsMounted(true);
-    
+
     const checkCollapsed = () => {
       try {
         const savedState = localStorage.getItem('sidebarCollapsed');
@@ -388,6 +381,10 @@ export function DashboardMainContent({ children }: { children: React.ReactNode }
         md:pt-8 md:px-8 ${isMounted ? (isCollapsed ? 'md:ml-20' : 'md:ml-64') : 'md:ml-64'}
       `}
     >
+      {/* Fixed Account Dropdown in top-right corner */}
+      <div className="fixed top-4 right-4 md:top-6 md:right-8 z-50">
+        <AccountDropdown />
+      </div>
       <div className="max-w-6xl mx-auto">{children}</div>
     </main>
   );

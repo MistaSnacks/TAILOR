@@ -46,7 +46,7 @@ export async function POST(
   try {
     const userId = await requireAuth();
     const { id: resumeId } = await params;
-    
+
     console.log('🔐 Add to Docs API - User:', userId, 'Resume:', resumeId);
 
     // Fetch the resume (resume_versions table with job details via join)
@@ -75,7 +75,8 @@ export async function POST(
     }
 
     // Null-check resume content before processing
-    if (!resume.content || typeof resume.content !== 'string') {
+    // Content can be a JSON object (from JSONB) or a string
+    if (!resume.content) {
       console.error('❌ Resume content is null or invalid');
       return NextResponse.json(
         { error: 'Resume content is missing or invalid' },
@@ -84,6 +85,7 @@ export async function POST(
     }
 
     // Normalize and format the resume content as text for ingestion
+    // normalizeResumeContent handles both string and object content
     const normalizedContent = normalizeResumeContent(resume.content);
     const textContent = formatResumeForAts(normalizedContent);
 
@@ -114,9 +116,9 @@ export async function POST(
     if (existingDoc) {
       console.log('⚠️ Resume already added to docs:', existingDoc.id);
       return NextResponse.json(
-        { 
+        {
           error: 'This resume has already been added to your documents',
-          documentId: existingDoc.id 
+          documentId: existingDoc.id
         },
         { status: 409 }
       );
@@ -166,7 +168,7 @@ export async function POST(
       // Update document status (verify operation result)
       const { error: updateError } = await supabaseAdmin
         .from('documents')
-        .update({ 
+        .update({
           parse_status: 'completed',
           parsed_content: {
             sanitizedText: textContent,
@@ -194,14 +196,14 @@ export async function POST(
     } catch (ingestError: unknown) {
       const errorMessage = ingestError instanceof Error ? ingestError.message : 'Unknown error';
       const errorName = ingestError instanceof Error ? ingestError.name : 'Error';
-      
+
       console.error('❌ Ingestion failed:', {
         error: errorMessage,
         name: errorName,
         documentId: document.id,
         timestamp: new Date().toISOString(),
       });
-      
+
       // Update document status to failed (verify operation result)
       const { error: statusUpdateError } = await supabaseAdmin
         .from('documents')
@@ -213,10 +215,10 @@ export async function POST(
       }
 
       return NextResponse.json(
-        { 
-          error: 'Failed to ingest document', 
+        {
+          error: 'Failed to ingest document',
           details: errorMessage,
-          documentId: document.id 
+          documentId: document.id
         },
         { status: 500 }
       );
@@ -225,7 +227,7 @@ export async function POST(
     // Proper error type checking instead of fragile string comparison
     const isUnauthorizedError = error instanceof Error && error.message === 'Unauthorized';
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     console.error('❌ Add to Docs API error:', {
       error: errorMessage,
       name: error instanceof Error ? error.name : 'Error',

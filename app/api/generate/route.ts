@@ -10,6 +10,7 @@ import { runResumeCritic } from '@/lib/resume-critic';
 import { validateAndRefineResume, type ValidatorMetadata } from '@/lib/resume-validator';
 import { runQualityPass, USE_MERGED_PASS, type QualityPassMetadata } from '@/lib/resume-quality-pass';
 import { parseJobDescriptionToContext } from '@/lib/rag/parser';
+import { getActiveExperimentConfig, createMetricCollector } from '@/lib/experiment-metrics';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -21,6 +22,23 @@ export async function POST(request: NextRequest) {
     // Get authenticated user
     const userId = await requireAuth();
     console.log('🔐 Generate API - User authenticated:', userId ? '✅' : '❌');
+
+    // 🧪 A/B Testing: Get experiment variant for this user
+    const experimentConfig = getActiveExperimentConfig(userId, {
+      qualityPassEnabled: true,
+      keywordInjectionLimit: 12,
+    });
+    const metricCollector = createMetricCollector(
+      experimentConfig.experimentId,
+      experimentConfig.variantId,
+      { userId }
+    );
+    if (experimentConfig.experimentId) {
+      console.log('🧪 A/B Test active:', {
+        experimentId: experimentConfig.experimentId,
+        variantId: experimentConfig.variantId,
+      });
+    }
 
     const body = await request.json();
     const { jobId, template = 'modern' } = body;
@@ -439,8 +457,8 @@ export async function POST(request: NextRequest) {
           parsedJob,
           jobKeywords: jobKeywordUniverse,
           candidateSkillUniverse,
-          maxBulletsPerExperience: 6,
-          keywordInjectionLimit: 12,
+          maxBulletsPerExperience: experimentConfig.config.maxBulletsPerExperience ?? 6,
+          keywordInjectionLimit: experimentConfig.config.keywordInjectionLimit ?? 12,
           bulletBudgets,
           experienceRoleTypes,
         });
@@ -595,6 +613,24 @@ export async function POST(request: NextRequest) {
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`✅ [8/8] Generation complete! Total time: ${totalTime}s (ATS scoring synchronous)`);
     console.log('🎉 Resume generation finished successfully');
+
+    // 🧪 A/B Testing: Record metrics if experiment is active
+    if (metricCollector) {
+      metricCollector.record('generationTimeMs', Date.now() - startTime);
+      if (atsResult) {
+        metricCollector.record('atsScore', atsResult.score);
+      }
+      if (qualityMetadata) {
+        metricCollector.record('bulletsRewritten', qualityMetadata.bulletsRewritten || 0);
+        metricCollector.record('jdKeywordsAdded', qualityMetadata.jdKeywordsAdded?.length || 0);
+        metricCollector.record('summaryChanged', qualityMetadata.summaryChanged || false);
+        metricCollector.record('skillsChanged', qualityMetadata.skillsChanged || false);
+        metricCollector.record('keywordCoverageScore', qualityMetadata.score?.keywordCoverage || 0);
+        metricCollector.record('semanticFitScore', qualityMetadata.score?.semanticFit || 0);
+      }
+      metricCollector.submit();
+      console.log('🧪 A/B Test metrics recorded');
+    }
 
     return NextResponse.json({
       resumeVersion,

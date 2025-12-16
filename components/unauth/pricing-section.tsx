@@ -34,22 +34,9 @@ const tiers: PricingTier[] = [
   },
   {
     name: 'Standard',
-    description: 'For serious job seekers applying to multiple roles.',
+    description: 'The ultimate toolkit for accelerating your career.',
     monthlyPrice: 15,
     quarterlyPrice: 12,
-    features: [
-      { included: true, text: 'Resume Builder' },
-      { included: true, text: 'Job Builder' },
-      { included: true, text: 'Unlimited Generations' },
-      { included: true, text: 'Upload up to 30 Documents' },
-      { included: false, text: 'AI Career Coach' },
-    ],
-  },
-  {
-    name: 'Premium',
-    description: 'The ultimate toolkit for accelerating your career.',
-    monthlyPrice: 20,
-    quarterlyPrice: 17,
     popular: true,
     highlight: true,
     features: [
@@ -117,7 +104,7 @@ export function PricingSection({ onOpenAuth }: { onOpenAuth: () => void }) {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
           {tiers.map((tier, index) => (
             <PricingCard
               key={tier.name}
@@ -153,8 +140,8 @@ function PricingCard({
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay }}
       className={`relative p-8 rounded-2xl border flex flex-col ${tier.highlight
-          ? 'bg-gradient-to-b from-primary/10 via-background to-background border-primary/50 shadow-lg shadow-primary/10'
-          : 'bg-background/50 border-border glass-card hover:border-primary/30 transition-colors'
+        ? 'bg-gradient-to-b from-primary/10 via-background to-background border-primary/50 shadow-lg shadow-primary/10'
+        : 'bg-background/50 border-border glass-card hover:border-primary/30 transition-colors'
         }`}
     >
       {tier.popular && (
@@ -202,8 +189,8 @@ function PricingCard({
       <button
         onClick={onOpenAuth}
         className={`w-full py-3 px-6 rounded-xl font-semibold transition-all ${tier.highlight
-            ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20'
-            : 'bg-muted/50 text-foreground hover:bg-muted border border-border'
+          ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20'
+          : 'bg-muted/50 text-foreground hover:bg-muted border border-border'
           }`}
       >
         {tier.monthlyPrice === 0 ? 'Get Started Free' : 'Choose Plan'}

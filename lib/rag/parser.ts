@@ -113,23 +113,75 @@ Output JSON with this COMPLETE structure:
   "skills": ["list of skill phrases"]
 }
 
-Rules:
+CRITICAL RULES FOR BULLET EXTRACTION:
+1. Bullets may appear in various formats:
+   - Traditional: lines starting with •, -, *, or numbers
+   - Paragraph form: sentences separated by periods or line breaks under each job
+   - Without markers: plain text lines describing achievements/responsibilities
+   - Scraped format: text may have inconsistent formatting from web scraping
+
+2. For EACH experience, extract ALL achievement/responsibility statements as bullets:
+   - Look for action verbs (led, managed, developed, created, implemented, etc.)
+   - Extract complete thoughts/sentences that describe what was accomplished
+   - Split long paragraphs into individual bullet points
+   - Even if text appears as a paragraph, break it into logical bullet points
+   - Minimum: Extract at least 2-3 bullets per experience if any descriptive text exists
+
+3. If an experience has descriptive text but no clear bullets:
+   - Split the text by sentences or logical breaks
+   - Each sentence describing an achievement/responsibility becomes a bullet
+   - Do NOT leave bullets array empty if there's any descriptive text about the role
+
+4. Clean up bullet points:
+   - Remove leading bullets/dashes/markers (•, -, *, numbers)
+   - Remove extra whitespace
+   - Keep the actual content describing achievements
+
+OTHER RULES:
 1. Normalize dates to YYYY-MM format if possible, otherwise YYYY.
 2. If a job is current, set isCurrent to true and endDate to "Present".
 3. Extract skills as individual phrases (e.g., "React", "Project Management").
-4. Clean up bullet points (remove leading bullets/dashes).
-5. Extract ALL education entries, even partial (bootcamps, courses count).
-6. Extract ALL certifications, licenses, and professional credentials.
-7. If summary/objective exists, extract it; otherwise leave empty string.
-8. Return empty arrays for sections with no data, not null.
+4. Extract ALL education entries, even partial (bootcamps, courses count).
+5. Extract ALL certifications, licenses, and professional credentials.
+6. If summary/objective exists, extract it; otherwise leave empty string.
+7. Return empty arrays for sections with no data, not null.
+8. NEVER leave bullets as an empty array if there's any descriptive text about the experience.
 `;
 
     try {
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
-        return JSON.parse(responseText) as ParsedResumeData;
+        const parsedData = JSON.parse(responseText) as ParsedResumeData;
+        
+        // (NO $) Debug logging for bullet extraction
+        const totalBullets = parsedData.experiences.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0);
+        const experiencesWithoutBullets = parsedData.experiences.filter(exp => !exp.bullets || exp.bullets.length === 0);
+        
+        console.log('🔍 [parseResumeToJSON] Parsing results:', {
+            experiences: parsedData.experiences.length,
+            totalBullets,
+            experiencesWithoutBullets: experiencesWithoutBullets.length,
+            experiencesWithBullets: parsedData.experiences.length - experiencesWithoutBullets.length,
+            bulletsPerExperience: parsedData.experiences.map(exp => ({
+                company: exp.company,
+                title: exp.title,
+                bulletCount: exp.bullets?.length || 0,
+            })),
+        });
+        
+        if (experiencesWithoutBullets.length > 0) {
+            console.warn('⚠️ [parseResumeToJSON] Experiences without bullets:', {
+                count: experiencesWithoutBullets.length,
+                experiences: experiencesWithoutBullets.map(exp => ({
+                    company: exp.company,
+                    title: exp.title,
+                })),
+            });
+        }
+        
+        return parsedData;
     } catch (error) {
-        console.error('Error parsing resume with Gemini:', error);
+        console.error('❌ Error parsing resume with Gemini:', error);
         throw new Error('Failed to parse resume');
     }
 }

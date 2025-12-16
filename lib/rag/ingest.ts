@@ -99,7 +99,12 @@ export async function ingestDocument(documentId: string, text: string, userId: s
 
     // 1. Parse the document
     const parsedData = await parseResumeToJSON(text);
+    const totalBulletsFromParsing = parsedData.experiences.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0);
     console.log(`✅ Parsed ${parsedData.experiences.length} experiences, ${parsedData.skills.length} skills, ${parsedData.education?.length || 0} education, ${parsedData.certifications?.length || 0} certifications`);
+    console.log(`📋 [ingestDocument] Total bullets extracted from parsing: ${totalBulletsFromParsing}`);
+    
+    // Store for later logging
+    const bulletsFromParsing = totalBulletsFromParsing;
 
     const sanitizedExperiences = sanitizeExperiences(parsedData.experiences, documentId);
     const sanitizedSkills = sanitizeSkills(parsedData.skills, documentId);
@@ -109,10 +114,13 @@ export async function ingestDocument(documentId: string, text: string, userId: s
     const summary = parsedData.summary;
 
     // REMOVE IN PRODUCTION
+    const totalBulletsAfterSanitization = sanitizedExperiences.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0);
     console.log('🧼 Sanitized ingestion payload', {
         documentId,
         experiencesIn: parsedData.experiences.length,
         experiencesOut: sanitizedExperiences.length,
+        bulletsIn: bulletsFromParsing,
+        bulletsOut: totalBulletsAfterSanitization,
         skillsIn: parsedData.skills.length,
         skillsOut: sanitizedSkills.length,
         education: education.length,
@@ -120,14 +128,32 @@ export async function ingestDocument(documentId: string, text: string, userId: s
         hasContactInfo: !!contactInfo?.name,
         hasSummary: !!summary,
     });
+    
+    if (totalBulletsAfterSanitization === 0 && sanitizedExperiences.length > 0) {
+        console.warn('⚠️ [ingestDocument] WARNING: No bullets found after sanitization!', {
+            documentId,
+            experienceCount: sanitizedExperiences.length,
+            rawBulletCount: bulletsFromParsing,
+            experiences: sanitizedExperiences.map(exp => ({
+                company: exp.company,
+                title: exp.title,
+                rawBullets: parsedData.experiences.find(e => e.company === exp.company && e.title === exp.title)?.bullets?.length || 0,
+                sanitizedBullets: exp.bullets.length,
+            })),
+        });
+    }
 
     // 2. Process Experiences
     let processedExperiences = 0;
     let failedExperiences = 0;
+    let totalBulletsProcessed = 0;
     for (const exp of sanitizedExperiences) {
         try {
+            const bulletCountBefore = exp.bullets?.length || 0;
             await processExperience(userId, documentId, exp);
             processedExperiences++;
+            totalBulletsProcessed += bulletCountBefore;
+            console.log(`✅ [ingestDocument] Processed experience: ${exp.company} - ${exp.title} (${bulletCountBefore} bullets)`);
         } catch (error: any) {
             failedExperiences++;
             console.error(`❌ Failed to process experience: ${exp.company} - ${exp.title}`, error);
@@ -135,10 +161,11 @@ export async function ingestDocument(documentId: string, text: string, userId: s
                 code: error.code,
                 message: error.message,
                 details: error.details,
+                bulletCount: exp.bullets?.length || 0,
             });
         }
     }
-    console.log(`📊 Processed ${processedExperiences}/${sanitizedExperiences.length} experiences (${failedExperiences} failed)`);
+    console.log(`📊 Processed ${processedExperiences}/${sanitizedExperiences.length} experiences (${failedExperiences} failed) with ${totalBulletsProcessed} total bullets`);
 
     // 3. Process Skills
     let processedSkills = 0;

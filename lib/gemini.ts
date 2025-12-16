@@ -598,9 +598,9 @@ ${inferenceGuidance}`;
       atsFormatGuide
     });
 
-    // Use Gemini 1.5 Flash which supports Context Caching
+    // Use Gemini 2.5 Flash for resume generation
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.4,
@@ -615,8 +615,6 @@ ${inferenceGuidance}`;
           parts: [
             {
               text: cacheable.staticPart,
-              // @ts-ignore - cacheControl is available in newer SDK versions but types might be lagging
-              cacheControl: { type: 'ephemeral' }
             },
             {
               text: cacheable.dynamicPart

@@ -1,0 +1,127 @@
+{
+  "experiments": [
+    {
+      "id": "exp-quality-pass-toggle",
+      "name": "Quality Pass Toggle Experiment",
+      "description": "Measure impact of AI quality pass on resume quality",
+      "variants": [
+        {
+          "id": "without",
+          "name": "Without Quality Pass",
+          "weight": 0.5,
+          "config": {
+            "qualityPassEnabled": false
+          }
+        },
+        {
+          "id": "with",
+          "name": "With Quality Pass",
+          "weight": 0.5,
+          "config": {
+            "qualityPassEnabled": true
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "atsScore",
+          "type": "continuous",
+          "description": "ATS compatibility score (0-100)",
+          "higherIsBetter": true
+        },
+        {
+          "name": "keywordCoverageScore",
+          "type": "continuous",
+          "description": "Keyword coverage (0-1)",
+          "higherIsBetter": true
+        },
+        {
+          "name": "semanticFitScore",
+          "type": "continuous",
+          "description": "Semantic fit with JD (0-1)",
+          "higherIsBetter": true
+        },
+        {
+          "name": "metricDensity",
+          "type": "continuous",
+          "description": "Density of quantified achievements",
+          "higherIsBetter": true
+        },
+        {
+          "name": "bulletsRewritten",
+          "type": "count",
+          "description": "Number of bullets rewritten",
+          "higherIsBetter": true
+        },
+        {
+          "name": "jdKeywordsAdded",
+          "type": "count",
+          "description": "JD keywords added to resume",
+          "higherIsBetter": true
+        },
+        {
+          "name": "summaryChanged",
+          "type": "binary",
+          "description": "Summary was modified",
+          "higherIsBetter": true
+        },
+        {
+          "name": "skillsChanged",
+          "type": "binary",
+          "description": "Skills were modified",
+          "higherIsBetter": true
+        },
+        {
+          "name": "generationTimeMs",
+          "type": "continuous",
+          "description": "Total generation time (ms)",
+          "higherIsBetter": false
+        },
+        {
+          "name": "qualityPassTimeMs",
+          "type": "continuous",
+          "description": "Quality pass time (ms)",
+          "higherIsBetter": false
+        },
+        {
+          "name": "tokenCount",
+          "type": "count",
+          "description": "Total tokens used",
+          "higherIsBetter": false
+        },
+        {
+          "name": "downloadCount",
+          "type": "count",
+          "description": "Times user downloaded resume",
+          "higherIsBetter": true
+        },
+        {
+          "name": "editCount",
+          "type": "count",
+          "description": "Manual edits by user",
+          "higherIsBetter": false
+        }
+      ],
+      "status": "active",
+      "createdAt": "2025-12-16T12:32:45.380Z",
+      "updatedAt": "2025-12-16T12:46:45.297Z",
+      "startDate": "2025-12-16T12:40:23.537Z"
+    }
+  ],
+  "assignments": {
+    "cd78e0f4-6563-4973-a88c-735c1e1d6a0b": {
+      "exp-quality-pass-toggle": {
+        "experimentId": "exp-quality-pass-toggle",
+        "variantId": "without",
+        "assignedAt": "2025-12-16T12:54:40.989Z"
+      }
+    },
+    "33c7f939-6d9d-4fea-8f61-1c5f114d4b01": {
+      "exp-quality-pass-toggle": {
+        "experimentId": "exp-quality-pass-toggle",
+        "variantId": "with",
+        "assignedAt": "2025-12-16T13:58:54.661Z"
+      }
+    }
+  }
+}
