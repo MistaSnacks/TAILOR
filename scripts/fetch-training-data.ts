@@ -186,17 +186,16 @@ function showJobDescriptionStats(jds: JobDescription[]): void {
 
     console.log('\nExperience levels:');
     const sortedLevels = Object.entries(expLevels)
+        .sort((a, b) => b[1] - a[1]);
+    for (const [level, count] of sortedLevels) {
+        console.log(`  ${level}: ${count}`);
+    }
+
     // Skills per JD
     const skillCounts = jds.map(jd => (jd.requiredSkills?.length || 0));
     const avgSkills = skillCounts.length > 0
         ? skillCounts.reduce((a, b) => a + b, 0) / skillCounts.length
         : 0;
-    console.log(`\nAverage required skills per JD: ${avgSkills.toFixed(1)}`);
-    }
-
-    // Skills per JD
-    const skillCounts = jds.map(jd => (jd.requiredSkills?.length || 0));
-    const avgSkills = skillCounts.reduce((a, b) => a + b, 0) / skillCounts.length;
     console.log(`\nAverage required skills per JD: ${avgSkills.toFixed(1)}`);
 }
 
