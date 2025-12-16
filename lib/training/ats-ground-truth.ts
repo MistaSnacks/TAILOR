@@ -96,7 +96,7 @@ function formatResumeForAts(resume: TrainingResume): string {
     }
 
     // Education
-    if (resume.education?.length > 0) {
+    if (resume.education && resume.education.length > 0) {
         parts.push('EDUCATION');
         for (const edu of resume.education) {
             const degree = [edu.degree, edu.field].filter(Boolean).join(' in ');
@@ -107,7 +107,7 @@ function formatResumeForAts(resume: TrainingResume): string {
     }
 
     // Certifications
-    if (resume.certifications?.length > 0) {
+    if (resume.certifications && resume.certifications.length > 0) {
         parts.push('CERTIFICATIONS');
         for (const cert of resume.certifications) {
             parts.push(`${cert.name}${cert.issuer ? ` - ${cert.issuer}` : ''}${cert.date ? ` (${cert.date})` : ''}`);
