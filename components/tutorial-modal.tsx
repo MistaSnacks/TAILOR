@@ -492,10 +492,10 @@ export function TutorialModal({ isOpen, onClose, onComplete }: TutorialModalProp
                       setCurrentStep(i);
                     }}
                     className={`w-2 h-2 rounded-full transition-all ${i === currentStep
-                        ? 'w-6 bg-primary'
-                        : i < currentStep
-                          ? 'bg-primary/50'
-                          : 'bg-muted-foreground/30'
+                      ? 'w-6 bg-primary'
+                      : i < currentStep
+                        ? 'bg-primary/50'
+                        : 'bg-muted-foreground/30'
                       }`}
                   />
                 ))}
@@ -589,8 +589,13 @@ export function useTutorial(userId?: string | null) {
   }, [getUserStorageKey]);
 
   const closeTutorial = useCallback(() => {
+    // Persist to localStorage so modal doesn't reopen on page remount
+    const userStorageKey = getUserStorageKey();
+    if (userStorageKey) {
+      localStorage.setItem(userStorageKey, 'true');
+    }
     setShowTutorial(false);
-  }, []);
+  }, [getUserStorageKey]);
 
   const openTutorial = useCallback(() => {
     setShowTutorial(true);
