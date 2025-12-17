@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion } from 'framer-motion';
 import { Sparkles, FileText, LayoutTemplate, Eye, ChevronDown, Check } from 'lucide-react';
@@ -149,6 +150,16 @@ export default function GeneratePage() {
   const [showLivePreview, setShowLivePreview] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentStep, setCurrentStep] = useState<string>('');
+
+  const searchParams = useSearchParams();
+
+  // Handle URL params for pre-filling (e.g. from Jobs feed)
+  useEffect(() => {
+    const descParam = searchParams.get('description');
+    if (descParam) {
+      setJobDescription(descParam);
+    }
+  }, [searchParams]);
 
   // Parsed JD state (used during generation)
   const [parsedJobInfo, setParsedJobInfo] = useState<{

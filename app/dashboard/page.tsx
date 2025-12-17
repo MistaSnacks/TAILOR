@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import type { NormalizedJob } from '@/lib/jobs/types';
+import { JobCard } from '@/components/dashboard/job-card';
 
 type DashboardStats = {
   documentsCount: number;
@@ -353,58 +354,16 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-              {freshJobs.slice(0, 3).map((job, i) => {
-                const isSaved = savedJobIds.has(job.id);
-                return (
-                  <motion.div
-                    key={job.id}
-                    {...(prefersReducedMotion ? {} : { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.05 } })}
-                    className="glass-card p-3 md:p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all group"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        {job.companyLogo ? (
-                          <img src={job.companyLogo} alt={job.company} className="w-6 h-6 rounded object-cover" />
-                        ) : (
-                          <Building2 className="w-5 h-5 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm text-foreground truncate">{job.title}</h3>
-                        <p className="text-xs text-muted-foreground truncate">{job.company}</p>
-                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            <MapPin className="w-2.5 h-2.5" />
-                            {job.isRemote ? 'Remote' : job.location?.split(',')[0] || 'N/A'}
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <Clock className="w-2.5 h-2.5" />
-                            {formatRelativeTime(job.postedAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => toggleSaveJob(job)}
-                          className={`p-1.5 rounded transition-colors ${isSaved ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
-                          title={isSaved ? 'Unsave' : 'Save'}
-                        >
-                          {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                        </button>
-                        <a
-                          href={job.applyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded text-muted-foreground hover:text-primary transition-colors"
-                          title="Apply"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {freshJobs.slice(0, 3).map((job, i) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  isSaved={savedJobIds.has(job.id)}
+                  onToggleSave={toggleSaveJob}
+                  index={i}
+                  className="h-full"
+                />
+              ))}
             </div>
           )}
         </motion.div>

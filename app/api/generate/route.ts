@@ -10,6 +10,7 @@ import { runResumeCritic } from '@/lib/resume-critic';
 import { validateAndRefineResume, type ValidatorMetadata } from '@/lib/resume-validator';
 import { runQualityPass, USE_MERGED_PASS, type QualityPassMetadata } from '@/lib/resume-quality-pass';
 import { parseJobDescriptionToContext } from '@/lib/rag/parser';
+import { populateFreshJobs } from '@/lib/jobs/recommendations';
 import { getActiveExperimentConfig, createMetricCollector } from '@/lib/experiment-metrics';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -631,6 +632,27 @@ export async function POST(request: NextRequest) {
       metricCollector.submit();
       console.log('🧪 A/B Test metrics recorded');
     }
+
+    // 🚀 Fresh Jobs: Populate on first resume generation (fire-and-forget)
+    // Check if this is the user's first resume
+    supabaseAdmin
+      .from('resume_versions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .then(async ({ count }: { count: number | null }) => {
+        if (count === 1) {
+          console.log('🎯 First resume detected! Populating fresh jobs for user...');
+          try {
+            const result = await populateFreshJobs(userId, finalCleanedContent);
+            console.log(`✅ Fresh jobs populated: ${result.count} jobs`);
+          } catch (err: unknown) {
+            console.error('❌ Failed to populate fresh jobs:', err);
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('❌ Failed to check resume count:', err);
+      });
 
     return NextResponse.json({
       resumeVersion,

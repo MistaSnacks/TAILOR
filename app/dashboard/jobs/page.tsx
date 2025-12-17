@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Search, 
-  Briefcase, 
-  MapPin, 
-  Clock, 
-  ExternalLink, 
-  Bookmark, 
+import {
+  Search,
+  Briefcase,
+  MapPin,
+  Clock,
+  ExternalLink,
+  Bookmark,
   BookmarkCheck,
   Filter,
   X,
@@ -17,13 +17,14 @@ import {
   History,
   Star,
   Loader2,
-  RefreshCw,
-  ChevronDown,
   CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import type { NormalizedJob, SavedJob, SearchHistoryEntry, SavedSearch, JobSearchParams } from '@/lib/jobs/types';
+import { JobCard } from '@/components/dashboard/job-card';
 
 type Tab = 'feed' | 'search' | 'saved' | 'history';
 
@@ -32,12 +33,12 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
-  
+
   // Feed state
   const [feedJobs, setFeedJobs] = useState<NormalizedJob[]>([]);
   const [feedMessage, setFeedMessage] = useState<string | null>(null);
   const [providersEnabled, setProvidersEnabled] = useState(true);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
@@ -47,15 +48,15 @@ export default function JobsPage() {
   const [searchResults, setSearchResults] = useState<NormalizedJob[]>([]);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [profileLocation, setProfileLocation] = useState<string | null>(null);
-  
+
   // Saved jobs state
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
-  
+
   // History state
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
-  
+
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | '2weeks' | 'month'>('2weeks');
@@ -66,7 +67,7 @@ export default function JobsPage() {
       setLoading(true);
       const res = await fetch('/api/jobs/feed?limit=20');
       const data = await res.json();
-      
+
       if (data.jobs) {
         setFeedJobs(data.jobs);
         setProvidersEnabled(data.providersEnabled !== false);
@@ -87,7 +88,7 @@ export default function JobsPage() {
     try {
       const res = await fetch('/api/jobs/saved');
       const data = await res.json();
-      
+
       if (data.jobs) {
         setSavedJobs(data.jobs);
         setSavedJobIds(new Set(data.jobs.map((j: SavedJob) => j.job.id)));
@@ -104,12 +105,12 @@ export default function JobsPage() {
         fetch('/api/jobs/history?limit=10'),
         fetch('/api/jobs/saved-searches'),
       ]);
-      
+
       const [historyData, searchesData] = await Promise.all([
         historyRes.json(),
         searchesRes.json(),
       ]);
-      
+
       if (historyData.history) {
         setSearchHistory(historyData.history);
       }
@@ -152,7 +153,7 @@ export default function JobsPage() {
   // Search jobs
   const handleSearch = async (e?: React.FormEvent, params?: JobSearchParams) => {
     e?.preventDefault();
-    
+
     // Map work modes to API params
     const isRemoteSelected = workModes.has('remote') || remoteOnly;
     const remoteValue: boolean | undefined = isRemoteSelected ? true : undefined;
@@ -162,17 +163,17 @@ export default function JobsPage() {
       remote: remoteValue,
       datePosted: dateFilter,
     };
-    
+
     if (!searchParams.query?.trim()) {
       setSearchMessage('Enter a search query');
       return;
     }
-    
+
     try {
       setSearchLoading(true);
       setSearchMessage(null);
       setActiveTab('search');
-      
+
       const queryString = new URLSearchParams({
         q: searchParams.query,
         ...(searchParams.location && { location: searchParams.location }),
@@ -180,10 +181,10 @@ export default function JobsPage() {
         date: searchParams.datePosted || '2weeks',
         limit: '20',
       }).toString();
-      
+
       const res = await fetch(`/api/jobs/search?${queryString}`);
       const data = await res.json();
-      
+
       if (data.jobs) {
         setSearchResults(data.jobs);
         if (data.jobs.length === 0) {
@@ -193,7 +194,7 @@ export default function JobsPage() {
       if (data.message) {
         setSearchMessage(data.message);
       }
-      
+
       // Refresh history after search
       fetchHistory();
     } catch (error) {
@@ -207,7 +208,7 @@ export default function JobsPage() {
   // Save/unsave job
   const toggleSaveJob = async (job: NormalizedJob) => {
     const isSaved = savedJobIds.has(job.id);
-    
+
     try {
       if (isSaved) {
         await fetch(`/api/jobs/saved?jobId=${encodeURIComponent(job.id)}`, {
@@ -226,7 +227,7 @@ export default function JobsPage() {
           body: JSON.stringify({ job }),
         });
         const data = await res.json();
-        
+
         if (data.savedJob) {
           setSavedJobIds(prev => new Set([...prev, job.id]));
           setSavedJobs(prev => [data.savedJob, ...prev]);
@@ -245,8 +246,8 @@ export default function JobsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, applied: true }),
       });
-      
-      setSavedJobs(prev => prev.map(j => 
+
+      setSavedJobs(prev => prev.map(j =>
         j.job.id === jobId ? { ...j, applied: true, appliedAt: new Date() } : j
       ));
     } catch (error) {
@@ -275,107 +276,12 @@ export default function JobsPage() {
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays < 14) return '1 week ago';
     return `${Math.floor(diffDays / 7)} weeks ago`;
-  };
-
-  // Job card component
-  const JobCard = ({ job, showSave = true }: { job: NormalizedJob; showSave?: boolean }) => {
-    const isSaved = savedJobIds.has(job.id);
-    
-    return (
-      <motion.div
-        initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all group"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {job.companyLogo ? (
-                <img 
-                  src={job.companyLogo} 
-                  alt={job.company} 
-                  className="w-8 h-8 rounded object-cover"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-primary" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <h3 className="font-semibold text-foreground truncate">{job.title}</h3>
-                <p className="text-sm text-muted-foreground truncate">{job.company}</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {job.isRemote ? 'Remote' : job.location}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {formatRelativeTime(job.postedAt)}
-              </span>
-              {job.salary && (
-                <span className="flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  {job.salary.min && job.salary.max 
-                    ? `$${(job.salary.min/1000).toFixed(0)}k-$${(job.salary.max/1000).toFixed(0)}k`
-                    : 'Salary listed'}
-                </span>
-              )}
-              {job.employmentType && (
-                <span className="px-1.5 py-0.5 bg-muted rounded text-[10px] uppercase">
-                  {job.employmentType.replace('_', '-')}
-                </span>
-              )}
-            </div>
-            
-            {job.description && (
-              <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                {job.description.slice(0, 200)}...
-              </p>
-            )}
-          </div>
-          
-          <div className="flex flex-col items-center gap-2">
-            {showSave && (
-              <button
-                onClick={() => toggleSaveJob(job)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isSaved 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-                title={isSaved ? 'Unsave' : 'Save job'}
-              >
-                {isSaved ? (
-                  <BookmarkCheck className="w-5 h-5" />
-                ) : (
-                  <Bookmark className="w-5 h-5" />
-                )}
-              </button>
-            )}
-            
-            <a
-              href={job.applyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-              title="Apply"
-            >
-              <ExternalLink className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-      </motion.div>
-    );
   };
 
   // Loading state
@@ -427,7 +333,7 @@ export default function JobsPage() {
               className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
-          
+
           <div className="flex gap-2">
             <div className="relative flex-1 md:w-48">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -439,19 +345,18 @@ export default function JobsPage() {
                 className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
-            
+
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-2.5 border rounded-lg transition-colors ${
-                showFilters || remoteOnly || workModes.size > 0 
-                  ? 'bg-primary/10 border-primary/30 text-primary' 
-                  : 'border-border hover:bg-muted'
-              }`}
+              className={`p-2.5 border rounded-lg transition-colors ${showFilters || remoteOnly || workModes.size > 0
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'border-border hover:bg-muted'
+                }`}
             >
               <Filter className="w-5 h-5" />
             </button>
-            
+
             <button
               type="submit"
               disabled={searchLoading}
@@ -466,7 +371,7 @@ export default function JobsPage() {
             </button>
           </div>
         </div>
-        
+
         {/* Filter Panel */}
         {showFilters && (
           <motion.div
@@ -484,11 +389,10 @@ export default function JobsPage() {
                     setRemoteOnly(false);
                     setWorkModes(new Set());
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    !remoteOnly && workModes.size === 0
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border hover:border-primary/50'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${!remoteOnly && workModes.size === 0
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border hover:border-primary/50'
+                    }`}
                 >
                   Any
                 </button>
@@ -498,11 +402,10 @@ export default function JobsPage() {
                     setRemoteOnly(true);
                     setWorkModes(new Set());
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    remoteOnly
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border hover:border-primary/50'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${remoteOnly
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border hover:border-primary/50'
+                    }`}
                 >
                   Remote Only
                 </button>
@@ -529,11 +432,10 @@ export default function JobsPage() {
                           return next;
                         });
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        isActive
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-border hover:border-primary/50'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isActive
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:border-primary/50'
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -542,7 +444,7 @@ export default function JobsPage() {
               </div>
               <span className="text-xs text-muted-foreground ml-2">Pick up to 2 (Remote Only is exclusive)</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Posted:</span>
               <select
@@ -556,7 +458,7 @@ export default function JobsPage() {
                 <option value="month">Past month</option>
               </select>
             </div>
-            
+
             {profileLocation && searchLocation !== profileLocation && (
               <button
                 type="button"
@@ -576,11 +478,10 @@ export default function JobsPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
@@ -629,7 +530,12 @@ export default function JobsPage() {
                   </button>
                 </div>
                 {feedJobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    isSaved={savedJobIds.has(job.id)}
+                    onToggleSave={toggleSaveJob}
+                  />
                 ))}
               </>
             )}
@@ -657,7 +563,12 @@ export default function JobsPage() {
                   {searchResults.length} results found
                 </p>
                 {searchResults.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    isSaved={savedJobIds.has(job.id)}
+                    onToggleSave={toggleSaveJob}
+                  />
                 ))}
               </>
             )}
@@ -679,7 +590,12 @@ export default function JobsPage() {
               <div className="space-y-4">
                 {savedJobs.map((saved) => (
                   <div key={saved.id} className="relative">
-                    <JobCard job={saved.job} showSave={true} />
+                    <JobCard
+                      job={saved.job}
+                      isSaved={true}
+                      onToggleSave={toggleSaveJob}
+                      showSave={true}
+                    />
                     {saved.applied && (
                       <div className="absolute top-2 right-2 px-2 py-1 bg-green-500/10 text-green-500 text-xs font-medium rounded flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
