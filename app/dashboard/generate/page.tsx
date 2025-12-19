@@ -153,8 +153,18 @@ export default function GeneratePage() {
 
   const searchParams = useSearchParams();
 
-  // Handle URL params for pre-filling (e.g. from Jobs feed)
+  // Handle job description from sessionStorage (full text) or URL params (legacy/fallback)
   useEffect(() => {
+    // First check sessionStorage for full job description (from job cards)
+    const storedDescription = sessionStorage.getItem('pendingJobDescription');
+    if (storedDescription) {
+      setJobDescription(storedDescription);
+      // Clear after use to prevent stale data
+      sessionStorage.removeItem('pendingJobDescription');
+      return;
+    }
+
+    // Fallback to URL params (may be truncated for long descriptions)
     const descParam = searchParams.get('description');
     if (descParam) {
       setJobDescription(descParam);

@@ -39,13 +39,13 @@ export function JobCard({
         e.preventDefault();
         e.stopPropagation();
 
-        // Construct params for generation page
-        const params = new URLSearchParams({
-            description: (job.description || '').substring(0, 1000),
-        });
+        // Store the full job description in sessionStorage to avoid URL length limits
+        if (job.description) {
+            sessionStorage.setItem('pendingJobDescription', job.description);
+        }
 
         // Navigate to generation page
-        router.push(`/dashboard/generate?${params.toString()}`);
+        router.push('/dashboard/generate');
     };
 
     const formatRelativeTime = (date: Date | string) => {
