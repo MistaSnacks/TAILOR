@@ -96,15 +96,55 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Fetch education
+        const { data: education, error: eduError } = await supabaseAdmin
+            .from('canonical_education')
+            .select('*')
+            .eq('user_id', userId)
+            .order('end_date', { ascending: false, nullsFirst: true });
+
+        if (eduError && eduError.code !== 'PGRST116') {
+            console.warn('Failed to fetch education:', eduError.message);
+        }
+
+        // Fetch certifications
+        const { data: certifications, error: certError } = await supabaseAdmin
+            .from('canonical_certifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('issue_date', { ascending: false, nullsFirst: true });
+
+        if (certError && certError.code !== 'PGRST116') {
+            console.warn('Failed to fetch certifications:', certError.message);
+        }
+
+        // Fetch military awards (optional - table may not exist yet)
+        let militaryAwards: any[] = [];
+        try {
+            const { data: awards } = await supabaseAdmin
+                .from('military_awards')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date_awarded', { ascending: false, nullsFirst: true });
+            militaryAwards = awards || [];
+        } catch {
+            // Table may not exist yet
+        }
+
         logOperation('GET profile success', userId, {
             experienceCount: normalizedExperiences.length,
             skillCount: normalizedSkills.length,
+            educationCount: education?.length || 0,
+            certificationCount: certifications?.length || 0,
             hasProfile: !!profile,
         });
 
         return NextResponse.json({
             experiences: normalizedExperiences,
             skills: normalizedSkills,
+            education: education || [],
+            certifications: certifications || [],
+            militaryAwards,
             personalInfo: profile || null,
         });
     } catch (error: unknown) {
@@ -510,6 +550,179 @@ export async function PUT(request: NextRequest) {
                     { error: 'Failed to save personal info', details: profileError.message },
                     { status: 500 }
                 );
+            }
+        } else if (type === 'education') {
+            if (action === 'create') {
+                if (!data.institution?.trim()) {
+                    return NextResponse.json(
+                        { error: 'Institution name is required' },
+                        { status: 400 }
+                    );
+                }
+
+                const { data: newEdu, error: eduError } = await supabaseAdmin
+                    .from('canonical_education')
+                    .insert({
+                        user_id: userId,
+                        institution: data.institution.trim(),
+                        degree: data.degree?.trim() || null,
+                        field_of_study: data.field_of_study?.trim() || null,
+                        start_date: data.start_date?.trim() || null,
+                        end_date: data.end_date?.trim() || null,
+                        gpa: data.gpa?.trim() || null,
+                        source_count: 1,
+                    })
+                    .select()
+                    .single();
+
+                if (eduError) {
+                    logError('PUT education create', userId, eduError);
+                    return NextResponse.json(
+                        { error: 'Failed to create education', details: eduError.message },
+                        { status: 500 }
+                    );
+                }
+
+                logOperation('PUT education create success', userId, { educationId: newEdu.id });
+                return NextResponse.json({ success: true, education: newEdu });
+
+            } else if (action === 'delete') {
+                const { error, data: deletedData } = await supabaseAdmin
+                    .from('canonical_education')
+                    .delete()
+                    .eq('id', data.id)
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT education delete', userId, error, { educationId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete education', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    return NextResponse.json(
+                        { error: 'Education not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
+            }
+        } else if (type === 'certification') {
+            if (action === 'create') {
+                if (!data.name?.trim()) {
+                    return NextResponse.json(
+                        { error: 'Certification name is required' },
+                        { status: 400 }
+                    );
+                }
+
+                const { data: newCert, error: certError } = await supabaseAdmin
+                    .from('canonical_certifications')
+                    .insert({
+                        user_id: userId,
+                        name: data.name.trim(),
+                        issuer: data.issuer?.trim() || null,
+                        issue_date: data.issue_date?.trim() || null,
+                        expiration_date: data.expiration_date?.trim() || null,
+                        credential_id: data.credential_id?.trim() || null,
+                        credential_url: data.credential_url?.trim() || null,
+                        source_count: 1,
+                    })
+                    .select()
+                    .single();
+
+                if (certError) {
+                    logError('PUT certification create', userId, certError);
+                    return NextResponse.json(
+                        { error: 'Failed to create certification', details: certError.message },
+                        { status: 500 }
+                    );
+                }
+
+                logOperation('PUT certification create success', userId, { certificationId: newCert.id });
+                return NextResponse.json({ success: true, certification: newCert });
+
+            } else if (action === 'delete') {
+                const { error, data: deletedData } = await supabaseAdmin
+                    .from('canonical_certifications')
+                    .delete()
+                    .eq('id', data.id)
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT certification delete', userId, error, { certificationId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete certification', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    return NextResponse.json(
+                        { error: 'Certification not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
+            }
+        } else if (type === 'military_award') {
+            if (action === 'create') {
+                if (!data.name?.trim()) {
+                    return NextResponse.json(
+                        { error: 'Award name is required' },
+                        { status: 400 }
+                    );
+                }
+
+                const { data: newAward, error: awardError } = await supabaseAdmin
+                    .from('military_awards')
+                    .insert({
+                        user_id: userId,
+                        name: data.name.trim(),
+                        abbreviation: data.abbreviation?.trim() || null,
+                        category: data.category || 'other',
+                        description: data.description?.trim() || null,
+                        date_awarded: data.date_awarded?.trim() || null,
+                        source_count: 1,
+                    })
+                    .select()
+                    .single();
+
+                if (awardError) {
+                    logError('PUT military_award create', userId, awardError);
+                    return NextResponse.json(
+                        { error: 'Failed to create military award', details: awardError.message },
+                        { status: 500 }
+                    );
+                }
+
+                logOperation('PUT military_award create success', userId, { awardId: newAward.id });
+                return NextResponse.json({ success: true, award: newAward });
+
+            } else if (action === 'delete') {
+                const { error, data: deletedData } = await supabaseAdmin
+                    .from('military_awards')
+                    .delete()
+                    .eq('id', data.id)
+                    .eq('user_id', userId)
+                    .select();
+
+                if (error) {
+                    logError('PUT military_award delete', userId, error, { awardId: data.id });
+                    return NextResponse.json(
+                        { error: 'Failed to delete military award', details: error.message },
+                        { status: 500 }
+                    );
+                }
+
+                if (!deletedData || deletedData.length === 0) {
+                    return NextResponse.json(
+                        { error: 'Military award not found or unauthorized' },
+                        { status: 404 }
+                    );
+                }
             }
         }
 

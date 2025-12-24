@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calculateAtsScore, generateTailoredResumeAtomic, embedText } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
+import { checkGenerationAccess } from '@/lib/access-control';
 import { retrieveProfileForJob } from '@/lib/rag/retriever';
 import type { RetrievedProfile } from '@/lib/rag/retriever';
 import { selectTargetAwareProfile } from '@/lib/rag/selector';
@@ -23,6 +24,29 @@ export async function POST(request: NextRequest) {
     // Get authenticated user
     const userId = await requireAuth();
     console.log('🔐 Generate API - User authenticated:', userId ? '✅' : '❌');
+
+    // 🔒 Check generation access (paywall enforcement)
+    const accessResult = await checkGenerationAccess(userId);
+    if (!accessResult.allowed) {
+      console.log('🚫 Generation blocked - limit reached:', {
+        userId,
+        monthlyUsed: accessResult.monthlyUsed,
+        monthlyLimit: accessResult.monthlyLimit,
+      });
+      return NextResponse.json(
+        {
+          error: accessResult.reason,
+          upgrade: true,
+          monthlyUsed: accessResult.monthlyUsed,
+          monthlyLimit: accessResult.monthlyLimit,
+        },
+        { status: 403 }
+      );
+    }
+    console.log('✅ Generation access granted:', {
+      remaining: accessResult.remaining,
+      hasUnlimited: accessResult.hasUnlimited,
+    });
 
     // 🧪 A/B Testing: Get experiment variant for this user
     const experimentConfig = getActiveExperimentConfig(userId, {

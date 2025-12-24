@@ -48,8 +48,12 @@ export class HuggingFaceClient {
         return headers;
     }
 
-    async fetchRows(config: HuggingFaceDatasetConfig): Promise<HuggingFaceResponse> {
+    async fetchRows(
+        config: HuggingFaceDatasetConfig,
+        options: { timeout?: number; maxAttempts?: number; retryOn429?: boolean } = {}
+    ): Promise<HuggingFaceResponse> {
         const { datasetId, split = 'train', subset = 'default', limit = 100, offset = 0 } = config;
+        const { timeout = 5000, maxAttempts = 3, retryOn429 = true } = options;
 
         const url = new URL(`${HUGGINGFACE_API_BASE}/rows`);
         url.searchParams.set('dataset', datasetId);
@@ -58,15 +62,84 @@ export class HuggingFaceClient {
         url.searchParams.set('offset', offset.toString());
         url.searchParams.set('length', Math.min(limit, 100).toString()); // API max is 100
 
-        const response = await fetch(url.toString(), {
-            headers: this.getHeaders(),
-        });
+        const headers = this.getHeaders();
+        let lastError: Error | null = null;
 
-        if (!response.ok) {
-            throw new Error(`HuggingFace API error: ${response.status} ${response.statusText}`);
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const abortController = new AbortController();
+            const timeoutId = setTimeout(() => abortController.abort(), timeout);
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers,
+                    signal: abortController.signal,
+                });
+
+                if (response.ok) {
+                    // Success - parse JSON inside try block so parsing errors are retried
+                    const data = await response.json();
+                    // Clear timeout after successful parsing
+                    clearTimeout(timeoutId);
+                    return data;
+                }
+
+                // Clear timeout on non-OK response before retry logic
+                clearTimeout(timeoutId);
+
+                // Check if we should retry based on status code
+                const status = response.status;
+                const isRetriable =
+                    status >= 500 || // 5xx server errors
+                    (retryOn429 && status === 429) || // Rate limiting (optional)
+                    status === 408; // Request timeout
+
+                if (!isRetriable) {
+                    // Non-retriable client error (4xx except 429/408) - throw immediately
+                    throw new Error(`HuggingFace API error: ${status} ${response.statusText}`);
+                }
+
+                // Retriable error - will retry below
+                lastError = new Error(`HuggingFace API error: ${status} ${response.statusText}`);
+            } catch (error) {
+                clearTimeout(timeoutId);
+
+                // Check if it's an abort (timeout) or network error
+                if (error instanceof Error) {
+                    if (error.name === 'AbortError') {
+                        // Timeout - retry
+                        lastError = new Error(`HuggingFace API request timed out after ${timeout}ms`);
+                    } else if (error.message.startsWith('HuggingFace API error:')) {
+                        // This is a non-retriable error we threw ourselves - re-throw immediately
+                        throw error;
+                    } else {
+                        // Assume it's a network error (TypeError, NetworkError, etc.) - retry
+                        lastError = error;
+                    }
+                } else {
+                    // Unknown error type - treat as retriable
+                    lastError = new Error(String(error));
+                }
+
+                // If this was the last attempt, throw the error
+                if (attempt === maxAttempts) {
+                    throw lastError;
+                }
+            }
+
+            // Calculate exponential backoff with jitter
+            // Base delay: 2^attempt milliseconds, with random jitter up to 50%
+            const baseDelay = Math.pow(2, attempt) * 100;
+            const jitter = Math.random() * baseDelay * 0.5;
+            const delay = baseDelay + jitter;
+
+            // Wait before retrying (except on last attempt)
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
 
-        return response.json();
+        // This should never be reached, but TypeScript needs it
+        throw lastError || new Error(`HuggingFace API request failed after ${maxAttempts} attempts`);
     }
 
     async getDatasetInfo(datasetId: string): Promise<{ num_rows: number }> {
@@ -144,8 +217,10 @@ export class TrainingDataPipeline {
 
                 currentOffset += batchSize;
             } catch (error) {
-                console.error(`Error fetching from ${datasetId}:`, error);
-                break;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`[ERROR] Failed to fetch batch from ${datasetId} at offset ${currentOffset}:`, errorMessage);
+                // Re-throw to prevent silent failure - caller should handle this
+                throw new Error(`Failed to load resumes from ${datasetId} at offset ${currentOffset}: ${errorMessage}`, { cause: error });
             }
         }
 
@@ -206,8 +281,10 @@ export class TrainingDataPipeline {
 
                 currentOffset += batchSize;
             } catch (error) {
-                console.error(`Error fetching from ${datasetId}:`, error);
-                break;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`[ERROR] Failed to fetch batch from ${datasetId} at offset ${currentOffset}:`, errorMessage);
+                // Re-throw to prevent silent failure - caller should handle this
+                throw new Error(`Failed to load job descriptions from ${datasetId} at offset ${currentOffset}: ${errorMessage}`, { cause: error });
             }
         }
 
@@ -258,8 +335,10 @@ export class TrainingDataPipeline {
 
                 currentOffset += batchSize;
             } catch (error) {
-                console.error(`Error fetching from ${datasetId}:`, error);
-                break;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`[ERROR] Failed to fetch batch from ${datasetId} at offset ${currentOffset}:`, errorMessage);
+                // Re-throw to prevent silent failure - caller should handle this
+                throw new Error(`Failed to load job descriptions from ${datasetId} at offset ${currentOffset}: ${errorMessage}`, { cause: error });
             }
         }
 
@@ -407,11 +486,14 @@ function findMatchingJobDescriptions(
 // Export singleton for convenience
 // ============================================================================
 
-let defaultPipeline: TrainingDataPipeline | null = null;
+let defaultPipeline: TrainingDataPipeline | undefined;
+let defaultPipelineToken: string | undefined;
 
 export function getTrainingPipeline(apiToken?: string): TrainingDataPipeline {
-    if (!defaultPipeline) {
+    // Recreate if token changes (including from defined to undefined)
+    if (!defaultPipeline || apiToken !== defaultPipelineToken) {
         defaultPipeline = new TrainingDataPipeline(apiToken);
+        defaultPipelineToken = apiToken;
     }
     return defaultPipeline;
 }

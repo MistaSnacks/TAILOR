@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.1",
+    "@databases/split-sql-query": "^1.0.4",
     "@google/generative-ai": "^0.21.0",
     "@react-pdf/renderer": "^4.3.1",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -36,10 +37,10 @@
     "pg": "^8.16.3",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "stripe": "^20.1.0",
     "swr": "^2.3.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "tesseract.js": "^5.1.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {

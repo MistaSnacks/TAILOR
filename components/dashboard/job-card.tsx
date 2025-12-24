@@ -41,7 +41,12 @@ export function JobCard({
 
         // Store the full job description in sessionStorage to avoid URL length limits
         if (job.description) {
-            sessionStorage.setItem('pendingJobDescription', job.description);
+            try {
+                sessionStorage.setItem('pendingJobDescription', job.description);
+            } catch (error) {
+                console.error('Failed to store job description:', error);
+                // Continue navigation anyway - the generate page should handle missing description
+            }
         }
 
         // Navigate to generation page
@@ -92,7 +97,7 @@ export function JobCard({
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
                         <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {job.isRemote ? 'Remote' : job.location?.split(',')[0]}
+                            {job.isRemote ? 'Remote' : (job.location?.split(',')[0] || 'Location N/A')}
                         </span>
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />

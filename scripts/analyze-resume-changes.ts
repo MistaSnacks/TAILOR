@@ -50,7 +50,15 @@ async function analyzeChanges() {
             query = query.eq('job_id', jobId);
         }
 
-        const { data: resumes } = await query;
+        const { data: resumes, error } = await query;
+
+        if (error) {
+            console.error('❌ Supabase query failed');
+            console.error('Error:', error.message);
+            console.error('Details:', error);
+            console.error('Context: Querying resume_versions for userId:', userId, jobId ? `jobId: ${jobId}` : '');
+            throw error;
+        }
 
         if (!resumes || resumes.length === 0) {
             console.log('❌ No resumes found');

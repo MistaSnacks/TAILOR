@@ -182,7 +182,7 @@ OTHER RULES:
         return parsedData;
     } catch (error) {
         console.error('❌ Error parsing resume with Gemini:', error);
-        throw new Error('Failed to parse resume');
+        throw new Error('Failed to parse resume', { cause: error });
     }
 }
 

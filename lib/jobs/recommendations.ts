@@ -138,34 +138,34 @@ export async function populateFreshJobs(
             return { count: 0, error: 'No jobs found matching your profile' };
         }
 
-        // Clear existing recommended jobs for user
-        const { error: deleteError } = await supabaseAdmin
-            .from('recommended_jobs')
-            .delete()
-            .eq('user_id', userId);
-
-        if (deleteError) {
-            console.error('❌ Failed to clear old recommended jobs:', deleteError);
-            // Continue anyway - insert might still work
-        }
-
-        // Insert new recommended jobs
+        // Atomically replace recommended jobs using database function
+        // This prevents race conditions by doing delete + insert in a single transaction
         const jobRecords = finalJobs.map((job) => ({
-            user_id: userId,
             job_data: job,
         }));
 
-        const { error: insertError } = await supabaseAdmin
-            .from('recommended_jobs')
-            .insert(jobRecords);
+        const { data: result, error: rpcError } = await supabaseAdmin.rpc(
+            'replace_recommended_jobs_atomic',
+            {
+                p_user_id: userId,
+                p_job_records: jobRecords,
+            }
+        );
 
-        if (insertError) {
-            console.error('❌ Failed to insert recommended jobs:', insertError);
+        if (rpcError) {
+            console.error('❌ Failed to replace recommended jobs:', rpcError);
             return { count: 0, error: 'Failed to save recommended jobs' };
         }
 
-        console.log(`✅ Populated ${finalJobs.length} recommended jobs for user`);
-        return { count: finalJobs.length };
+        // Check result from database function
+        if (!result || !result.success) {
+            const errorMessage = result?.error || 'Failed to save recommended jobs';
+            console.error('❌ Atomic replace failed:', errorMessage);
+            return { count: 0, error: errorMessage };
+        }
+
+        console.log(`✅ Populated ${result.count} recommended jobs for user`);
+        return { count: result.count };
     } catch (error: any) {
         console.error('❌ Error populating fresh jobs:', error);
         return { count: 0, error: error.message || 'Unknown error' };

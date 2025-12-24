@@ -4,7 +4,7 @@ description: Generate comprehensive validation command for this codebase
 
 # Generate Ultimate Validation Command
 
-Analyze this codebase deeply and create /commands/validate.md` that comprehensively validates everything.
+Analyze this codebase deeply and create `.claude/commands/validate.md` that comprehensively validates everything.
 
 ## Step 0: Discover Real User Workflows
 
@@ -111,6 +111,6 @@ If /validate passes, the user should have 100% confidence their application work
 
 ## Output
 
-Write the generated validation command to /commands/validate.md`
+Write the generated validation command to `.claude/commands/validate.md`
 
 The command should be executable, practical, and give complete confidence in the codebase.

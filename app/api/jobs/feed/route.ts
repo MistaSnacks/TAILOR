@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
+import { checkPremiumAccess } from '@/lib/access-control';
 import {
   getPersonalizedFeed,
   getUserJobPreferences,
@@ -16,6 +17,21 @@ export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth();
     console.log('🔐 Jobs Feed API - User authenticated:', userId ? '✅' : '❌');
+
+    // 🔒 Check premium access (paywall enforcement)
+    const accessResult = await checkPremiumAccess(userId);
+    if (!accessResult.allowed) {
+      console.log('🚫 Jobs access blocked - free user:', userId);
+      return NextResponse.json(
+        {
+          error: accessResult.reason,
+          upgrade: true,
+          feature: 'jobs',
+        },
+        { status: 403 }
+      );
+    }
+    console.log('✅ Jobs access granted:', accessResult.reason);
 
     // Get limit from query params
     const { searchParams } = new URL(request.url);

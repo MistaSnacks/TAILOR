@@ -105,7 +105,7 @@ export interface Experiment {
     name: string;
     description?: string;
     hypothesis?: string;
-    variants: Variant[];
+    variants: Variant[]; // Must have at least one variant (enforced at creation)
     metrics: MetricDefinition[];
     status: ExperimentStatus;
     startDate?: string;
@@ -183,6 +183,11 @@ export class ABTestingManager {
         const persisted = loadPersistedData();
         if (persisted) {
             for (const exp of persisted.experiments) {
+                // Validate loaded experiments have at least one variant
+                if (!exp.variants || exp.variants.length === 0) {
+                    console.warn(`Skipping invalid experiment ${exp.id}: has no variants`);
+                    continue;
+                }
                 this.experiments.set(exp.id, exp);
             }
             for (const [userId, expAssignments] of Object.entries(persisted.assignments)) {
@@ -220,6 +225,11 @@ export class ABTestingManager {
     // --------------------------------
 
     createExperiment(experiment: Omit<Experiment, 'createdAt' | 'updatedAt'>): Experiment {
+        // Validate that at least one variant is provided
+        if (!experiment.variants || experiment.variants.length === 0) {
+            throw new Error(`Experiment must have at least one variant, got ${experiment.variants?.length ?? 0} variants`);
+        }
+
         const now = new Date().toISOString();
         const fullExperiment: Experiment = {
             ...experiment,
@@ -306,6 +316,11 @@ export class ABTestingManager {
     }
 
     private assignVariant(userId: string, experiment: Experiment): Variant {
+        // Defensive check: variants should never be empty due to validation in createExperiment
+        if (!experiment.variants || experiment.variants.length === 0) {
+            throw new Error(`Experiment ${experiment.id} has no variants. This should never happen - experiments must have at least one variant.`);
+        }
+
         // Create deterministic hash from userId + experimentId
         const hash = createHash('sha256')
             .update(`${userId}:${experiment.id}`)
@@ -323,7 +338,7 @@ export class ABTestingManager {
             }
         }
 
-        // Fallback to last variant (shouldn't happen if weights sum to 1)
+        // Fallback to last variant (shouldn't happen if weights sum to 1, but safe due to check above)
         return experiment.variants[experiment.variants.length - 1];
     }
 
@@ -340,9 +355,9 @@ export class ABTestingManager {
     // --------------------------------
 
     /**
-     * Record a metric value for an experiment
+     * Add a metric to the array without persisting (internal use)
      */
-    recordMetric(event: Omit<MetricEvent, 'createdAt'>): void {
+    private addMetric(event: Omit<MetricEvent, 'createdAt'>): void {
         this.metrics.push({
             ...event,
             createdAt: new Date().toISOString(),
@@ -350,7 +365,16 @@ export class ABTestingManager {
     }
 
     /**
+     * Record a metric value for an experiment
+     */
+    recordMetric(event: Omit<MetricEvent, 'createdAt'>): void {
+        this.addMetric(event);
+        this.persistMetrics();
+    }
+
+    /**
      * Record multiple metrics at once (convenience method)
+     * Batches persistence for efficiency
      */
     recordMetrics(
         experimentId: string,
@@ -359,7 +383,7 @@ export class ABTestingManager {
         context?: { userId?: string; resumeVersionId?: string; metadata?: Record<string, unknown> }
     ): void {
         for (const [name, value] of Object.entries(metrics)) {
-            this.recordMetric({
+            this.addMetric({
                 experimentId,
                 variantId,
                 metricName: name,
@@ -369,6 +393,7 @@ export class ABTestingManager {
                 metadata: context?.metadata,
             });
         }
+        // Persist once after batching all metrics
         this.persistMetrics();
     }
 
@@ -430,8 +455,8 @@ export class ABTestingManager {
                 metricStats[name] = {
                     mean: mean(values),
                     stdDev: stdDev(values),
-                    min: Math.min(...values),
-                    max: Math.max(...values),
+                    min: values.length > 0 ? Math.min(...values) : 0,
+                    max: values.length > 0 ? Math.max(...values) : 0,
                     count: values.length,
                 };
             }
@@ -484,6 +509,12 @@ export class ABTestingManager {
 
         const bestMean = best.metrics[primaryMetric].mean;
         const controlMean = control.metrics[primaryMetric].mean;
+        
+        // Avoid division by zero
+        if (controlMean === 0) {
+            return undefined;
+        }
+        
         const lift = ((bestMean - controlMean) / controlMean) * 100;
 
         // Simple confidence calculation (would use proper t-test in production)

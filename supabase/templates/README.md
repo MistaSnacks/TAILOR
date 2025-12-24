@@ -89,3 +89,5 @@ After applying templates:
 - Keep emails under 102KB to avoid Gmail clipping
 - Test across email clients (Gmail, Outlook, Apple Mail)
 
+
+

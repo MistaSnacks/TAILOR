@@ -57,13 +57,16 @@ CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_referee_id ON referrals(referee_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
 
--- Triggers for updated_at
+-- Triggers for updated_at (idempotent: drop if exists before creating)
+DROP TRIGGER IF EXISTS update_user_subscriptions_updated_at ON user_subscriptions;
 CREATE TRIGGER update_user_subscriptions_updated_at BEFORE UPDATE ON user_subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_referrals_updated_at ON referrals;
 CREATE TRIGGER update_referrals_updated_at BEFORE UPDATE ON referrals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

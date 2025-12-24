@@ -46,7 +46,36 @@ CREATE TABLE IF NOT EXISTS experience_bullets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_experience_bullets_experience_id ON experience_bullets(experience_id);
-CREATE INDEX IF NOT EXISTS idx_experience_bullets_embedding ON experience_bullets USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- IVFFlat index for vector similarity search
+-- IMPORTANT: IVFFlat indexes require sufficient data for proper centroid initialization.
+-- This index is conditionally created only if the table has >= 100000 non-null embeddings.
+-- If skipped, run VACUUM ANALYZE experience_bullets after data load, then create the index manually
+-- or in a follow-up migration. For empty tables, creating IVFFlat indexes produces poor clustering.
+-- Tuning notes:
+--   - lists parameter: recommended value is rows/1000 for datasets < 1M vectors
+--   - Lists is computed dynamically as GREATEST(1, CEIL(embedding_count / 1000.0))
+--   - For datasets > 1M vectors, consider switching to HNSW index type
+--   - To retune after data growth: DROP INDEX and recreate with adjusted lists value
+--   - HNSW alternative: USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)
+DO $$
+DECLARE
+    embedding_count INTEGER;
+    computed_lists INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO embedding_count
+    FROM experience_bullets
+    WHERE embedding IS NOT NULL;
+    
+    IF embedding_count >= 100000 THEN
+        -- Compute lists dynamically: rows/1000, minimum 1
+        computed_lists := GREATEST(1, CEIL(embedding_count / 1000.0));
+        CREATE INDEX IF NOT EXISTS idx_experience_bullets_embedding 
+        ON experience_bullets USING ivfflat (embedding vector_cosine_ops) WITH (lists = computed_lists);
+        RAISE NOTICE 'Created IVFFlat index for experience_bullets with % lists (computed from % embeddings)', computed_lists, embedding_count;
+    ELSE
+        RAISE NOTICE 'Skipping IVFFlat index creation for experience_bullets: table has % non-null embeddings (minimum 100000 required). To create the index later: run VACUUM ANALYZE experience_bullets, then CREATE INDEX idx_experience_bullets_embedding ON experience_bullets USING ivfflat (embedding vector_cosine_ops) WITH (lists = GREATEST(1, CEIL((SELECT COUNT(*) FROM experience_bullets WHERE embedding IS NOT NULL) / 1000.0)));', embedding_count;
+    END IF;
+END $$;
 
 -- Bullet Sources
 CREATE TABLE IF NOT EXISTS experience_bullet_sources (
@@ -57,6 +86,7 @@ CREATE TABLE IF NOT EXISTS experience_bullet_sources (
 );
 
 CREATE INDEX IF NOT EXISTS idx_experience_bullet_sources_bullet_id ON experience_bullet_sources(bullet_id);
+CREATE INDEX IF NOT EXISTS idx_experience_bullet_sources_document_id ON experience_bullet_sources(document_id);
 
 -- ============================================================
 -- Skills
@@ -73,7 +103,15 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 
 CREATE INDEX IF NOT EXISTS idx_skills_user_id ON skills(user_id);
-CREATE INDEX IF NOT EXISTS idx_skills_embedding ON skills USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- IVFFlat index for vector similarity search
+-- IMPORTANT: IVFFlat indexes require sufficient data for proper centroid initialization.
+-- This index creation is deferred - it should be created after the skills table has been populated.
+-- Create it manually or in a follow-up migration after bulk inserts, ensuring the table contains
+-- data before running CREATE INDEX USING ivfflat. Optionally run ANALYZE on the table beforehand.
+-- For empty tables, creating IVFFlat indexes produces poor clustering.
+-- See experience_bullets index above for tuning guidance and conditional creation pattern.
+-- To create after data load:
+--   CREATE INDEX idx_skills_embedding ON skills USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Skill Aliases (e.g. "React.js" -> "React")
 CREATE TABLE IF NOT EXISTS skill_aliases (

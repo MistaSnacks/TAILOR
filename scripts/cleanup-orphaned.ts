@@ -66,12 +66,25 @@ async function cleanupOrphaned(userId: string | null = null) {
         console.log(`📊 Found ${allExperiences.length} total experience(s)\n`);
 
         // Get all experience sources
-        const { data: allSources } = await supabaseAdmin
+        const { data: allSources, error: sourcesError } = await supabaseAdmin
             .from('experience_sources')
             .select('experience_id');
 
+        if (sourcesError) {
+            console.error('❌ Error fetching experience sources:', sourcesError);
+            console.error('Context: Failed to fetch experience_sources table');
+            console.error('This would cause all experiences to be incorrectly marked as orphaned');
+            process.exit(1);
+        }
+
+        if (!allSources) {
+            console.error('❌ Unexpected: experience sources query returned null/undefined data');
+            console.error('Aborting to prevent incorrect orphan detection');
+            process.exit(1);
+        }
+
         const sourceExperienceIds = new Set(
-            (allSources || []).map((s: any) => s.experience_id)
+            allSources.map((s: any) => s.experience_id)
         );
 
         // Find experiences with no sources
@@ -124,12 +137,25 @@ async function cleanupOrphaned(userId: string | null = null) {
         }
 
         // Get all bullet sources
-        const { data: allBulletSources } = await supabaseAdmin
+        const { data: allBulletSources, error: bulletSourcesError } = await supabaseAdmin
             .from('experience_bullet_sources')
             .select('bullet_id');
 
+        if (bulletSourcesError) {
+            console.error('❌ Error fetching bullet sources:', bulletSourcesError);
+            console.error('Context: Failed to fetch experience_bullet_sources table');
+            console.error('This would cause all bullets to be incorrectly marked as orphaned');
+            process.exit(1);
+        }
+
+        if (!allBulletSources) {
+            console.error('❌ Unexpected: bullet sources query returned null/undefined data');
+            console.error('Aborting to prevent incorrect orphan detection');
+            process.exit(1);
+        }
+
         const sourceBulletIds = new Set(
-            (allBulletSources || []).map((s: any) => s.bullet_id)
+            allBulletSources.map((s: any) => s.bullet_id)
         );
 
         // Find bullets with no sources
@@ -140,7 +166,7 @@ async function cleanupOrphaned(userId: string | null = null) {
         if (orphanedBullets.length > 0) {
             console.log(`⚠️  Found ${orphanedBullets.length} orphaned bullet(s):\n`);
             orphanedBullets.slice(0, 5).forEach((bullet: any) => {
-                console.log(`   - "${bullet.content.substring(0, 60)}..." (ID: ${bullet.id})`);
+                console.log(`   - "${(bullet.content || '').substring(0, 60)}..." (ID: ${bullet.id})`);
             });
             if (orphanedBullets.length > 5) {
                 console.log(`   ... and ${orphanedBullets.length - 5} more`);

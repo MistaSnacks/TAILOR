@@ -1,20 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-export default function Error({
+export default function DashboardError({
     error,
     reset,
 }: {
     error: Error & { digest?: string };
     reset: () => void;
 }) {
-    useEffect(() => {
-        // Log the error to an error reporting service
-        console.error(error);
-    }, [error]);
-
     return (
         <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 text-center">
             <div className="glass-card p-8 rounded-2xl border border-white/10 max-w-md w-full flex flex-col items-center">
@@ -29,7 +23,6 @@ export default function Error({
                     <button
                         type="button"
                         onClick={() => {
-                            console.log('(NO $) [DashboardError] Nav button clicked -> Home');
                             window.location.href = '/';
                         }}
                         className="px-4 py-2 text-sm font-medium rounded-lg border border-border/60 bg-transparent text-foreground hover:bg-foreground/5 transition-colors"
@@ -39,7 +32,6 @@ export default function Error({
                     <button
                         type="button"
                         onClick={() => {
-                            console.log('(NO $) [DashboardError] Retry clicked');
                             reset();
                         }}
                         className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"

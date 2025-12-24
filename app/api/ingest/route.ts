@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message, stack: error.stack },
+      { error: 'Internal server error', message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred' },
       { status: 500 }
     );
   }
@@ -102,10 +102,7 @@ async function ingestSingleDocument(userId: string, documentId: string) {
     return NextResponse.json(
       { 
         error: 'Failed to ingest document', 
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack,
+        message: process.env.NODE_ENV === 'development' ? error.message : 'Ingestion failed',
       },
       { status: 500 }
     );

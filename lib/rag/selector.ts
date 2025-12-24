@@ -28,6 +28,10 @@ export type SelectionOptions = {
 const SEMANTIC_ALIGNMENT_FLOOR = 0.30;
 const KEYWORD_ALIGNMENT_FLOOR = 0.2;
 
+// Minimum bullets per experience for thin profiles (6-4-2 tiered by recency)
+const MIN_BULLETS_TIERED = [6, 4, 2]; // 1st, 2nd, 3rd+ experiences
+
+
 export type ScoreSignals = {
   bulletScore: number;
   keywordScore: number;
@@ -247,6 +251,33 @@ export function selectTargetAwareProfile(
   if (selected.length === 0 && sorted.length > 0) {
     selected = sorted.slice(0, Math.min(maxExperiences, sorted.length));
   }
+
+  // Thin profile backfill: ensure each experience meets its bulletBudget
+  // This handles cases where users have limited docs or mismatched JDs
+  selected = selected.map(entry => {
+    const currentCount = entry.selectedBullets.length;
+    const budget = entry.bulletBudget;
+
+    // Already at budget or no more candidates available
+    if (currentCount >= budget || entry.bulletCandidates.length <= currentCount) {
+      return entry;
+    }
+
+    // Backfill from remaining candidates to meet budget
+    const selectedIds = new Set(entry.selectedBullets.map(b => b.id));
+    const backfill = entry.bulletCandidates
+      .filter(b => !selectedIds.has(b.id))
+      .slice(0, budget - currentCount);
+
+    if (backfill.length > 0) {
+      console.log(`📉 Thin profile backfill: ${entry.experience.company} +${backfill.length} bullets (${currentCount} → ${currentCount + backfill.length}/${budget})`);
+    }
+
+    return {
+      ...entry,
+      selectedBullets: [...entry.selectedBullets, ...backfill],
+    };
+  });
 
   const prioritizedSkills = prioritizeSkills(profile.skills || [], job.requiredSkills);
 
@@ -514,7 +545,9 @@ function determineBulletBudget(
     }
   }
 
-  return baseBudget;
+  // Enforce tiered minimum floor for thin profiles (6-4-2 pattern)
+  const minFloor = MIN_BULLETS_TIERED[Math.min(orderIndex, MIN_BULLETS_TIERED.length - 1)];
+  return Math.max(baseBudget, minFloor);
 }
 
 /**

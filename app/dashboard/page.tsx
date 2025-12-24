@@ -23,6 +23,15 @@ type DashboardStats = {
   experienceCount: number;
   skillsCount: number;
   averageAtsScore: number | null;
+  generationUsage?: {
+    monthlyUsed: number;
+    monthlyLimit: number | null;
+    remaining: number | null;
+    hasUnlimited: boolean;
+    bonusGenerations: number;
+    isLegacy: boolean;
+    isPaid: boolean;
+  };
 };
 
 export default function DashboardPage() {
@@ -224,6 +233,49 @@ export default function DashboardPage() {
             </div>
           </motion.div>
         </div>
+
+        {/* Generation Usage Banner - Only show for free users */}
+        {stats?.generationUsage && !stats.generationUsage.hasUnlimited && (
+          <motion.div
+            variants={item}
+            className={`glass-card p-4 md:p-6 rounded-xl md:rounded-2xl border ${(stats.generationUsage.remaining ?? 0) > 0
+                ? 'border-border/50'
+                : 'border-amber-500/50 bg-amber-500/5'
+              } relative overflow-hidden`}
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${(stats.generationUsage.remaining ?? 0) > 0
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-amber-500/10 text-amber-500'
+                  }`}>
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base md:text-lg text-foreground">
+                    {(stats.generationUsage.remaining ?? 0) > 0
+                      ? `${stats.generationUsage.remaining} Generation${stats.generationUsage.remaining === 1 ? '' : 's'} Remaining`
+                      : 'No Generations Remaining'}
+                  </h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {stats.generationUsage.monthlyUsed} of {stats.generationUsage.monthlyLimit} used this month
+                    {stats.generationUsage.bonusGenerations > 0 && (
+                      <span className="text-primary ml-1">
+                        (+{stats.generationUsage.bonusGenerations} bonus)
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
+              >
+                Upgrade for Unlimited <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </motion.div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Recent Activity */}

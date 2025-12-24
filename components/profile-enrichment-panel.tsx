@@ -11,6 +11,39 @@ type ProfileEnrichmentPanelProps = {
 };
 
 /**
+ * Generate a simple hash from a string (deterministic, not cryptographically secure)
+ */
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0; // Convert to 32-bit integer
+  }
+  // Convert to positive hex string
+  return Math.abs(hash).toString(16);
+}
+
+/**
+ * Generate a stable unique ID for a candidate.
+ * Uses candidate.id if available, otherwise creates a composite key from invariant properties.
+ */
+function getCandidateId(candidate: EnrichmentCandidate): string {
+  if (candidate.id) {
+    return candidate.id;
+  }
+  // Generate stable composite key from invariant properties only
+  // Use resumeId if available, otherwise fall back to text hash
+  const textHash = simpleHash(candidate.text);
+  if (candidate.resumeId) {
+    return `${candidate.resumeId}:${textHash}`;
+  }
+  // Fallback: use text hash plus createdAt for uniqueness if resumeId is missing
+  const timestampHash = candidate.createdAt ? simpleHash(candidate.createdAt) : '0';
+  return `${textHash}:${timestampHash}`;
+}
+
+/**
  * Panel for reviewing and promoting bullets from generated resumes
  * back into the canonical profile.
  * 
@@ -38,7 +71,8 @@ export function ProfileEnrichmentPanel({
     loadCandidates();
   }, [loadCandidates]);
 
-  const handlePromote = async (candidate: EnrichmentCandidate) => {
+  const handlePromote = async (candidate: EnrichmentCandidate, index: number) => {
+    const candidateId = getCandidateId(candidate);
     const success = await promoteBullet(canonicalExperienceId, {
       text: candidate.text,
       sourceIds: candidate.sourceIds,
@@ -46,7 +80,7 @@ export function ProfileEnrichmentPanel({
     });
 
     if (success) {
-      setPromotedIds((prev) => new Set(prev).add(candidate.text));
+      setPromotedIds((prev) => new Set(prev).add(candidateId));
       onBulletPromoted?.();
     }
   };
@@ -93,11 +127,12 @@ export function ProfileEnrichmentPanel({
 
       <div className="space-y-3">
         {candidates.map((candidate, index) => {
-          const isPromoted = promotedIds.has(candidate.text);
+          const candidateId = getCandidateId(candidate);
+          const isPromoted = promotedIds.has(candidateId);
 
           return (
             <div
-              key={index}
+              key={candidateId}
               className={`p-3 border rounded-lg ${
                 isPromoted
                   ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
@@ -125,7 +160,7 @@ export function ProfileEnrichmentPanel({
                 </div>
 
                 <button
-                  onClick={() => handlePromote(candidate)}
+                  onClick={() => handlePromote(candidate, index)}
                   disabled={loading || isPromoted}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     isPromoted

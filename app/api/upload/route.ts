@@ -4,14 +4,29 @@ import { parseDocument } from '@/lib/parse';
 import type { DocumentAnalysis } from '@/lib/document-analysis';
 import { requireAuth } from '@/lib/auth-utils';
 import { ingestDocument } from '@/lib/rag/ingest';
+import { checkDocumentUploadAccess } from '@/lib/access-control';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
 export async function POST(request: NextRequest) {
-
   try {
+    console.log('🔐 API Route:', request.url);
+    console.log('🔑 Using:', {
+      supabase: !!supabaseAdmin,
+      gemini: false,
+    });
+
     // Get authenticated user
     const userId = await requireAuth();
+
+    // 🔒 Check document upload limit (30 documents max)
+    const uploadAccess = await checkDocumentUploadAccess(userId);
+    if (!uploadAccess.allowed) {
+      return NextResponse.json(
+        { error: uploadAccess.reason, current: uploadAccess.current, limit: uploadAccess.limit },
+        { status: 403 }
+      );
+    }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -23,13 +38,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Supabase Storage
     const fileName = `${userId}/${Date.now()}-${file.name}`;
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+    const { error: uploadError } = await supabaseAdmin.storage
       .from('resumes')
       .upload(fileName, buffer, {
         contentType: file.type,
@@ -70,21 +86,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse document in background
+    // Parse document (includes automatic OCR fallback for scanned PDFs)
     let lastAnalysis: DocumentAnalysis | undefined = undefined;
 
     try {
-      const parsed = await parseDocument(buffer, file.type);
+      const parsed = await parseDocument(buffer, file.type, file.name);
       lastAnalysis = parsed.analysis;
 
+      // Log OCR usage
+      if (parsed.metadata.wasOcr) {
+        console.log(`📸 [Upload] OCR was used for ${file.name}:`, {
+          confidence: parsed.metadata.ocrConfidence,
+          extractedWords: parsed.metadata.rawWordCount,
+        });
+      }
+
       if (!parsed.text.trim()) {
+        const isPlaceholderTemplate =
+          parsed.analysis.type === 'template' || parsed.analysis.placeholder.flagged;
+
+        const errorCode = isPlaceholderTemplate ? 'PLACEHOLDER_ONLY' : 'NO_EXTRACTABLE_TEXT';
+        const errorMessage = isPlaceholderTemplate
+          ? 'Document appears to be a placeholder template. Please upload a completed resume.'
+          : 'We could not extract any text from this file, even after attempting OCR. The document may be corrupted, have very low image quality, or be in an unsupported format.';
+
         await supabaseAdmin
           .from('documents')
           .update({
             parse_status: 'failed',
-            document_type: 'template',
-            has_placeholder_content: true,
+            document_type: isPlaceholderTemplate ? 'template' : parsed.analysis.type,
+            has_placeholder_content: parsed.analysis.placeholder.flagged,
             placeholder_summary: parsed.analysis.placeholder,
+            parse_error: {
+              code: errorCode,
+              message: errorMessage,
+            },
             parsed_content: {
               sanitizedText: '',
               metadata: parsed.metadata,
@@ -95,8 +131,8 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(
           {
-            error: 'Document appears to be a placeholder template. Please upload a completed resume.',
-            code: 'PLACEHOLDER_ONLY',
+            error: errorMessage,
+            code: errorCode,
           },
           { status: 422 }
         );
@@ -118,6 +154,7 @@ export async function POST(request: NextRequest) {
           document_type: parsed.analysis.type,
           has_placeholder_content: parsed.analysis.placeholder.flagged,
           placeholder_summary: parsed.analysis.placeholder,
+          parse_error: null,
         })
         .eq('id', document.id);
 
@@ -135,10 +172,25 @@ export async function POST(request: NextRequest) {
       }
     } catch (parseError) {
       if (isDev) console.error('❌ Parse error:', parseError);
+
+      const parseErrorMessage =
+        parseError instanceof Error ? parseError.message : String(parseError);
+
       await supabaseAdmin
         .from('documents')
-        .update({ parse_status: 'failed' })
+        .update({
+          parse_status: 'failed',
+          parse_error: {
+            code: 'PARSE_FAILED',
+            message: parseErrorMessage,
+          },
+        })
         .eq('id', document.id);
+
+      return NextResponse.json(
+        { error: 'Failed to process document', code: 'PARSE_FAILED' },
+        { status: 422 }
+      );
     }
 
     return NextResponse.json({
@@ -238,7 +290,7 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
           .from('experiences')
           .delete()
           .eq('id', expId);
-        
+
         if (!error) {
           deletedExperiences++;
         }
@@ -270,7 +322,7 @@ async function removeDocumentParsedData(documentId: string, userId: string) {
           .from('experience_bullets')
           .delete()
           .eq('id', bulletId);
-        
+
         if (!error) {
           deletedBullets++;
         }
@@ -329,7 +381,7 @@ async function cleanupOrphanedExperiences(userId: string) {
   }
 
   const remainingExpIds = remainingExperiences.map((e: any) => e.id);
-  
+
   const { data: allBullets } = await supabaseAdmin
     .from('experience_bullets')
     .select('id')

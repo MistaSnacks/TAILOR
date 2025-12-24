@@ -40,7 +40,7 @@ export function AccountDropdown() {
     if (!user) return null;
 
     // Get user initials for avatar
-    const initials = user.name
+    const initials = user.name && user.name.trim().length > 0
         ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
         : user.email?.charAt(0).toUpperCase() || 'U';
 

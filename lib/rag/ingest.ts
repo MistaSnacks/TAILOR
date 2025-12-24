@@ -102,7 +102,7 @@ export async function ingestDocument(documentId: string, text: string, userId: s
     const totalBulletsFromParsing = parsedData.experiences.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0);
     console.log(`✅ Parsed ${parsedData.experiences.length} experiences, ${parsedData.skills.length} skills, ${parsedData.education?.length || 0} education, ${parsedData.certifications?.length || 0} certifications`);
     console.log(`📋 [ingestDocument] Total bullets extracted from parsing: ${totalBulletsFromParsing}`);
-    
+
     // Store for later logging
     const bulletsFromParsing = totalBulletsFromParsing;
 
@@ -128,7 +128,7 @@ export async function ingestDocument(documentId: string, text: string, userId: s
         hasContactInfo: !!contactInfo?.name,
         hasSummary: !!summary,
     });
-    
+
     if (totalBulletsAfterSanitization === 0 && sanitizedExperiences.length > 0) {
         console.warn('⚠️ [ingestDocument] WARNING: No bullets found after sanitization!', {
             documentId,

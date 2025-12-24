@@ -766,5 +766,709 @@
     "metricValue": 70,
     "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
     "createdAt": "2025-12-17T15:26:01.975Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 40384,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 78,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 2,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 70,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 75,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:53:05.540Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 41551,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 76,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 2,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 65,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 70,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T04:54:56.488Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 45436,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 76,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 70,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.336Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 75,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:01:36.337Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 51080,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 38,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 2,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 55,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 65,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:05:12.375Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 46817,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 46,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 45,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 65,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:21:45.286Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 46482,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 38,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 35,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 70,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:23:37.795Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 51243,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 41,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 60,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 80,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:27:46.479Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 66440,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 38,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 2,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 55,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 70,
+    "userId": "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9",
+    "createdAt": "2025-12-21T05:34:33.865Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "generationTimeMs",
+    "metricValue": 50391,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "atsScore",
+    "metricValue": 76,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 0,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 0,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "without",
+    "metricName": "semanticFitScore",
+    "metricValue": 0,
+    "userId": "cd78e0f4-6563-4973-a88c-735c1e1d6a0b",
+    "createdAt": "2025-12-21T08:19:19.650Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "generationTimeMs",
+    "metricValue": 56794,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "atsScore",
+    "metricValue": 79,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 0,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 65,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "semanticFitScore",
+    "metricValue": 70,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:52:15.641Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "generationTimeMs",
+    "metricValue": 43232,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "atsScore",
+    "metricValue": 63,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "bulletsRewritten",
+    "metricValue": 0,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "jdKeywordsAdded",
+    "metricValue": 0,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "summaryChanged",
+    "metricValue": 1,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "skillsChanged",
+    "metricValue": 1,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "keywordCoverageScore",
+    "metricValue": 65,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
+  },
+  {
+    "experimentId": "exp-quality-pass-toggle",
+    "variantId": "with",
+    "metricName": "semanticFitScore",
+    "metricValue": 75,
+    "userId": "84395752-14de-45b8-9965-dafe73a01873",
+    "createdAt": "2025-12-24T00:55:30.374Z"
   }
 ]

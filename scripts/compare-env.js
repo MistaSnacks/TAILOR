@@ -17,18 +17,42 @@ try {
     console.log('Supabase URL:', supabaseUrl);
     console.log('Database URL:', dbUrl ? 'Found (hidden)' : 'Missing');
 
-    if (supabaseUrl && dbUrl) {
-        const supabaseHost = new URL(supabaseUrl).hostname;
-        const dbHost = new URL(dbUrl).hostname;
+    // Validate URLs before parsing
+    let supabaseHost = null;
+    let dbHost = null;
 
-        console.log('Supabase Host:', supabaseHost);
-        console.log('Database Host:', dbHost);
+    if (!supabaseUrl) {
+        console.error('❌ Missing NEXT_PUBLIC_SUPABASE_URL');
+        process.exit(1);
+    }
 
-        if (dbHost.includes(supabaseHost) || supabaseHost.includes(dbHost)) {
-            console.log('✅ Hosts appear to match.');
-        } else {
-            console.log('⚠️  Hosts do NOT match!');
-        }
+    if (!dbUrl) {
+        console.error('❌ Missing DATABASE_URL');
+        process.exit(1);
+    }
+
+    try {
+        supabaseHost = new URL(supabaseUrl).hostname;
+    } catch (err) {
+        console.error('❌ Invalid NEXT_PUBLIC_SUPABASE_URL:', err.message);
+        process.exit(1);
+    }
+
+    try {
+        dbHost = new URL(dbUrl).hostname;
+    } catch (err) {
+        console.error('❌ Invalid DATABASE_URL:', err.message);
+        process.exit(1);
+    }
+
+    // Both URLs parsed successfully, proceed with comparison
+    console.log('Supabase Host:', supabaseHost);
+    console.log('Database Host:', dbHost);
+
+    if (dbHost === supabaseHost) {
+        console.log('✅ Hosts appear to match.');
+    } else {
+        console.log('⚠️  Hosts do NOT match!');
     }
 } catch (err) {
     console.error('Error:', err.message);

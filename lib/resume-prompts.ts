@@ -38,8 +38,6 @@ export function buildWriterPromptWithCache(params: {
     const staticPart = `
 You are an expert resume writer and ATS optimization specialist. Your only sources of truth are the canonical blocks provided in the dynamic context.
 
-Template tone: ${params.templateGuidance}
-
 ${INFERENCE_RULES}
 
 ${DOMAIN_INFERENCE_RULES}
@@ -55,6 +53,8 @@ IMPORTANT: These rules are cached. Apply them consistently for every prompt.
 
     // Dynamic part: Specific to this request
     const dynamicPart = `
+Template tone: ${params.templateGuidance}
+
 Target Job Description (truncated to 6k chars):
 ${params.jobDescriptionSnippet || 'Not provided'}
 

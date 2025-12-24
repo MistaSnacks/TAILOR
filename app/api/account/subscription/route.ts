@@ -16,6 +16,28 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // Fetch subscription AND legacy status
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('is_legacy')
+            .eq('id', session.user.id)
+            .single();
+
+        if (userError) {
+            console.error('Error fetching user:', userError);
+            return NextResponse.json(
+                { error: 'Failed to fetch user data', details: userError.message },
+                { status: 500 }
+            );
+        }
+
+        if (!userData) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
+            );
+        }
+
         const { data: subscription, error } = await supabase
             .from('user_subscriptions')
             .select('*')
@@ -38,6 +60,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             subscription: subscription || defaultSubscription,
+            is_legacy: userData?.is_legacy || false,
         });
     } catch (error) {
         console.error('Subscription GET error:', error);
@@ -59,6 +82,10 @@ export async function POST(req: NextRequest) {
 
         if (!tier || !['free', 'standard'].includes(tier)) {
             return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+        }
+
+        if (!billing_period || !['monthly', 'quarterly', 'yearly'].includes(billing_period)) {
+            return NextResponse.json({ error: 'Invalid billing_period' }, { status: 400 });
         }
 
         // For now, just update the tier without payment

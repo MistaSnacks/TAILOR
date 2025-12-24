@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthModal } from '@/components/auth-modal';
 import { Navbar } from '@/components/unauth/navbar';
@@ -13,6 +14,32 @@ import { FAQSection } from '@/components/unauth/faq-section';
 import { Footer } from '@/components/unauth/footer';
 import { Bot, FileSearch, Shield, Zap } from 'lucide-react';
 
+function SearchParamsHandler() {
+  const searchParams = useSearchParams();
+
+  // Capture referral code from URL and store in localStorage for persistence across magic link auth
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    const inviteCode = searchParams.get('invite');
+
+    if (refCode) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🎁 [LANDING] Captured referral code:', refCode);
+      }
+      localStorage.setItem('referral_code', refCode);
+    }
+
+    if (inviteCode) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🎟️ [LANDING] Captured invite code:', inviteCode);
+      }
+      localStorage.setItem('invite_code', inviteCode);
+    }
+  }, [searchParams]);
+
+  return null;
+}
+
 export default function Home() {
   const { user, loading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -21,6 +48,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground relative selection:bg-primary/30 bg-grid-pattern">
+      <Suspense fallback={null}>
+        <SearchParamsHandler />
+      </Suspense>
       <div className="relative z-10">
         <Navbar onOpenAuth={() => setShowAuthModal(true)} />
 

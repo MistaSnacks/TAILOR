@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown, Plus, Download, Linkedin, Globe, Loader2, ExternalLink } from 'lucide-react';
+import { Briefcase, Trash2, GraduationCap, User, Edit2, X, Check, ChevronDown, Plus, Download, Linkedin, Globe, Loader2, ExternalLink, Award, BookOpen, Medal } from 'lucide-react';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -412,6 +412,498 @@ function AddExperienceModal({ isOpen, onClose, onSubmit, isSubmitting }: AddExpe
                 </div>
               </div>
             </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// --- Add Education Modal ---
+
+type AddEducationModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: { institution: string; degree?: string; field_of_study?: string; start_date?: string; end_date?: string; gpa?: string }) => Promise<void>;
+  isSubmitting: boolean;
+};
+
+function AddEducationModal({ isOpen, onClose, onSubmit, isSubmitting }: AddEducationModalProps) {
+  const [formData, setFormData] = useState({
+    institution: '',
+    degree: '',
+    field_of_study: '',
+    start_date: '',
+    end_date: '',
+    gpa: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.institution.trim()) {
+      setError('Institution name is required');
+      return;
+    }
+    setError(null);
+    try {
+      await onSubmit(formData);
+      setFormData({ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', gpa: '' });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add education');
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', gpa: '' });
+    setError(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  Add Education
+                </h2>
+                <button onClick={handleClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">{error}</div>}
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Institution <span className="text-destructive">*</span></label>
+                  <input
+                    type="text"
+                    value={formData.institution}
+                    onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., Stanford University"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Degree</label>
+                    <input
+                      type="text"
+                      value={formData.degree}
+                      onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., Bachelor of Science"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Field of Study</label>
+                    <input
+                      type="text"
+                      value={formData.field_of_study}
+                      onChange={(e) => setFormData({ ...formData, field_of_study: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., Computer Science"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Start Date</label>
+                    <input
+                      type="text"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="2018"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">End Date</label>
+                    <input
+                      type="text"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="2022"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">GPA</label>
+                    <input
+                      type="text"
+                      value={formData.gpa}
+                      onChange={(e) => setFormData({ ...formData, gpa: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="3.8"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !formData.institution.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isSubmitting ? 'Adding...' : 'Add Education'}
+                  </button>
+                  <button type="button" onClick={handleClose} disabled={isSubmitting} className="px-6 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// --- Add Certification Modal ---
+
+type AddCertificationModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: { name: string; issuer?: string; issue_date?: string; expiration_date?: string; credential_id?: string; credential_url?: string }) => Promise<void>;
+  isSubmitting: boolean;
+};
+
+function AddCertificationModal({ isOpen, onClose, onSubmit, isSubmitting }: AddCertificationModalProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    issuer: '',
+    issue_date: '',
+    expiration_date: '',
+    credential_id: '',
+    credential_url: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      setError('Certification name is required');
+      return;
+    }
+    setError(null);
+    try {
+      await onSubmit(formData);
+      setFormData({ name: '', issuer: '', issue_date: '', expiration_date: '', credential_id: '', credential_url: '' });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add certification');
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({ name: '', issuer: '', issue_date: '', expiration_date: '', credential_id: '', credential_url: '' });
+    setError(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary" />
+                  Add Certification
+                </h2>
+                <button onClick={handleClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">{error}</div>}
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Certification Name <span className="text-destructive">*</span></label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., AWS Solutions Architect"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Issuing Organization</label>
+                  <input
+                    type="text"
+                    value={formData.issuer}
+                    onChange={(e) => setFormData({ ...formData, issuer: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., Amazon Web Services"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Issue Date</label>
+                    <input
+                      type="text"
+                      value={formData.issue_date}
+                      onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Jan 2023"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Expiration Date</label>
+                    <input
+                      type="text"
+                      value={formData.expiration_date}
+                      onChange={(e) => setFormData({ ...formData, expiration_date: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Jan 2026"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Credential URL</label>
+                  <input
+                    type="url"
+                    value={formData.credential_url}
+                    onChange={(e) => setFormData({ ...formData, credential_url: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="https://..."
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !formData.name.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isSubmitting ? 'Adding...' : 'Add Certification'}
+                  </button>
+                  <button type="button" onClick={handleClose} disabled={isSubmitting} className="px-6 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// --- Add Military Award Modal ---
+
+type AddMilitaryAwardModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: { name: string; abbreviation?: string; category?: string; description?: string; date_awarded?: string }) => Promise<void>;
+  isSubmitting: boolean;
+};
+
+function AddMilitaryAwardModal({ isOpen, onClose, onSubmit, isSubmitting }: AddMilitaryAwardModalProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    abbreviation: '',
+    category: 'medal' as string,
+    description: '',
+    date_awarded: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      setError('Award name is required');
+      return;
+    }
+    setError(null);
+    try {
+      await onSubmit(formData);
+      setFormData({ name: '', abbreviation: '', category: 'medal', description: '', date_awarded: '' });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add award');
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({ name: '', abbreviation: '', category: 'medal', description: '', date_awarded: '' });
+    setError(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                  <Medal className="w-5 h-5 text-primary" />
+                  Add Military Award
+                </h2>
+                <button onClick={handleClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">{error}</div>}
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Award Name <span className="text-destructive">*</span></label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., Army Commendation Medal"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Abbreviation</label>
+                    <input
+                      type="text"
+                      value={formData.abbreviation}
+                      onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g., ARCOM"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      disabled={isSubmitting}
+                    >
+                      <option value="medal">Medal</option>
+                      <option value="ribbon">Ribbon</option>
+                      <option value="badge">Badge</option>
+                      <option value="citation">Citation</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date Awarded</label>
+                  <input
+                    type="text"
+                    value={formData.date_awarded}
+                    onChange={(e) => setFormData({ ...formData, date_awarded: e.target.value })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., June 2020"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description / Citation</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    placeholder="Citation text or description..."
+                    rows={3}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !formData.name.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isSubmitting ? 'Adding...' : 'Add Award'}
+                  </button>
+                  <button type="button" onClick={handleClose} disabled={isSubmitting} className="px-6 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </motion.div>
         </motion.div>
       )}
@@ -899,6 +1391,35 @@ type Skill = {
   source_count?: number;
 };
 
+type Education = {
+  id: string;
+  institution: string;
+  degree?: string;
+  field_of_study?: string;
+  start_date?: string;
+  end_date?: string;
+  gpa?: string;
+};
+
+type Certification = {
+  id: string;
+  name: string;
+  issuer?: string;
+  issue_date?: string;
+  expiration_date?: string;
+  credential_id?: string;
+  credential_url?: string;
+};
+
+type MilitaryAward = {
+  id: string;
+  name: string;
+  abbreviation?: string;
+  category?: 'medal' | 'ribbon' | 'badge' | 'citation' | 'other';
+  description?: string;
+  date_awarded?: string;
+};
+
 type PersonalInfo = {
   full_name?: string;
   email?: string;
@@ -1040,6 +1561,70 @@ function ExperienceItem({ exp, onDelete, isDeleting, prefersReducedMotion }: { e
   );
 }
 
+// Reusable Collapsible List Component
+function CollapsibleList({ 
+  title, 
+  icon, 
+  children, 
+  defaultOpen = true, 
+  prefersReducedMotion 
+}: { 
+  title: string; 
+  icon: React.ReactNode; 
+  children: React.ReactNode; 
+  defaultOpen?: boolean; 
+  prefersReducedMotion: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-6 flex justify-between items-center cursor-pointer hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        {prefersReducedMotion ? (
+          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        ) : (
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          </motion.div>
+        )}
+      </div>
+
+      {prefersReducedMotion ? (
+        isOpen && (
+          <div className="p-6 pt-0 border-t border-border/50">
+            <div className="pt-4">{children}</div>
+          </div>
+        )
+      ) : (
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-6 pt-0 border-t border-border/50">
+                <div className="pt-4">{children}</div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+    </div>
+  );
+}
+
 function SkillsList({ skills, onDelete, isDeleting, prefersReducedMotion }: { skills: Skill[], onDelete: (id: string, name: string) => void, isDeleting: string | null, prefersReducedMotion: boolean }) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -1145,6 +1730,9 @@ function SkillsList({ skills, onDelete, isDeleting, prefersReducedMotion }: { sk
 export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [education, setEducation] = useState<Education[]>([]);
+  const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [militaryAwards, setMilitaryAwards] = useState<MilitaryAward[]>([]);
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo | null>(null);
   const [editingPersonalInfo, setEditingPersonalInfo] = useState(false);
   const [personalInfoForm, setPersonalInfoForm] = useState<PersonalInfo>({});
@@ -1158,9 +1746,15 @@ export default function ProfilePage() {
   // Modal states
   const [showAddSkillModal, setShowAddSkillModal] = useState(false);
   const [showAddExperienceModal, setShowAddExperienceModal] = useState(false);
+  const [showAddEducationModal, setShowAddEducationModal] = useState(false);
+  const [showAddCertificationModal, setShowAddCertificationModal] = useState(false);
+  const [showAddAwardModal, setShowAddAwardModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
   const [isAddingExperience, setIsAddingExperience] = useState(false);
+  const [isAddingEducation, setIsAddingEducation] = useState(false);
+  const [isAddingCertification, setIsAddingCertification] = useState(false);
+  const [isAddingAward, setIsAddingAward] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -1187,6 +1781,9 @@ export default function ProfilePage() {
       const data = await res.json();
       setExperiences(data.experiences || []);
       setSkills(data.skills || []);
+      setEducation(data.education || []);
+      setCertifications(data.certifications || []);
+      setMilitaryAwards(data.militaryAwards || []);
       setPersonalInfo(data.personalInfo || null);
       setPersonalInfoForm(data.personalInfo || {});
     } catch (error: unknown) {
@@ -1403,6 +2000,195 @@ export default function ProfilePage() {
       setIsAddingExperience(false);
     }
   }, []);
+
+  const handleAddEducation = useCallback(async (data: { institution: string; degree?: string; field_of_study?: string; start_date?: string; end_date?: string; gpa?: string }) => {
+    setIsAddingEducation(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'education',
+          action: 'create',
+          data,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add education');
+      }
+
+      setEducation(prev => [...prev, result.education]);
+      setSuccessMessage(`Education at "${data.institution}" added successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add education';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAddingEducation(false);
+    }
+  }, []);
+
+  const handleAddCertification = useCallback(async (data: { name: string; issuer?: string; issue_date?: string; expiration_date?: string; credential_id?: string; credential_url?: string }) => {
+    setIsAddingCertification(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'certification',
+          action: 'create',
+          data,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add certification');
+      }
+
+      setCertifications(prev => [...prev, result.certification]);
+      setSuccessMessage(`Certification "${data.name}" added successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add certification';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAddingCertification(false);
+    }
+  }, []);
+
+  const handleAddMilitaryAward = useCallback(async (data: { name: string; abbreviation?: string; category?: string; description?: string; date_awarded?: string }) => {
+    setIsAddingAward(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'military_award',
+          action: 'create',
+          data,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add military award');
+      }
+
+      setMilitaryAwards(prev => [...prev, result.award]);
+      setSuccessMessage(`Award "${data.name}" added successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add military award';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAddingAward(false);
+    }
+  }, []);
+
+  async function deleteEducation(id: string, institution: string) {
+    if (!confirm(`Delete education at "${institution}"? This action cannot be undone.`)) return;
+
+    try {
+      setDeleting(id);
+      setError(null);
+
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'education',
+          action: 'delete',
+          data: { id },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete education');
+      }
+
+      setEducation(prev => prev.filter(e => e.id !== id));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete education';
+      setError(errorMessage);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  async function deleteCertification(id: string, name: string) {
+    if (!confirm(`Delete certification "${name}"? This action cannot be undone.`)) return;
+
+    try {
+      setDeleting(id);
+      setError(null);
+
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'certification',
+          action: 'delete',
+          data: { id },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete certification');
+      }
+
+      setCertifications(prev => prev.filter(c => c.id !== id));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete certification';
+      setError(errorMessage);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  async function deleteMilitaryAward(id: string, name: string) {
+    if (!confirm(`Delete award "${name}"? This action cannot be undone.`)) return;
+
+    try {
+      setDeleting(id);
+      setError(null);
+
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'military_award',
+          action: 'delete',
+          data: { id },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete military award');
+      }
+
+      setMilitaryAwards(prev => prev.filter(a => a.id !== id));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete military award';
+      setError(errorMessage);
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   // Motion props must be defined BEFORE any early returns (Rules of Hooks)
   const pageMotion = prefersReducedMotion
@@ -1794,6 +2580,225 @@ export default function ProfilePage() {
         )}
       </motion.section>
 
+      {/* Education Section */}
+      <motion.section
+        {...sectionMotion(0.4)}
+        className="mb-12"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold font-display flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-primary" />
+            Education
+          </h2>
+          <button
+            onClick={() => setShowAddEducationModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Add Education
+          </button>
+        </div>
+
+        {education.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">
+              No education found. Add your educational background.
+            </p>
+            <button
+              onClick={() => setShowAddEducationModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Education
+            </button>
+          </div>
+        ) : (
+          <CollapsibleList
+            title={`Education (${education.length})`}
+            icon={<BookOpen className="w-5 h-5" />}
+            defaultOpen={true}
+            prefersReducedMotion={prefersReducedMotion}
+          >
+            <div className="space-y-3">
+              {education.map((edu) => (
+                <div key={edu.id} className="flex items-start justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{edu.institution}</h4>
+                    {edu.degree && (
+                      <p className="text-sm text-primary">
+                        {edu.degree}{edu.field_of_study ? ` in ${edu.field_of_study}` : ''}
+                      </p>
+                    )}
+                    {(edu.start_date || edu.end_date) && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {edu.start_date} - {edu.end_date || 'Present'}
+                      </p>
+                    )}
+                    {edu.gpa && (
+                      <p className="text-xs text-muted-foreground">GPA: {edu.gpa}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteEducation(edu.id, edu.institution)}
+                    disabled={deleting === edu.id}
+                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                    title="Delete education"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CollapsibleList>
+        )}
+      </motion.section>
+
+      {/* Certifications Section */}
+      <motion.section
+        {...sectionMotion(0.5)}
+        className="mb-12"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold font-display flex items-center gap-2">
+            <Award className="w-6 h-6 text-primary" />
+            Certifications
+          </h2>
+          <button
+            onClick={() => setShowAddCertificationModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Add Certification
+          </button>
+        </div>
+
+        {certifications.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">
+              No certifications found. Add your professional certifications.
+            </p>
+            <button
+              onClick={() => setShowAddCertificationModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Certification
+            </button>
+          </div>
+        ) : (
+          <CollapsibleList
+            title={`Certifications (${certifications.length})`}
+            icon={<Award className="w-5 h-5" />}
+            defaultOpen={true}
+            prefersReducedMotion={prefersReducedMotion}
+          >
+            <div className="space-y-3">
+              {certifications.map((cert) => (
+                <div key={cert.id} className="flex items-start justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{cert.name}</h4>
+                    {cert.issuer && (
+                      <p className="text-sm text-primary">{cert.issuer}</p>
+                    )}
+                    {cert.issue_date && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Issued: {cert.issue_date}
+                        {cert.expiration_date && ` • Expires: ${cert.expiration_date}`}
+                      </p>
+                    )}
+                    {cert.credential_url && (
+                      <a
+                        href={cert.credential_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                      >
+                        View Credential <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteCertification(cert.id, cert.name)}
+                    disabled={deleting === cert.id}
+                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                    title="Delete certification"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CollapsibleList>
+        )}
+      </motion.section>
+
+      {/* Military Awards Section (only show if user has awards) */}
+      {militaryAwards.length > 0 && (
+        <motion.section
+          {...sectionMotion(0.6)}
+          className="mb-12"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold font-display flex items-center gap-2">
+              <Medal className="w-6 h-6 text-primary" />
+              Military Awards & Decorations
+            </h2>
+            <button
+              onClick={() => setShowAddAwardModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary via-secondary to-primary animate-shimmer bg-[length:200%_auto] text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Award
+            </button>
+          </div>
+
+          <CollapsibleList
+            title={`Awards & Decorations (${militaryAwards.length})`}
+            icon={<Medal className="w-5 h-5" />}
+            defaultOpen={true}
+            prefersReducedMotion={prefersReducedMotion}
+          >
+            <div className="space-y-3">
+              {militaryAwards.map((award) => (
+                <div key={award.id} className="flex items-start justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">
+                      {award.name}
+                      {award.abbreviation && (
+                        <span className="text-muted-foreground ml-2">({award.abbreviation})</span>
+                      )}
+                    </h4>
+                    {award.category && (
+                      <span className="inline-block px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full capitalize mt-1">
+                        {award.category}
+                      </span>
+                    )}
+                    {award.date_awarded && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Awarded: {award.date_awarded}
+                      </p>
+                    )}
+                    {award.description && (
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{award.description}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteMilitaryAward(award.id, award.name)}
+                    disabled={deleting === award.id}
+                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                    title="Delete award"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CollapsibleList>
+        </motion.section>
+      )}
+
       {/* Modals */}
       <AddSkillModal
         isOpen={showAddSkillModal}
@@ -1813,6 +2818,24 @@ export default function ProfilePage() {
         onSuccess={fetchProfile}
         linkedinUrl={personalInfo?.linkedin_url}
         portfolioUrl={personalInfo?.portfolio_url}
+      />
+      <AddEducationModal
+        isOpen={showAddEducationModal}
+        onClose={() => setShowAddEducationModal(false)}
+        onSubmit={handleAddEducation}
+        isSubmitting={isAddingEducation}
+      />
+      <AddCertificationModal
+        isOpen={showAddCertificationModal}
+        onClose={() => setShowAddCertificationModal(false)}
+        onSubmit={handleAddCertification}
+        isSubmitting={isAddingCertification}
+      />
+      <AddMilitaryAwardModal
+        isOpen={showAddAwardModal}
+        onClose={() => setShowAddAwardModal(false)}
+        onSubmit={handleAddMilitaryAward}
+        isSubmitting={isAddingAward}
       />
     </motion.div>
   );

@@ -94,3 +94,5 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS parsed_job_context JSONB;
 
 
 
+
+

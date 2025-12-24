@@ -2,8 +2,95 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+// Helper to process invite codes
+async function processInviteCode(supabase: any, userId: string) {
+  try {
+    const cookieStore = await cookies();
+    const inviteCode = cookieStore.get('invite_code')?.value;
+
+    if (inviteCode) {
+      if (isDev) console.log('🎟️ Found invite code:', inviteCode, 'for user:', userId);
+
+      const { data: invite } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('code', inviteCode)
+        .eq('is_used', false)
+        .single();
+
+      if (invite) {
+        if (isDev) console.log('✅ Valid invite found, applying legacy status...');
+
+        // Update user to legacy
+        await supabase.from('users').update({ is_legacy: true }).eq('id', userId);
+
+        // Mark invite as used
+        await supabase.from('invites').update({
+          is_used: true,
+          used_by: userId
+        }).eq('id', invite.id);
+
+        return true;
+      } else {
+        if (isDev) console.log('❌ Invalid or used invite code');
+      }
+    }
+  } catch (err) {
+    if (isDev) console.error('⚠️ Error processing invite code:', err);
+  }
+  return false;
+}
+
+// Helper to process referral codes (for bonus generations)
+async function processReferralCode(supabase: any, userId: string) {
+  try {
+    const cookieStore = await cookies();
+    const referralCode = cookieStore.get('referral_code')?.value;
+
+    if (isDev) {
+      console.log('🎁 [REFERRAL] Checking for referral code cookie...');
+      console.log('🎁 [REFERRAL] User ID:', userId);
+      console.log('🎁 [REFERRAL] Cookie value:', referralCode || '(none)');
+    }
+
+    if (referralCode) {
+      if (isDev) console.log('🎁 [REFERRAL] Found referral code:', referralCode, 'for user:', userId);
+
+      // Use the atomic database function to process referral
+      if (isDev) console.log('🎁 [REFERRAL] Calling process_referral_atomic RPC...');
+      const { data: result, error: rpcError } = await supabase.rpc('process_referral_atomic', {
+        p_referral_code: referralCode,
+        p_referee_id: userId,
+      });
+
+      if (isDev) {
+        console.log('🎁 [REFERRAL] RPC result:', JSON.stringify(result));
+        console.log('🎁 [REFERRAL] RPC error:', rpcError ? JSON.stringify(rpcError) : '(none)');
+      }
+
+      if (rpcError) {
+        if (isDev) console.error('❌ [REFERRAL] Error processing referral:', rpcError);
+        return false;
+      }
+
+      if (result && result.success) {
+        if (isDev) console.log('✅ [REFERRAL] Referral processed successfully! Referrer:', result.referrer_id);
+        return true;
+      } else {
+        if (isDev) console.log('⚠️ [REFERRAL] Referral not processed:', result?.error || 'Unknown error');
+      }
+    } else {
+      if (isDev) console.log('🎁 [REFERRAL] No referral code cookie found');
+    }
+  } catch (err) {
+    if (isDev) console.error('⚠️ [REFERRAL] Error processing referral code:', err);
+  }
+  return false;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -91,6 +178,10 @@ export const authOptions: NextAuthOptions = {
               return null;
             }
             user = newUser;
+
+            // Process invite code and referral code for new user
+            await processInviteCode(supabase, user.id);
+            await processReferralCode(supabase, user.id);
           }
 
           if (isDev) console.log('✅ CredentialsProvider: User authenticated:', user.id);
@@ -139,10 +230,10 @@ export const authOptions: NextAuthOptions = {
               .single();
 
             if (existingUser) {
-              if (isDev) console.log('✅ Found existing user:', existingUser.id);
+              if (isDev) console.log('🔐 [AUTH] Found EXISTING user:', existingUser.id);
               userId = existingUser.id;
             } else {
-              if (isDev) console.log('👤 Creating new user in users table...');
+              if (isDev) console.log('👤 [AUTH] Creating NEW user in users table...');
               // Create new user
               const { data: newUser, error: createError } = await supabase
                 .from('users')
@@ -156,10 +247,14 @@ export const authOptions: NextAuthOptions = {
                 .single();
 
               if (newUser) {
-                if (isDev) console.log('✅ Created new user:', newUser.id);
+                if (isDev) console.log('✅ [AUTH] Created new user:', newUser.id);
                 userId = newUser.id;
+
+                // Process invite code and referral code for new Google user
+                await processInviteCode(supabase, newUser.id);
+                await processReferralCode(supabase, newUser.id);
               } else if (createError) {
-                if (isDev) console.error('❌ Error creating user:', createError);
+                if (isDev) console.error('❌ [AUTH] Error creating user:', createError);
               }
             }
 

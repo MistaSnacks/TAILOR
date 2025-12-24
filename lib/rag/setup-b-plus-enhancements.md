@@ -159,7 +159,7 @@ export async function generateTailoredResume(params: {
     ]
   });
   
-  const text = response.response.getText();
+  const text = response.text;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('No JSON in Gemini response');
   
@@ -202,18 +202,18 @@ export async function generateTailoredResumeOpenAI(params: {
     bulletBudget: 6,
   });
   
-  // OpenAI prompt caching (beta)
-  const response = await client.messages.create({
-    model: 'gpt-4-turbo',
+  // OpenAI prompt caching (requires GPT-4o or newer)
+  // Static part goes in system message with cache_control
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o',
     max_tokens: 2000,
-    system: [
-      {
-        type: 'text',
-        text: cacheable.staticPart,
-        cache_control: { type: 'ephemeral' }  // Cache static rules
-      }
-    ],
     messages: [
+      {
+        role: 'system',
+        content: cacheable.staticPart,
+        // Cache static rules for reuse across requests
+        cache_control: { type: 'ephemeral' }
+      },
       {
         role: 'user',
         content: cacheable.dynamicPart
@@ -221,7 +221,9 @@ export async function generateTailoredResumeOpenAI(params: {
     ]
   });
   
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  const text = response.choices[0]?.message?.content || '';
+  if (!text) throw new Error('No content in OpenAI response');
+  
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('No JSON in OpenAI response');
   
@@ -230,7 +232,7 @@ export async function generateTailoredResumeOpenAI(params: {
   return {
     experiences: parsed.experiences,
     metadata: {
-      model: 'gpt-4-turbo',
+      model: 'gpt-4o',
       timestamp: new Date(),
       caching_enabled: true,
       cache_hit: response.usage?.cache_read_input_tokens || 0,

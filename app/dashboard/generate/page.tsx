@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { motion } from 'framer-motion';
-import { Sparkles, FileText, LayoutTemplate, Eye, ChevronDown, Check } from 'lucide-react';
+import { Sparkles, FileText, LayoutTemplate, Eye, ChevronDown, Check, AlertTriangle, ArrowRight } from 'lucide-react';
 import {
   TemplatePreview,
   TEMPLATE_CONFIGS,
@@ -12,6 +12,7 @@ import {
   type TemplateType
 } from '@/components/resume-templates';
 import type { ResumeContent } from '@/lib/resume-content';
+import Link from 'next/link';
 
 // Mobile template selector button
 function MobileTemplateSelector({
@@ -150,6 +151,18 @@ export default function GeneratePage() {
   const [showLivePreview, setShowLivePreview] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [generationUsage, setGenerationUsage] = useState<{
+    monthlyUsed: number;
+    monthlyLimit: number | null;
+    remaining: number | null;
+    hasUnlimited: boolean;
+  } | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState<{
+    monthlyUsed: number;
+    monthlyLimit: number;
+  } | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   const searchParams = useSearchParams();
 
@@ -159,8 +172,7 @@ export default function GeneratePage() {
     const storedDescription = sessionStorage.getItem('pendingJobDescription');
     if (storedDescription) {
       setJobDescription(storedDescription);
-      // Clear after use to prevent stale data
-      sessionStorage.removeItem('pendingJobDescription');
+      // Don't clear here - will be cleared after successful generation
       return;
     }
 
@@ -235,6 +247,26 @@ export default function GeneratePage() {
     fetchProfile();
   }, []);
 
+  // Fetch generation usage for banner display
+  useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const response = await fetch('/api/dashboard/stats');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.generationUsage) {
+            setGenerationUsage(data.generationUsage);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch generation usage:', error);
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+    fetchUsage();
+  }, []);
+
   // Preview content: use user profile if available, otherwise sample
   const previewContent = useMemo(() => {
     if (!userProfile) return SAMPLE_RESUME_CONTENT;
@@ -291,6 +323,17 @@ export default function GeneratePage() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check generation limit before making any API calls
+    if (generationUsage && !generationUsage.hasUnlimited && (generationUsage.remaining ?? 0) <= 0) {
+      setPaywallInfo({
+        monthlyUsed: generationUsage.monthlyUsed,
+        monthlyLimit: generationUsage.monthlyLimit || 5,
+      });
+      setShowPaywall(true);
+      return; // Don't proceed with generation
+    }
+
     setGenerating(true);
     setElapsedTime(0);
     setCurrentStep('');
@@ -356,10 +399,27 @@ export default function GeneratePage() {
       if (!generateResponse.ok) {
         const generateError = await generateResponse.json().catch(() => ({}));
         console.error('Generate API error:', generateError);
+
+        // Handle paywall (403 with upgrade flag)
+        if (generateResponse.status === 403 && generateError.upgrade) {
+          setPaywallInfo({
+            monthlyUsed: generateError.monthlyUsed || 0,
+            monthlyLimit: generateError.monthlyLimit || 5,
+          });
+          setShowPaywall(true);
+          setGenerating(false);
+          setCurrentStep('');
+          setElapsedTime(0);
+          return;
+        }
+
         throw new Error(generateError.error || 'Failed to generate resume');
       }
 
       const { resumeVersion } = await generateResponse.json();
+
+      // Clear sessionStorage only after successful generation
+      sessionStorage.removeItem('pendingJobDescription');
 
       // Redirect to resumes page
       window.location.href = `/dashboard/resumes?id=${resumeVersion.id}`;
@@ -371,6 +431,46 @@ export default function GeneratePage() {
       setElapsedTime(0);
     }
   };
+
+  // Paywall Modal
+  if (showPaywall) {
+    return (
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full text-center"
+        >
+          <div className="glass-card p-8 rounded-2xl border border-amber-500/30 bg-amber-500/5">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Generation Limit Reached</h2>
+            <p className="text-muted-foreground mb-4">
+              You&apos;ve used {paywallInfo?.monthlyUsed || 0} of {paywallInfo?.monthlyLimit || 5} free generations this month.
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              Upgrade to unlock unlimited resume generations, job board access, and AI career coaching.
+            </p>
+            <div className="space-y-3">
+              <Link
+                href="/pricing"
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+              >
+                Upgrade Now <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="w-full inline-flex items-center justify-center px-6 py-3 text-muted-foreground hover:text-foreground transition-colors text-sm"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Full-screen generating state on mobile
   if (generating) {
@@ -455,6 +555,38 @@ export default function GeneratePage() {
           </p>
         </div>
       </div>
+
+      {/* Generation Usage Warning Banner - Only for free users */}
+      {generationUsage && !generationUsage.hasUnlimited && (
+        <div className={`mb-6 p-4 rounded-xl border flex flex-col md:flex-row md:items-center md:justify-between gap-3 ${(generationUsage.remaining ?? 0) > 0
+          ? 'bg-muted/30 border-border/50'
+          : 'bg-amber-500/10 border-amber-500/30'
+          }`}>
+          <div className="flex items-center gap-3">
+            {(generationUsage.remaining ?? 0) === 0 ? (
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+            ) : (
+              <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
+            )}
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {(generationUsage.remaining ?? 0) > 0
+                  ? `${generationUsage.remaining} generation${generationUsage.remaining === 1 ? '' : 's'} remaining this month`
+                  : 'No generations remaining this month'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {generationUsage.monthlyUsed} of {generationUsage.monthlyLimit} used
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
+          >
+            Upgrade <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-5 gap-6 md:gap-8">
         {/* Form Column - Full width on mobile, 3 cols on desktop */}

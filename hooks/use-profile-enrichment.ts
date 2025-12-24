@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 export type EnrichmentCandidate = {
+  id?: string;
   text: string;
   sourceIds: string[];
   mergedFrom?: string[];

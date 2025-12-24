@@ -81,7 +81,7 @@ function formatResumeForAts(resume: TrainingResume): string {
             if (exp.startDate || exp.endDate) {
                 parts.push(`${exp.startDate || ''} - ${exp.endDate || 'Present'}`);
             }
-            for (const bullet of exp.bullets) {
+            for (const bullet of exp.bullets || []) {
                 parts.push(`• ${bullet}`);
             }
             parts.push('');
@@ -138,9 +138,24 @@ export class AtsGroundTruthGenerator {
 
         if (fs.existsSync(resumeCachePath)) {
             console.log('Loading resumes from cache...');
-            const cached = JSON.parse(fs.readFileSync(resumeCachePath, 'utf-8'));
-            this.resumes = cached.slice(0, resumeLimit);
-            console.log(`Loaded ${this.resumes.length} resumes from cache`);
+            try {
+                const cached = JSON.parse(fs.readFileSync(resumeCachePath, 'utf-8'));
+                this.resumes = cached.slice(0, resumeLimit);
+                console.log(`Loaded ${this.resumes.length} resumes from cache`);
+            } catch (parseError) {
+                console.warn('Failed to parse resume cache, fetching fresh data...');
+                console.log('Removing corrupt cache file and fetching fresh data from HuggingFace...');
+                try {
+                    fs.unlinkSync(resumeCachePath);
+                } catch (unlinkError) {
+                    console.warn('Failed to remove corrupt cache file:', unlinkError);
+                }
+                const loader = getDatasetLoader();
+                for await (const resume of loader.loadResumes({ limit: resumeLimit })) {
+                    this.resumes.push(resume);
+                }
+                console.log(`Fetched ${this.resumes.length} resumes`);
+            }
         } else {
             console.log('Fetching resumes from HuggingFace...');
             const loader = getDatasetLoader();
@@ -152,9 +167,27 @@ export class AtsGroundTruthGenerator {
 
         if (fs.existsSync(jdCachePath)) {
             console.log('Loading job descriptions from cache...');
-            const cached = JSON.parse(fs.readFileSync(jdCachePath, 'utf-8'));
-            this.jobDescriptions = cached.slice(0, jdLimit);
-            console.log(`Loaded ${this.jobDescriptions.length} job descriptions from cache`);
+            try {
+                const cached = JSON.parse(fs.readFileSync(jdCachePath, 'utf-8'));
+                this.jobDescriptions = cached.slice(0, jdLimit);
+                console.log(`Loaded ${this.jobDescriptions.length} job descriptions from cache`);
+            } catch (parseError) {
+                console.error('Failed to parse job descriptions cache:', {
+                    path: jdCachePath,
+                    error: parseError instanceof Error ? parseError.message : String(parseError),
+                });
+                console.log('Removing corrupt cache file and fetching fresh data from HuggingFace...');
+                try {
+                    fs.unlinkSync(jdCachePath);
+                } catch (unlinkError) {
+                    console.warn('Failed to remove corrupt cache file:', unlinkError);
+                }
+                const loader = getDatasetLoader();
+                for await (const jd of loader.loadJobDescriptions({ limit: jdLimit })) {
+                    this.jobDescriptions.push(jd);
+                }
+                console.log(`Fetched ${this.jobDescriptions.length} job descriptions`);
+            }
         } else {
             console.log('Fetching job descriptions from HuggingFace...');
             const loader = getDatasetLoader();
@@ -328,8 +361,13 @@ function extractGroundTruth(
 }
 
 function selectRandomItems<T>(items: T[], count: number): T[] {
-    const shuffled = [...items].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    const arr = [...items];
+    // Fisher-Yates shuffle (only shuffle first 'count' elements for efficiency)
+    for (let i = 0; i < Math.min(count, arr.length); i++) {
+        const j = i + Math.floor(Math.random() * (arr.length - i));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, count);
 }
 
 function calculateStats(

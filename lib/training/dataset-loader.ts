@@ -35,9 +35,18 @@ export class UnifiedDatasetLoader implements DatasetLoader {
     private resumeCache: TrainingResume[] = [];
     private jdCache: JobDescription[] = [];
     private cacheLoaded = false;
+    private readonly apiToken?: string;
 
     constructor(apiToken?: string) {
+        this.apiToken = apiToken;
         this.pipeline = getTrainingPipeline(apiToken);
+    }
+
+    /**
+     * Get the API token used by this loader instance
+     */
+    getApiToken(): string | undefined {
+        return this.apiToken;
     }
 
     /**
@@ -45,27 +54,91 @@ export class UnifiedDatasetLoader implements DatasetLoader {
      */
     async *loadResumes(options: LoadOptions = {}): AsyncGenerator<TrainingResume> {
         const { limit = 1000, categories, minQualityScore = 0, shuffle = false, seed } = options;
-        let loaded = 0;
 
-        // Load from InferencePrince dataset (primary source)
-        for await (const resume of this.pipeline.loadInferencePrinceResumes({ limit })) {
-            // Apply filters
-            if (minQualityScore > 0 && (resume.qualityScore || 0) < minQualityScore) {
-                continue;
-            }
-
-            if (categories && categories.length > 0) {
-                const category = resume.category?.toLowerCase() || '';
-                if (!categories.some(c => category.includes(c.toLowerCase()))) {
+        // If shuffle is enabled, collect into array first
+        if (shuffle) {
+            const resumes: TrainingResume[] = [];
+            
+            // Load from InferencePrince dataset (primary source)
+            for await (const resume of this.pipeline.loadInferencePrinceResumes({ limit: limit * 2 })) {
+                // Apply filters
+                if (minQualityScore > 0 && (resume.qualityScore || 0) < minQualityScore) {
                     continue;
                 }
+
+                if (categories && categories.length > 0) {
+                    const category = resume.category?.toLowerCase() || '';
+                    if (!categories.some(c => category.includes(c.toLowerCase()))) {
+                        continue;
+                    }
+                }
+
+                resumes.push(resume);
+                if (resumes.length >= limit * 2) break; // Collect extra for shuffling
             }
 
-            yield resume;
-            loaded++;
+            // Shuffle the collected resumes
+            const shuffled = this.shuffleArray(resumes, seed);
+            
+            // Yield up to limit
+            for (let i = 0; i < Math.min(shuffled.length, limit); i++) {
+                yield shuffled[i];
+            }
+        } else {
+            // Stream without shuffling (original behavior)
+            let loaded = 0;
 
-            if (loaded >= limit) break;
+            for await (const resume of this.pipeline.loadInferencePrinceResumes({ limit })) {
+                // Apply filters
+                if (minQualityScore > 0 && (resume.qualityScore || 0) < minQualityScore) {
+                    continue;
+                }
+
+                if (categories && categories.length > 0) {
+                    const category = resume.category?.toLowerCase() || '';
+                    if (!categories.some(c => category.includes(c.toLowerCase()))) {
+                        continue;
+                    }
+                }
+
+                yield resume;
+                loaded++;
+
+                if (loaded >= limit) break;
+            }
         }
+    }
+
+    /**
+     * Shuffle an array using Fisher-Yates algorithm
+     * Supports optional seed for deterministic shuffling
+     */
+    private shuffleArray<T>(array: T[], seed?: number): T[] {
+        const shuffled = [...array];
+        const n = shuffled.length;
+
+        if (seed !== undefined) {
+            // Seeded PRNG using Linear Congruential Generator
+            let rng = seed;
+            const lcg = () => {
+                rng = (rng * 1664525 + 1013904223) % 2**32;
+                return rng / 2**32;
+            };
+
+            // Fisher-Yates with seeded PRNG
+            for (let i = n - 1; i > 0; i--) {
+                const j = Math.floor(lcg() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+        } else {
+            // Fisher-Yates with Math.random()
+            for (let i = n - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+        }
+
+        return shuffled;
     }
 
     /**
@@ -168,8 +241,9 @@ export class UnifiedDatasetLoader implements DatasetLoader {
             throw new Error('Cache not loaded. Call preloadCache() first.');
         }
 
-        const shuffledResumes = [...this.resumeCache].sort(() => Math.random() - 0.5);
-        const shuffledJds = [...this.jdCache].sort(() => Math.random() - 0.5);
+        // Use Fisher-Yates shuffle for uniform distribution
+        const shuffledResumes = this.shuffleArray([...this.resumeCache]);
+        const shuffledJds = this.shuffleArray([...this.jdCache]);
 
         return {
             resumes: shuffledResumes.slice(0, count),
@@ -185,7 +259,8 @@ export class UnifiedDatasetLoader implements DatasetLoader {
 let defaultLoader: UnifiedDatasetLoader | null = null;
 
 export function getDatasetLoader(apiToken?: string): UnifiedDatasetLoader {
-    if (!defaultLoader) {
+    // Recreate if token changes (including from defined to undefined)
+    if (!defaultLoader || defaultLoader.getApiToken() !== apiToken) {
         defaultLoader = new UnifiedDatasetLoader(apiToken);
     }
     return defaultLoader;

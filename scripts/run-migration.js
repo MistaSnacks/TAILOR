@@ -30,18 +30,136 @@ async function runMigration() {
 
     try {
         // Read the migration SQL file
-        const migrationPath = path.join(__dirname, '../supabase/migrations/20250120_add_personal_info.sql');
+        const migrationPath = path.join(__dirname, '../supabase/migrations/20250121_add_personal_info.sql');
         const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
         console.log('📝 Migration SQL:');
         console.log(migrationSQL);
         console.log('\n🔄 Executing migration...\n');
 
+        // Split SQL statements properly, respecting quotes and comments
+        function splitSqlStatements(sql) {
+            const statements = [];
+            let current = '';
+            let inSingleQuote = false;
+            let inDoubleQuote = false;
+            let inBacktick = false;
+            let inBlockComment = false;
+            let i = 0;
+
+            while (i < sql.length) {
+                const char = sql[i];
+                const nextChar = i + 1 < sql.length ? sql[i + 1] : '';
+
+                // Handle block comments /* */
+                if (!inSingleQuote && !inDoubleQuote && !inBacktick && char === '/' && nextChar === '*') {
+                    inBlockComment = true;
+                    current += char;
+                    i++;
+                    current += nextChar;
+                    i++;
+                    continue;
+                }
+                if (inBlockComment && char === '*' && nextChar === '/') {
+                    inBlockComment = false;
+                    current += char;
+                    i++;
+                    current += nextChar;
+                    i++;
+                    continue;
+                }
+                if (inBlockComment) {
+                    current += char;
+                    i++;
+                    continue;
+                }
+
+                // Handle line comments --
+                if (!inSingleQuote && !inDoubleQuote && !inBacktick && char === '-' && nextChar === '-') {
+                    // Skip to end of line
+                    while (i < sql.length && sql[i] !== '\n') {
+                        current += sql[i];
+                        i++;
+                    }
+                    if (i < sql.length) {
+                        current += sql[i]; // include the newline
+                        i++;
+                    }
+                    continue;
+                }
+
+                // Handle quotes (only when not in comments)
+                // Check for escaped doubled quotes ('' or "") and skip without toggling state
+                if (char === "'" && !inDoubleQuote && !inBacktick) {
+                    if (nextChar === "'" && inSingleQuote) {
+                        // Doubled single quote escape - consume both, don't toggle
+                        current += char;
+                        i++;
+                        current += nextChar;
+                        i++;
+                        continue;
+                    }
+                    inSingleQuote = !inSingleQuote;
+                } else if (char === '"' && !inSingleQuote && !inBacktick) {
+                    if (nextChar === '"' && inDoubleQuote) {
+                        // Doubled double quote escape - consume both, don't toggle
+                        current += char;
+                        i++;
+                        current += nextChar;
+                        i++;
+                        continue;
+                    }
+                    inDoubleQuote = !inDoubleQuote;
+                } else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
+                    inBacktick = !inBacktick;
+                }
+
+                // Handle statement separator (only when outside quotes and comments)
+                if (char === ';' && !inSingleQuote && !inDoubleQuote && !inBacktick && !inBlockComment) {
+                    const trimmed = current.trim();
+                    if (trimmed) {
+                        statements.push(trimmed);
+                    }
+                    current = '';
+                    i++;
+                    continue;
+                }
+
+                current += char;
+                i++;
+            }
+
+            // Add final statement if any
+            const trimmed = current.trim();
+            if (trimmed) {
+                statements.push(trimmed);
+            }
+
+            return statements;
+        }
+
         // Execute each SQL statement separately
-        const statements = migrationSQL
-            .split(';')
+        const statements = splitSqlStatements(migrationSQL)
             .map(stmt => stmt.trim())
-            .filter(stmt => stmt && !stmt.startsWith('--') && !stmt.startsWith('COMMENT'));
+            .filter(stmt => {
+                // Remove pure comment lines (lines starting with --)
+                const lines = stmt.split('\n');
+                const nonCommentLines = lines.filter(line => {
+                    const trimmed = line.trim();
+                    return trimmed && !trimmed.startsWith('--');
+                });
+                // Reconstruct statement without comment-only lines
+                const cleaned = nonCommentLines.join('\n').trim();
+                // Filter out COMMENT ON statements by checking if it starts with COMMENT ON
+                // after removing leading whitespace and comment markers
+                if (!cleaned) return false;
+                const upperCleaned = cleaned.toUpperCase().trim();
+                // Skip if it's a COMMENT ON statement (these are metadata, not executable DDL)
+                if (upperCleaned.startsWith('COMMENT ON')) {
+                    return false;
+                }
+                return true;
+            });
 
         for (const statement of statements) {
             if (statement.includes('ALTER TABLE')) {
@@ -57,13 +175,35 @@ async function runMigration() {
                             'apikey': supabaseKey,
                             'Authorization': `Bearer ${supabaseKey}`
                         },
-                        body: JSON.stringify({ query: statement })
+                        body: JSON.stringify({ sql: statement })
                     });
 
-                    if (!response.ok) {
-                        console.warn(`⚠️  Could not execute via RPC: ${error.message}`);
-                        console.log('Trying alternative approach...');
+                    // Safely parse response body - handle both JSON and non-JSON responses
+                    let responseBody;
+                    let responseText = '';
+                    try {
+                        responseText = await response.text();
+                        responseBody = responseText ? JSON.parse(responseText) : {};
+                    } catch (parseError) {
+                        // If JSON parsing fails, use raw text as fallback
+                        responseBody = { message: responseText || response.statusText };
                     }
+
+                    // Check for errors in the response body
+                    if (responseBody.error || !response.ok) {
+                        const errorMessage = responseBody.error?.message || responseBody.message || response.statusText || 'Unknown error';
+                        const errorDetails = responseBody.error || responseBody;
+                        console.error(`❌ HTTP fallback failed: ${errorMessage}`);
+                        console.error('Error details:', JSON.stringify(errorDetails, null, 2));
+                        if (responseText && !responseBody.error) {
+                            console.error('Response body (raw):', responseText);
+                        }
+                        throw new Error(`Migration failed on statement: ${errorMessage}`);
+                    }
+
+                    // Success - log and continue processing
+                    console.log(`✅ ${statement.substring(0, 60)}... (via HTTP fallback)`);
+                    // Data is available in responseBody.data if needed by caller
                 } else {
                     console.log(`✅ ${statement.substring(0, 60)}...`);
                 }

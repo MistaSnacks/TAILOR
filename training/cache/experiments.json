@@ -122,6 +122,20 @@
         "variantId": "with",
         "assignedAt": "2025-12-16T13:58:54.661Z"
       }
+    },
+    "ef55d7ba-6d91-4b17-a68c-7f70a3d26fe9": {
+      "exp-quality-pass-toggle": {
+        "experimentId": "exp-quality-pass-toggle",
+        "variantId": "without",
+        "assignedAt": "2025-12-21T04:23:20.615Z"
+      }
+    },
+    "84395752-14de-45b8-9965-dafe73a01873": {
+      "exp-quality-pass-toggle": {
+        "experimentId": "exp-quality-pass-toggle",
+        "variantId": "with",
+        "assignedAt": "2025-12-24T00:51:19.303Z"
+      }
     }
   }
 }

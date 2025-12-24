@@ -26,7 +26,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
 });
 
 // Jobscan's hard skills
-const JOBCAN_HARD_SKILLS = [
+const JOBSCAN_HARD_SKILLS = [
     'Snapchat', 'Tooling', 'Machine learning', 'Data visualization software',
     'Operational Support', 'Process development', 'Content Moderation',
     'Safety operations', 'Analytical skills', 'Business Insights',
@@ -109,12 +109,12 @@ async function compare() {
     console.log('🔍 COMPARISON: Our Skills vs Jobscan\n');
     console.log(`Job: ${job.title} at ${job.company}\n`);
 
-    console.log('📊 JOBCAN HARD SKILLS ANALYSIS:\n');
+    console.log('📊 JOBSCAN HARD SKILLS ANALYSIS:\n');
 
     const matches: string[] = [];
     const missing: string[] = [];
 
-    for (const jobscanSkill of JOBCAN_HARD_SKILLS) {
+    for (const jobscanSkill of JOBSCAN_HARD_SKILLS) {
         const found = ourSkills.some((ourSkill: string) => findMatch(ourSkill, jobscanSkill)) ||
             matchedKeywords.some((kw: string) => findMatch(kw, jobscanSkill));
 
@@ -131,8 +131,8 @@ async function compare() {
     }
 
     console.log(`\n📈 SUMMARY:`);
-    console.log(`   Matched: ${matches.length}/${JOBCAN_HARD_SKILLS.length} (${((matches.length / JOBCAN_HARD_SKILLS.length) * 100).toFixed(1)}%)`);
-    console.log(`   Missing: ${missing.length}/${JOBCAN_HARD_SKILLS.length}`);
+    console.log(`   Matched: ${matches.length}/${JOBSCAN_HARD_SKILLS.length} (${((matches.length / JOBSCAN_HARD_SKILLS.length) * 100).toFixed(1)}%)`);
+    console.log(`   Missing: ${missing.length}/${JOBSCAN_HARD_SKILLS.length}`);
 
     if (missing.length > 0) {
         console.log(`\n❌ MISSING SKILLS:`);

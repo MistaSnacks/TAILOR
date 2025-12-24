@@ -19,8 +19,11 @@ import {
   Loader2,
   CheckCircle2,
   RefreshCw,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { TailorLoading } from '@/components/ui/tailor-loader';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import type { NormalizedJob, SavedJob, SearchHistoryEntry, SavedSearch, JobSearchParams } from '@/lib/jobs/types';
@@ -38,6 +41,7 @@ export default function JobsPage() {
   const [feedJobs, setFeedJobs] = useState<NormalizedJob[]>([]);
   const [feedMessage, setFeedMessage] = useState<string | null>(null);
   const [providersEnabled, setProvidersEnabled] = useState(true);
+  const [accessBlocked, setAccessBlocked] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +70,17 @@ export default function JobsPage() {
     try {
       setLoading(true);
       const res = await fetch('/api/jobs/feed?limit=20');
+
+      // Handle paywall (403)
+      if (res.status === 403) {
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.upgrade) {
+          setAccessBlocked(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       const data = await res.json();
 
       if (data.jobs) {
@@ -283,6 +298,35 @@ export default function JobsPage() {
     if (diffDays < 14) return '1 week ago';
     return `${Math.floor(diffDays / 7)} weeks ago`;
   };
+
+  // Paywall screen
+  if (accessBlocked) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full text-center"
+        >
+          <div className="glass-card p-8 rounded-2xl border border-primary/20">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Premium Feature</h2>
+            <p className="text-muted-foreground mb-6">
+              Job board access is available with a paid subscription. Upgrade to unlock personalized job recommendations, search, and more.
+            </p>
+            <Link
+              href="/pricing"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              Upgrade Now <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading && activeTab === 'feed') {

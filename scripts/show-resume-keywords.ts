@@ -53,29 +53,42 @@ async function showKeywords() {
         .eq('job_id', job.id)
         .order('created_at', { ascending: false })
         .limit(1);
-    
-    // Also get ATS analysis
-    const resumeId = resumes?.[0]?.id;
-    let atsAnalysis = null;
-    if (resumeId) {
-        const { data: atsScores } = await supabaseAdmin
-            .from('ats_scores')
-            .select('analysis')
-            .eq('resume_version_id', resumeId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-        
-        if (atsScores && atsScores.length > 0) {
-            atsAnalysis = atsScores[0].analysis;
-        }
-    }
-
     if (!resumes || resumes.length === 0) {
         console.log('❌ No resumes found for this job');
         return;
     }
 
     const resume = resumes[0];
+    
+    // Also get ATS analysis
+    let atsAnalysis = null;
+    const { data: atsScores } = await supabaseAdmin
+        .from('ats_scores')
+        .select('analysis')
+        .eq('resume_version_id', resume.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+    
+    if (atsScores && atsScores.length > 0) {
+        const rawAnalysis = atsScores[0].analysis;
+        // Normalize schema: convert snake_case to camelCase for consistency
+        if (rawAnalysis) {
+            atsAnalysis = { ...rawAnalysis };
+            // Normalize missing_keywords to missingKeywords (canonical: camelCase)
+            if (atsAnalysis.missing_keywords && !atsAnalysis.missingKeywords) {
+                atsAnalysis.missingKeywords = atsAnalysis.missing_keywords;
+            }
+            // Remove snake_case variant to avoid confusion
+            delete atsAnalysis.missing_keywords;
+            // Normalize matched_keywords to matchedKeywords (canonical: camelCase)
+            if (atsAnalysis.matched_keywords && !atsAnalysis.matchedKeywords) {
+                atsAnalysis.matchedKeywords = atsAnalysis.matched_keywords;
+            }
+            // Remove snake_case variant to avoid confusion
+            delete atsAnalysis.matched_keywords;
+        }
+    }
+
     const content = resume.content as any;
 
     console.log(`📄 Resume ID: ${resume.id}`);
@@ -139,13 +152,6 @@ async function showKeywords() {
         if (atsAnalysis.missingKeywords && Array.isArray(atsAnalysis.missingKeywords)) {
             console.log(`\n❌ MISSING KEYWORDS (${atsAnalysis.missingKeywords.length}):`);
             atsAnalysis.missingKeywords.forEach((kw: string, i: number) => 
-                console.log(`   ${i + 1}. ${kw}`)
-            );
-        }
-        
-        if (atsAnalysis.missing_keywords && Array.isArray(atsAnalysis.missing_keywords)) {
-            console.log(`\n❌ MISSING KEYWORDS (${atsAnalysis.missing_keywords.length}):`);
-            atsAnalysis.missing_keywords.forEach((kw: string, i: number) => 
                 console.log(`   ${i + 1}. ${kw}`)
             );
         }

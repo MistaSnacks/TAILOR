@@ -9,7 +9,7 @@
 
 ## Available Models & Pricing Comparison
 
-### Gemini 2.0 Flash (Current)
+### Gemini 2.0 Flash (Previous / Experimental)
 **Status:** Experimental (`gemini-2.0-flash-exp`)
 - **Input:** ~$0.075 per million tokens (estimated)
 - **Output:** ~$0.30 per million tokens (estimated)
@@ -17,7 +17,7 @@
 - **Speed:** Fast (optimized for speed)
 - **Best For:** High-throughput, low-latency applications
 
-### Gemini 2.5 Flash (Stable Alternative)
+### Gemini 2.5 Flash (Current)
 **Model Name:** `gemini-2.5-flash`
 - **Input:** ~$0.075 per million tokens
 - **Output:** ~$0.30 per million tokens
@@ -27,7 +27,7 @@
 - **Status:** Stable (non-experimental)
 
 ### Gemini 3.0 Pro
-**Model Name:** `gemini-3.0-pro` (if available)
+**Model Name:** `gemini-3.0-pro`
 - **Input (≤200k tokens):** $2.00 per million tokens
 - **Input (>200k tokens):** $4.00 per million tokens
 - **Output (≤200k tokens):** $12.00 per million tokens
@@ -36,9 +36,11 @@
 - **Speed:** Slower (optimized for quality)
 - **Best For:** Complex reasoning, math, science, multimodal tasks
 
-### Gemini 3.0 Flash (If Available)
-**Model Name:** `gemini-3.0-flash` (if available)
-- **Pricing:** TBD (likely similar to 2.5 Flash)
+### Gemini 3.0 Flash
+**Model Name:** `gemini-3.0-flash`
+- **Input:** $0.50 per million tokens
+- **Output:** $3.00 per million tokens
+- **Context Window:** 1M input tokens, 64k output tokens
 - **Speed:** Fast
 - **Best For:** Speed-optimized tasks with 3.0 improvements
 
@@ -68,7 +70,7 @@ Based on your codebase, you're using Gemini for:
 
 ### Estimated Monthly Costs
 
-**Current (Gemini 2.0 Flash Exp):**
+**Previous (Gemini 2.0 Flash Exp):**
 - Assumed: 10,000 resume generations/month
 - Input: ~50M tokens/month = **$3.75/month**
 - Output: ~30M tokens/month = **$9.00/month**
@@ -197,15 +199,15 @@ model: 'gemini-2.5-flash'  // Instead of 'gemini-2.0-flash-exp'
 
 **Effort:** Medium (add model selection logic)
 
-### Option 3: Wait for Gemini 3.0 Flash
-**Action:** Monitor for Gemini 3.0 Flash release
+### Option 3: Upgrade to Gemini 3.0 Flash
+**Action:** Upgrade to Gemini 3.0 Flash
 
 **Why:**
 - ✅ Best of both worlds (3.0 quality + Flash speed)
-- ✅ Likely better pricing than Pro
-- ⚠️ Unknown release date
+- ✅ Better pricing than Pro ($0.50/$3 vs $2-4/$12-18)
+- ✅ Available now
 
-**Effort:** Low (wait and monitor)
+**Effort:** Low (find/replace model name)
 
 ### Option 4: Upgrade to Gemini 3.0 Pro (Not Recommended)
 **Action:** Upgrade all calls to Gemini 3.0 Pro
@@ -226,12 +228,12 @@ model: 'gemini-2.5-flash'  // Instead of 'gemini-2.0-flash-exp'
 
 ### Model Speed Rankings (Fastest → Slowest)
 1. **Gemini 2.5 Flash** - Fastest (optimized for speed)
-2. **Gemini 2.0 Flash** - Fast (current)
-3. **Gemini 3.0 Flash** - Fast (if available)
+2. **Gemini 2.0 Flash** - Fast (previous)
+3. **Gemini 3.0 Flash** - Fast
 4. **Gemini 3.0 Pro** - Slower (optimized for quality)
 
 ### Latency Impact
-- **Current (2.0 Flash Exp):** ~1-3 seconds per resume generation
+- **Previous (2.0 Flash Exp):** ~1-3 seconds per resume generation
 - **2.5 Flash:** ~1-3 seconds (similar)
 - **3.0 Pro:** ~3-8 seconds (2-3x slower)
 
@@ -249,9 +251,12 @@ model: 'gemini-2.5-flash'  // Instead of 'gemini-2.0-flash-exp'
    - Compare quality vs cost
    - Measure user satisfaction
 
-3. **Monitor Gemini 3.0 Flash**
-   - Watch for release announcements
-   - Evaluate when available
+3. **Evaluate Gemini 3.0 Flash**
+   - Gemini 3.0 Flash is production-ready and available now
+   - It's the default model in the Gemini app and available via Google AI Studio
+   - Validate performance and cost in staging/QA environments
+   - Run integration tests to ensure compatibility
+   - Plan rollout strategy based on test results
 
 ### Long Term (Next Quarter)
 4. **Optimize Model Selection**

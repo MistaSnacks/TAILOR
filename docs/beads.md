@@ -24,3 +24,5 @@ This repo is initialized with Beads (`bd`). The CLI binary is installed to `$HOM
 - `@beads/bd` is listed as a devDependency; use `bd` from your PATH for reliability.
 
 
+
+

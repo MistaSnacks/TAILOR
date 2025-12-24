@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { genAI, embedText, GeminiFileReference } from '@/lib/gemini';
 import { requireAuth } from '@/lib/auth-utils';
+import { checkPremiumAccess } from '@/lib/access-control';
 import { getRelevantChunks, mapChunksToFileRefs } from '@/lib/chunking';
 import { retrieveProfileForJob } from '@/lib/rag/retriever';
+import { fetchStats } from '@/app/api/stats/route';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -97,7 +99,7 @@ function buildProfileContext(profile: any): string {
         parts.push(`Duration: ${exp.startDate || 'N/A'} - ${exp.isCurrent ? 'Present' : exp.endDate || 'N/A'}`);
       }
       if (exp.tenureMonths) parts.push(`Tenure: ${Math.round(exp.tenureMonths / 12 * 10) / 10} years`);
-      
+
       if (exp.bullets?.length > 0) {
         parts.push('Key Accomplishments:');
         for (const bullet of exp.bullets.slice(0, 8)) {
@@ -142,11 +144,26 @@ function buildProfileContext(profile: any): string {
 
 export async function POST(request: NextRequest) {
   console.log('💬 TAILOR Coach API - POST request received');
-  
+
   try {
     // Get authenticated user
     const userId = await requireAuth();
     console.log('🔐 TAILOR Coach API - User authenticated:', userId ? '✅' : '❌');
+
+    // 🔒 Check premium access (paywall enforcement)
+    const accessResult = await checkPremiumAccess(userId);
+    if (!accessResult.allowed) {
+      console.log('🚫 Chat access blocked - free user:', userId);
+      return NextResponse.json(
+        {
+          error: accessResult.reason,
+          upgrade: true,
+          feature: 'chat',
+        },
+        { status: 403 }
+      );
+    }
+    console.log('✅ Chat access granted:', accessResult.reason);
 
     const body = await request.json();
     const { message, history = [] } = body;
@@ -158,10 +175,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle slash commands
+    if (message.trim().startsWith('/stats')) {
+      console.log('📊 Slash command detected: /stats');
+
+      try {
+        const stats = await fetchStats(userId);
+
+        // Format stats response
+        const formattedResponse = `📊 **TAILOR Platform Statistics**
+
+**Total Platform Stats:**
+• 👥 Total Users: ${stats.total.users}
+• 📄 Total Resumes Created: ${stats.total.resumes}
+• 📁 Total Documents Uploaded: ${stats.total.documents}
+• 💼 Total Jobs Added: ${stats.total.jobs}
+
+**Your Stats:**
+• 📄 Your Resumes: ${stats.user.resumes}
+• 📁 Your Documents: ${stats.user.documents}
+• 💼 Your Jobs: ${stats.user.jobs}
+
+**Platform Averages:**
+• Resumes per user: ${stats.averages.resumesPerUser}
+• Documents per user: ${stats.averages.documentsPerUser}
+• Jobs per user: ${stats.averages.jobsPerUser}
+
+*Use \`/stats\` anytime to see updated statistics!*`;
+
+        return NextResponse.json({ response: formattedResponse });
+      } catch (error: any) {
+        console.error('❌ Error handling /stats command:', error);
+        return NextResponse.json({
+          response: "I couldn't fetch the statistics right now. Please try again in a moment."
+        });
+      }
+    }
+
     // Fetch comprehensive user profile
     const profile = await retrieveProfileForJob(userId, '');
     const profileContext = buildProfileContext(profile);
-    
+
     console.log('📋 TAILOR Coach - Profile loaded:', {
       experiences: profile.experiences?.length || 0,
       skills: profile.skills?.length || 0,
@@ -184,7 +238,7 @@ export async function POST(request: NextRequest) {
     // Get relevant chunks based on the query
     const { chunks: relevantChunks } = await getRelevantChunks(userId, message, 8);
     console.log('🔍 TAILOR Coach - Chunk hits:', relevantChunks.length);
-    
+
     const chunkTexts = relevantChunks.map((chunk) => chunk.content);
     const chunkFileRefs = mapChunksToFileRefs(relevantChunks);
 
@@ -289,14 +343,14 @@ Respond as TAILOR, the career coach. Be warm, specific, and actionable. Referenc
     return NextResponse.json({ response });
   } catch (error: any) {
     console.error('❌ TAILOR Coach error:', error);
-    
+
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

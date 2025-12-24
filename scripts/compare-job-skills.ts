@@ -131,12 +131,12 @@ async function compareSkills() {
 
         if (jobsError) {
             console.error('❌ Error fetching jobs:', jobsError);
-            return;
+            throw new Error(`Failed to fetch jobs: ${jobsError.message}`);
         }
 
         if (!jobs || jobs.length === 0) {
             console.log('⚠️  No jobs found');
-            return;
+            throw new Error('No jobs found matching criteria');
         }
 
         // Use the most recent job
@@ -193,7 +193,7 @@ async function compareSkills() {
             console.log('\n⚠️  Cannot show actual extracted skills without Gemini API key');
         }
 
-        console.log(`\n\n📊 JOBCAN'S SKILLS:\n`);
+        console.log(`\n\n📊 JOBSCAN'S SKILLS:\n`);
         console.log(`Hard Skills (${Object.keys(JOBSCAN_HARD_SKILLS).length}):`);
         Object.entries(JOBSCAN_HARD_SKILLS).forEach(([skill, stats], i) => {
             console.log(`   ${i + 1}. ${skill} (matched: ${stats.matched}/${stats.total})`);
@@ -208,7 +208,7 @@ async function compareSkills() {
         console.log('\n\n🔍 COMPARISON:\n');
         
         if (!parsed) {
-            console.log('📋 JOBCAN SKILLS ANALYSIS:\n');
+            console.log('📋 JOBSCAN SKILLS ANALYSIS:\n');
             console.log('Hard Skills Jobscan Found:');
             Object.entries(JOBSCAN_HARD_SKILLS).forEach(([skill, stats]) => {
                 console.log(`   - ${skill} (matched: ${stats.matched}/${stats.total})`);
@@ -266,7 +266,7 @@ async function compareSkills() {
 
         // Show skills we extracted that Jobscan didn't
         if (parsed) {
-            console.log('\n\n➕ SKILLS WE EXTRACTED BUT JOBCAN DIDN\'T:\n');
+            console.log('\n\n➕ SKILLS WE EXTRACTED BUT JOBSCAN DIDN\'T:\n');
             const jobscanAllSkills = new Set([
                 ...Object.keys(JOBSCAN_HARD_SKILLS).map(normalizeSkill),
                 ...Object.keys(JOBSCAN_SOFT_SKILLS).map(normalizeSkill)

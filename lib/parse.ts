@@ -1,13 +1,17 @@
 import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
-import { createWorker } from 'tesseract.js';
 import { inspectDocumentText, DocumentAnalysis } from '@/lib/document-analysis';
+import { extractTextWithVision, needsOcr, OcrResult } from '@/lib/vision-ocr';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 export type DocumentMetadata = {
   pageCount?: number;
   rawWordCount: number;
   sanitizedWordCount: number;
   hasImages: boolean;
+  wasOcr?: boolean;
+  ocrConfidence?: 'high' | 'medium' | 'low';
 };
 
 export type ParsedDocument = {
@@ -67,47 +71,47 @@ export async function parsePdf(buffer: Buffer): Promise<RawParseResult> {
   }
 }
 
-// OCR fallback for image-based PDFs or images
-export async function performOcr(buffer: Buffer): Promise<string> {
-  try {
-    const worker = await createWorker('eng');
-    const { data } = await worker.recognize(buffer);
-    await worker.terminate();
-    return data.text;
-  } catch (error) {
-    console.error('Error performing OCR:', error);
-    throw new Error('Failed to perform OCR');
-  }
-}
-
 // Main parsing function
 export async function parseDocument(
   buffer: Buffer,
-  fileType: string
+  fileType: string,
+  fileName?: string
 ): Promise<ParsedDocument> {
   try {
     let baseResult: RawParseResult;
+    let ocrResult: OcrResult | null = null;
 
     if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       baseResult = await parseDocx(buffer);
     } else if (fileType === 'application/pdf') {
       baseResult = await parsePdf(buffer);
 
-      // If PDF has very little text, try OCR
-      if (baseResult.rawText.length < 100) {
+      // Check if PDF needs OCR (scanned/image-based)
+      if (needsOcr(baseResult.rawText.length, baseResult.metadata.pageCount)) {
+        if (isDev) {
+          console.log(`📄 [parseDocument] Low text content detected (${baseResult.rawText.length} chars), attempting Vision OCR...`);
+        }
+
         try {
-          const ocrText = await performOcr(buffer);
-          if (ocrText.length > baseResult.rawText.length) {
+          ocrResult = await extractTextWithVision(buffer, fileName);
+
+          // Use OCR result if it extracted meaningful text
+          if (ocrResult.text.length > baseResult.rawText.length) {
+            if (isDev) {
+              console.log(`✅ [parseDocument] OCR successful: ${ocrResult.text.length} chars extracted (was ${baseResult.rawText.length})`);
+            }
             baseResult = {
-              rawText: ocrText,
+              rawText: ocrResult.text,
               metadata: {
                 ...baseResult.metadata,
+                rawWordCount: ocrResult.text.split(/\s+/).filter(Boolean).length,
                 hasImages: true,
               },
             };
           }
-        } catch (ocrError) {
-          console.warn('OCR fallback failed:', ocrError);
+        } catch (ocrError: any) {
+          // OCR failed, but we can still return what we have
+          console.warn(`⚠️ [parseDocument] OCR fallback failed: ${ocrError.message}`);
         }
       }
     } else {
@@ -124,6 +128,8 @@ export async function parseDocument(
         rawWordCount: baseResult.metadata.rawWordCount,
         sanitizedWordCount: analysis.placeholder.sanitizedWordCount,
         hasImages: baseResult.metadata.hasImages,
+        wasOcr: ocrResult?.wasOcr,
+        ocrConfidence: ocrResult?.confidence,
       },
       analysis,
     };

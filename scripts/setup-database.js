@@ -5,8 +5,6 @@
  * Run with: node scripts/setup-database.js
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
 const path = require('path');
 
 // Load environment variables
@@ -30,17 +28,45 @@ async function setupDatabase() {
     console.log('\n📝 Follow these steps:\n');
 
     console.log('1. Go to your Supabase Dashboard:');
-    console.log(`   ${supabaseUrl.replace('/rest/v1', '').replace('https://', 'https://app.supabase.com/project/')}`);
+    
+    // Robustly construct dashboard URL from Supabase URL
+    let dashboardUrl;
+    try {
+        const url = new URL(supabaseUrl);
+        // Extract project reference from hostname (e.g., "xyzabc.supabase.co" -> "xyzabc")
+        const hostname = url.hostname;
+        const projectRefMatch = hostname.match(/^([^.]+)\.supabase\.(co|io|dev)$/);
+        
+        if (projectRefMatch && projectRefMatch[1]) {
+            dashboardUrl = `https://app.supabase.com/project/${projectRefMatch[1]}`;
+        } else {
+            // Fallback: try to extract from path or use original URL
+            console.warn('⚠️  Could not parse Supabase project reference from URL');
+            dashboardUrl = supabaseUrl.replace('/rest/v1', '');
+        }
+    } catch (err) {
+        // Fallback if URL parsing fails - try to extract project ref with regex
+        console.warn('⚠️  Invalid Supabase URL format, attempting regex extraction');
+        const projectRefMatch = supabaseUrl.match(/^https?:\/\/([^.]+)\.supabase\.(co|io|dev)/);
+        if (projectRefMatch && projectRefMatch[1]) {
+            dashboardUrl = `https://app.supabase.com/project/${projectRefMatch[1]}`;
+        } else {
+            // Last resort: use sanitized original URL
+            dashboardUrl = supabaseUrl.replace('/rest/v1', '');
+        }
+    }
+    
+    console.log(`   ${dashboardUrl}`);
     console.log('\n2. Navigate to: SQL Editor → New Query');
     console.log('\n3. Copy and paste the contents of these files IN ORDER:\n');
 
     const schemaPath = path.join(__dirname, '../supabase/schema.sql');
     const atomicRagPath = path.join(__dirname, '../supabase/migrations/20240522_atomic_rag.sql');
-    const personalInfoPath = path.join(__dirname, '../supabase/migrations/20250120_add_personal_info.sql');
+    const personalInfoPath = path.join(__dirname, '../supabase/migrations/20250121_add_personal_info.sql');
 
     console.log('   a) First, run: supabase/schema.sql');
     console.log('   b) Then, run: supabase/migrations/20240522_atomic_rag.sql');
-    console.log('   c) Finally, run: supabase/migrations/20250120_add_personal_info.sql');
+    console.log('   c) Finally, run: supabase/migrations/20250121_add_personal_info.sql');
 
     console.log('\n📄 File locations:');
     console.log(`   Schema: ${schemaPath}`);
@@ -48,7 +74,6 @@ async function setupDatabase() {
     console.log(`   Migration 2: ${personalInfoPath}`);
 
     console.log('\n💡 Alternative: If you have Supabase CLI installed, run:');
-    console.log('   cd /Users/admin/TAILOR');
     console.log('   supabase db reset');
     console.log('   # or');
     console.log('   supabase db push');

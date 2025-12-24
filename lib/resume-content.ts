@@ -374,10 +374,6 @@ export function filterEligibleExperiences(
 }
 
 /**
- * Post-process resume content to remove any remaining ghost/placeholder data
- * This is a final safety check after generation
- */
-/**
  * Format resume content as a readable string for ATS scoring
  * Excludes metadata like critic and validator data
  */
@@ -476,7 +472,7 @@ export function formatResumeForAts(content: ResumeContent): string {
 }
 
 export function removeGhostData(content: ResumeContent): ResumeContent {
-  if (!content) return content;
+  if (!content) return { ...emptyResumeContent };
 
   const cleaned: ResumeContent = { ...content };
 

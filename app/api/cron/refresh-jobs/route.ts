@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { populateFreshJobs } from '@/lib/jobs/recommendations';
 import { hasEnabledProviders } from '@/lib/jobs/providers';
 import pLimit from 'p-limit';
+import { timingSafeEqual } from 'crypto';
 
 // Weekly cron job to refresh recommended jobs for all users
 // Configure in vercel.json: { "crons": [{ "path": "/api/cron/refresh-jobs", "schedule": "0 9 * * 1" }] }
@@ -13,9 +14,32 @@ const CRON_SECRET = process.env.CRON_SECRET;
 export async function GET(request: NextRequest) {
     console.log('🔄 Cron: Refresh Jobs - Started');
 
-    // Verify cron secret (for security)
+    // Verify cron secret (for security) using constant-time comparison
     const authHeader = request.headers.get('authorization');
-    if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+    
+    if (!CRON_SECRET) {
+        console.error('❌ Cron: CRON_SECRET not configured');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('❌ Cron: Missing or invalid Authorization header');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    
+    // Convert both to Buffers for constant-time comparison
+    const secretBuffer = Buffer.from(CRON_SECRET, 'utf8');
+    const tokenBuffer = Buffer.from(token, 'utf8');
+    
+    // Check lengths first to avoid timing differences from timingSafeEqual
+    if (secretBuffer.length !== tokenBuffer.length) {
+        console.error('❌ Cron: Unauthorized request (length mismatch)');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    if (!timingSafeEqual(secretBuffer, tokenBuffer)) {
         console.error('❌ Cron: Unauthorized request');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -32,21 +56,50 @@ export async function GET(request: NextRequest) {
 
     try {
         // Get users who have recommended jobs (i.e., have generated at least one resume)
-        const { data: users, error: usersError } = await supabaseAdmin
-            .from('recommended_jobs')
-            .select('user_id')
-            .limit(1000);
-
-        if (usersError) {
-            console.error('❌ Cron: Failed to fetch users:', usersError);
-            return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
-        }
-
-        // Get unique user IDs
+        // Pagination: Query in batches of 1000 to handle datasets larger than Supabase's default limit
+        // Uses .range() for efficient pagination, aggregating user_ids across all pages
+        const PAGE_SIZE = 1000;
         const userIdSet = new Set<string>();
-        for (const u of users || []) {
-            if (u.user_id) userIdSet.add(u.user_id);
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const start = page * PAGE_SIZE;
+            const end = start + PAGE_SIZE - 1;
+
+            const { data: users, error: usersError } = await supabaseAdmin
+                .from('recommended_jobs')
+                .select('user_id')
+                .order('user_id', { ascending: true })
+                .range(start, end);
+
+            if (usersError) {
+                console.error(`❌ Cron: Failed to fetch users (page ${page}):`, usersError);
+                return NextResponse.json(
+                    { error: `Failed to fetch users at page ${page}`, details: usersError.message },
+                    { status: 500 }
+                );
+            }
+
+            // Break if no more results
+            if (!users || users.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            // Aggregate user IDs from this page
+            for (const u of users) {
+                if (u.user_id) userIdSet.add(u.user_id);
+            }
+
+            // If we got fewer results than PAGE_SIZE, we've reached the end
+            if (users.length < PAGE_SIZE) {
+                hasMore = false;
+            } else {
+                page++;
+            }
         }
+
         const userIds: string[] = Array.from(userIdSet);
         console.log(`🔄 Cron: Refreshing jobs for ${userIds.length} users`);
 

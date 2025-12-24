@@ -12,6 +12,87 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 type CallbackType = 'signup' | 'recovery' | 'magiclink' | null;
 
+// Helper function to process referral code from localStorage
+const processReferralFromStorage = async (userId: string) => {
+  try {
+    const referralCode = localStorage.getItem('referral_code');
+    if (isDev) {
+      console.log('🎁 [CALLBACK] Checking localStorage for referral code...');
+      console.log('🎁 [CALLBACK] User ID:', userId);
+      console.log('🎁 [CALLBACK] Referral code:', referralCode || '(none)');
+    }
+
+    if (referralCode) {
+      if (isDev) console.log('🎁 [CALLBACK] Calling referral API...');
+      const response = await fetch('/api/account/referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referral_code: referralCode,
+          referee_id: userId,
+        }),
+      });
+
+      const result = await response.json();
+      if (isDev) console.log('🎁 [CALLBACK] Referral API response:', result);
+
+      if (result.success) {
+        if (isDev) console.log('✅ [CALLBACK] Referral processed successfully!');
+        // Clear the localStorage so it's not processed again
+        localStorage.removeItem('referral_code');
+      } else {
+        if (isDev) console.log('⚠️ [CALLBACK] Referral failed:', result.error);
+        // Still clear it to avoid repeated attempts
+        localStorage.removeItem('referral_code');
+      }
+    } else {
+      if (isDev) console.log('🎁 [CALLBACK] No referral code in localStorage');
+    }
+  } catch (err) {
+    if (isDev) console.error('❌ [CALLBACK] Error processing referral:', err);
+  }
+};
+
+// Helper function to process invite code from localStorage
+const processInviteFromStorage = async (userId: string) => {
+  try {
+    const inviteCode = localStorage.getItem('invite_code');
+    if (isDev) {
+      console.log('🎟️ [CALLBACK] Checking localStorage for invite code...');
+      console.log('🎟️ [CALLBACK] User ID:', userId);
+      console.log('🎟️ [CALLBACK] Invite code:', inviteCode || '(none)');
+    }
+
+    if (inviteCode) {
+      if (isDev) console.log('🎟️ [CALLBACK] Calling invite API...');
+      const response = await fetch('/api/account/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invite_code: inviteCode,
+        }),
+      });
+
+      const result = await response.json();
+      if (isDev) console.log('🎟️ [CALLBACK] Invite API response:', result);
+
+      if (result.success) {
+        if (isDev) console.log('✅ [CALLBACK] Invite processed successfully! User is now legacy.');
+        // Clear the localStorage so it's not processed again
+        localStorage.removeItem('invite_code');
+      } else {
+        if (isDev) console.log('⚠️ [CALLBACK] Invite failed:', result.error);
+        // Still clear it to avoid repeated attempts
+        localStorage.removeItem('invite_code');
+      }
+    } else {
+      if (isDev) console.log('🎟️ [CALLBACK] No invite code in localStorage');
+    }
+  } catch (err) {
+    if (isDev) console.error('❌ [CALLBACK] Error processing invite:', err);
+  }
+};
+
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,7 +101,7 @@ function CallbackContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
-  
+
   // Password reset state
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -87,6 +168,9 @@ function CallbackContent() {
               });
 
               if (result?.ok) {
+                // Process referral code and invite code from localStorage for new signup
+                await processReferralFromStorage(supabaseSession.user.id);
+                await processInviteFromStorage(supabaseSession.user.id);
                 setTimeout(() => router.push('/dashboard'), 1500);
               } else {
                 // Even if NextAuth fails, the user can sign in manually
@@ -121,6 +205,9 @@ function CallbackContent() {
               });
 
               if (result?.ok) {
+                // Process referral code and invite code from localStorage (may be a new user via magic link)
+                await processReferralFromStorage(supabaseSession.user.id);
+                await processInviteFromStorage(supabaseSession.user.id);
                 setTimeout(() => router.push('/dashboard'), 1500);
               } else {
                 setError('Failed to complete sign in. Please try again.');
@@ -194,7 +281,7 @@ function CallbackContent() {
 
       setSuccess('Password updated successfully! Redirecting to sign in...');
       setShowPasswordForm(false);
-      
+
       // Sign out and redirect to home to sign in with new password
       await supabase.auth.signOut();
       setTimeout(() => router.push('/'), 2000);

@@ -10,7 +10,7 @@ Quick Fix Directions
 3. Unify the editing contract: one aggressive rewrite pass with a single bullet-count rule; turn off Critic/Validator fallback when the merged pass succeeds.
 4. Apply a single skill/JD truth guard (candidate_skill_universe or resume coverage) and reuse it across generator, quality pass, and validator; prohibit adding JD phrases not in that universe.
 5. Preserve source_ids through normalization and downstream passes so we can attribute and audit edits.
-be sure to look at the systemp prompts as well
+be sure to look at the system prompts as well
 
 System/Prompt Contradictions
 * Dual generators with divergent directives: lib/gemini.ts (lines 560-666) (Gemini atomic) vs lib/openai.ts (lines 120-666) (OpenAI atomic). Both present “ATS Output Contract” and “rewrite 60-80%” language, but the OpenAI version is harsher (“60-80% MUST be rewritten”; domain-level inference strongly encouraged) while the Gemini version is softer and adds “only when supported by highlights.” Output ordering differs (skills after experience in one, before in the other). Running both pathways produces different tone and risk of invention.

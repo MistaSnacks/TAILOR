@@ -16,8 +16,11 @@ import {
   FileText,
   GraduationCap,
   Compass,
-  RefreshCw
+  RefreshCw,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 
 type Message = {
   id: string;
@@ -39,6 +42,8 @@ export default function CoachPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [accessBlocked, setAccessBlocked] = useState(true);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -48,6 +53,36 @@ export default function CoachPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  // Check access on page load
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        // Use the dashboard stats API which includes access info
+        const res = await fetch('/api/dashboard/stats');
+        if (res.ok) {
+          const data = await res.json();
+          // Only allow access if user has unlimited access
+          if (data.generationUsage?.hasUnlimited) {
+            setAccessBlocked(false);
+          } else {
+            // Free user - block chat
+            setAccessBlocked(true);
+          }
+        } else {
+          // Non-OK response - deny access
+          setAccessBlocked(true);
+        }
+      } catch (error) {
+        // Fetch failure - deny access
+        console.error('Error checking access:', error);
+        setAccessBlocked(true);
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+    checkAccess();
+  }, []);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +108,18 @@ export default function CoachPage() {
           history: messages,
         }),
       });
+
+      // Handle paywall (403)
+      if (response.status === 403) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.upgrade) {
+          setAccessBlocked(true);
+          setLoading(false);
+          // Remove the user message since we couldn't process it
+          setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+          return;
+        }
+      }
 
       if (!response.ok) {
         throw new Error('Chat request failed');
@@ -171,40 +218,138 @@ export default function CoachPage() {
 
   // Format message content with markdown-like styling
   const formatContent = (content: string) => {
-    // Split by newlines and handle basic formatting
-    return content.split('\n').map((line, i) => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let currentList: { type: 'ul' | 'ol'; items: string[] } | null = null;
+    let keyCounter = 0;
+
+    const processBoldText = (text: string): React.ReactNode => {
+      if (!text.includes('**')) return text;
+      const parts = text.split(/\*\*(.*?)\*\*/g);
+      return parts.map((part, j) => (j % 2 === 1 ? <strong key={j}>{part}</strong> : part));
+    };
+
+    const flushList = () => {
+      if (currentList && currentList.items.length > 0) {
+        const ListTag = currentList.type === 'ul' ? 'ul' : 'ol';
+        const listClass = currentList.type === 'ul'
+          ? 'ml-4 my-2 space-y-1 list-disc list-outside'
+          : 'ml-4 my-2 space-y-1 list-decimal list-outside';
+        elements.push(
+          <ListTag key={keyCounter++} className={listClass}>
+            {currentList.items.map((item, idx) => (
+              <li key={idx}>{processBoldText(item)}</li>
+            ))}
+          </ListTag>
+        );
+        currentList = null;
+      }
+    };
+
+    lines.forEach((line, i) => {
       // Handle headers
       if (line.startsWith('### ')) {
-        return <h3 key={i} className="font-semibold text-base md:text-lg mt-4 mb-2">{line.slice(4)}</h3>;
+        flushList();
+        elements.push(
+          <h3 key={keyCounter++} className="font-semibold text-base md:text-lg mt-4 mb-2">
+            {processBoldText(line.slice(4))}
+          </h3>
+        );
+        return;
       }
       if (line.startsWith('## ')) {
-        return <h2 key={i} className="font-bold text-lg md:text-xl mt-4 mb-2">{line.slice(3)}</h2>;
+        flushList();
+        elements.push(
+          <h2 key={keyCounter++} className="font-bold text-lg md:text-xl mt-4 mb-2">
+            {processBoldText(line.slice(3))}
+          </h2>
+        );
+        return;
       }
+
       // Handle bullet points
       if (line.startsWith('- ') || line.startsWith('• ')) {
-        return <li key={i} className="ml-4 my-1">{line.slice(2)}</li>;
+        if (currentList?.type !== 'ul') {
+          flushList();
+          currentList = { type: 'ul', items: [] };
+        }
+        currentList.items.push(line.slice(2));
+        return;
       }
-      if (line.match(/^\d+\.\s/)) {
-        return <li key={i} className="ml-4 my-1 list-decimal">{line.slice(line.indexOf(' ') + 1)}</li>;
+
+      // Handle numbered lists
+      const numberedMatch = line.match(/^(\d+)\.\s(.+)$/);
+      if (numberedMatch) {
+        if (currentList?.type !== 'ol') {
+          flushList();
+          currentList = { type: 'ol', items: [] };
+        }
+        currentList.items.push(numberedMatch[2]);
+        return;
       }
-      // Handle bold text
-      if (line.includes('**')) {
-        const parts = line.split(/\*\*(.*?)\*\*/g);
-        return (
-          <p key={i} className="my-1">
-            {parts.map((part, j) =>
-              j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-            )}
-          </p>
-        );
-      }
-      // Empty lines
+
+      // Empty lines flush current list
       if (!line.trim()) {
-        return <br key={i} />;
+        flushList();
+        elements.push(<br key={keyCounter++} />);
+        return;
       }
-      return <p key={i} className="my-1">{line}</p>;
+
+      // Regular paragraph (flush list first)
+      flushList();
+      elements.push(
+        <p key={keyCounter++} className="my-1">
+          {processBoldText(line)}
+        </p>
+      );
     });
+
+    // Flush any remaining list
+    flushList();
+
+    return elements;
   };
+
+  // Loading state while checking access
+  if (checkingAccess) {
+    return (
+      <div className="min-h-[calc(100vh-8rem)] md:min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Paywall screen
+  if (accessBlocked) {
+    return (
+      <div className="min-h-[calc(100vh-8rem)] md:min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full text-center"
+        >
+          <div className="glass-card p-8 rounded-2xl border border-primary/20">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Premium Feature</h2>
+            <p className="text-muted-foreground mb-6">
+              AI Career Coaching is available with a paid subscription. Upgrade to unlock personalized interview prep, career guidance, and confidence building.
+            </p>
+            <Link
+              href="/pricing"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              Upgrade Now <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] max-w-5xl mx-auto px-3 md:px-4 py-3 md:py-6">
@@ -308,8 +453,8 @@ export default function CoachPage() {
                   transition={{ delay: 0.5 + index * 0.1 }}
                   onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
                   className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl bg-gradient-to-br ${category.color} border transition-all duration-200 ${activeCategory === category.id
-                      ? 'ring-2 ring-primary/50 scale-105'
-                      : 'hover:scale-105'
+                    ? 'ring-2 ring-primary/50 scale-105'
+                    : 'hover:scale-105'
                     }`}
                 >
                   {category.icon}
@@ -386,8 +531,8 @@ export default function CoachPage() {
                 >
                   <div className={`flex gap-2 md:gap-3 max-w-[90%] md:max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${message.role === 'user'
-                        ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md'
-                        : 'bg-gradient-to-br from-primary via-primary/80 to-violet-600 shadow-md'
+                      ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md'
+                      : 'bg-gradient-to-br from-primary via-primary/80 to-violet-600 shadow-md'
                       }`}>
                       {message.role === 'user' ? (
                         <User className="w-4 h-4 md:w-5 md:h-5" />
@@ -397,8 +542,8 @@ export default function CoachPage() {
                     </div>
                     <div
                       className={`px-3 py-2.5 md:px-5 md:py-3.5 rounded-xl md:rounded-2xl shadow-sm ${message.role === 'user'
-                          ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
-                          : 'bg-card border border-border rounded-tl-sm'
+                        ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
+                        : 'bg-card border border-border rounded-tl-sm'
                         }`}
                     >
                       <div className="leading-relaxed prose prose-sm max-w-none dark:prose-invert text-sm md:text-base">
@@ -409,8 +554,8 @@ export default function CoachPage() {
                       </div>
                       <div
                         className={`text-[9px] md:text-[10px] mt-2 md:mt-3 opacity-70 ${message.role === 'user'
-                            ? 'text-primary-foreground/80'
-                            : 'text-muted-foreground'
+                          ? 'text-primary-foreground/80'
+                          : 'text-muted-foreground'
                           }`}
                       >
                         {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

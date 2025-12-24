@@ -59,16 +59,63 @@ Issues in Beads are:
 
 Try Beads in your own projects:
 
-```bash
-# Install Beads
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+### Installation
 
+#### Option 1: Safe Installation (Recommended)
+
+**Install script checksum (SHA-256):**
+```
+6b78ebe68970e8f7c3a627905d79df75feaf2599688ef09830c91af4d26cb415
+```
+
+**Safe installation steps:**
+
+```bash
+# 1. Download the install script
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh -o install-beads.sh
+
+# 2. Verify the checksum
+echo "6b78ebe68970e8f7c3a627905d79df75feaf2599688ef09830c91af4d26cb415  install-beads.sh" | shasum -a 256 -c
+
+# 3. Inspect the script (review what it will do)
+cat install-beads.sh
+
+# 4. Run the installation locally
+bash install-beads.sh
+
+# 5. Clean up
+rm install-beads.sh
+```
+
+**Note:** Always verify the checksum matches before running the script. If verification fails, do not proceed with installation.
+
+#### Option 2: Package Manager Installation
+
+**Homebrew (macOS/Linux):**
+```bash
+brew install beads
+```
+
+**Other package managers:**
+Check the [official Beads documentation](https://github.com/steveyegge/beads) for package manager availability in your distribution.
+
+#### Option 3: Manual Installation
+
+1. Download the latest release from [github.com/steveyegge/beads/releases](https://github.com/steveyegge/beads/releases)
+2. Extract and add to your `PATH`
+3. Verify installation: `bd --version`
+
+### Initialize Beads
+
+```bash
 # Initialize in your repo
 bd init
 
 # Create your first issue
 bd create "Try out Beads"
 ```
+
+**⚠️ Security Note:** The direct pipe-to-bash pattern (`curl | bash`) is convenient but not recommended for production use. Always verify checksums and inspect scripts before execution.
 
 ## Learn More
 

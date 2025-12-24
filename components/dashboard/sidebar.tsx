@@ -22,10 +22,27 @@ import {
   X,
   LogOut,
   Briefcase,
+  Users,
+  Settings,
+  Gift,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const navItems = [
+const ADMIN_EMAILS = [
+  'cmcmath89@gmail.com',
+  'camren@gettailor.ai'
+];
+
+/**
+ * Check if an email is an admin email
+ */
+function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const normalizedEmail = email.toLowerCase();
+  return ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === normalizedEmail);
+}
+
+const allNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
   { href: '/dashboard/documents', label: 'Documents', icon: FileText },
@@ -33,6 +50,7 @@ const navItems = [
   { href: '/dashboard/resumes', label: 'Resumes', icon: Files },
   { href: '/dashboard/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/dashboard/chat', label: 'Coach', icon: GraduationCap },
+  { href: '/dashboard/users', label: 'Users', icon: Users, adminOnly: true },
 ];
 
 export function DashboardSidebar() {
@@ -43,6 +61,10 @@ export function DashboardSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { showTutorial, hasCheckedStorage, completeTutorial, closeTutorial, openTutorial } =
     useTutorial(user?.id);
+
+  // Filter nav items based on admin status
+  const isAdmin = isAdminEmail(user?.email);
+  const navItems = allNavItems.filter(item => !item.adminOnly || isAdmin);
 
   // Load collapsed state from local storage with error handling
   useEffect(() => {
@@ -84,9 +106,14 @@ export function DashboardSidebar() {
     }
   };
 
+  // Get user initials for avatar
+  const userInitials = user?.name && user.name.trim().length > 0
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.charAt(0).toUpperCase() || 'U';
+
   return (
     <>
-      {/* Mobile Top Navigation Bar */}
+      {/* Mobile Top Navigation Bar - Clean single hamburger menu */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-16 bg-card/95 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between h-full px-4">
           {/* Logo */}
@@ -97,21 +124,18 @@ export function DashboardSidebar() {
             T<span className="text-primary">AI</span>LOR
           </Link>
 
-          {/* Right side: Theme toggle + Menu button */}
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
-          </div>
+          {/* Right side: Single hamburger menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
         </div>
 
         {/* Mobile Navigation Pills - Horizontal Scroll */}
@@ -137,7 +161,7 @@ export function DashboardSidebar() {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Full featured slide-out menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -152,22 +176,59 @@ export function DashboardSidebar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="absolute right-0 top-0 bottom-0 w-72 bg-card border-l border-border p-6"
+              className="absolute right-0 top-0 bottom-0 w-72 bg-card border-l border-border p-6 overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* User Info */}
+              {/* User Info with Avatar */}
               {user && (
                 <div className="mb-6 p-4 rounded-xl bg-muted/50 border border-border">
-                  <div className="text-sm font-medium truncate mb-3">{user.email}</div>
-                  <button
-                    onClick={signOut}
-                    className="w-full px-4 py-2 text-sm font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-primary-foreground shadow-md">
+                      {user.image ? (
+                        <img
+                          src={user.image}
+                          alt={user.name || 'User'}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        userInitials
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {user.name && (
+                        <p className="text-sm font-medium truncate">{user.name}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Account Menu Links */}
+              <div className="space-y-1 mb-6">
+                <Link
+                  href="/dashboard/account"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 p-3 text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Account Settings</span>
+                </Link>
+                <Link
+                  href="/dashboard/referral"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 p-3 text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                  <Gift className="w-5 h-5" />
+                  <span className="font-medium">Refer a Friend</span>
+                </Link>
+              </div>
+
+              {/* Theme Toggle Row */}
+              <div className="mb-4 p-3 flex items-center justify-between rounded-lg bg-muted/30">
+                <span className="text-sm text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
 
               {/* Help Button */}
               <button
@@ -175,10 +236,19 @@ export function DashboardSidebar() {
                   openTutorial();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center gap-3 p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors mb-4"
               >
                 <HelpCircle className="w-5 h-5" />
                 <span className="font-medium">Help & Tutorial</span>
+              </button>
+
+              {/* Sign Out Button */}
+              <button
+                onClick={signOut}
+                className="w-full px-4 py-3 text-sm font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
               </button>
             </motion.div>
           </motion.div>
@@ -381,8 +451,8 @@ export function DashboardMainContent({ children }: { children: React.ReactNode }
         md:pt-8 md:px-8 ${isMounted ? (isCollapsed ? 'md:ml-20' : 'md:ml-64') : 'md:ml-64'}
       `}
     >
-      {/* Fixed Account Dropdown in top-right corner */}
-      <div className="fixed top-4 right-4 md:top-6 md:right-8 z-50">
+      {/* Fixed Account Dropdown in top-right corner - HIDDEN on mobile (slide-out menu handles it) */}
+      <div className="hidden md:block fixed top-6 right-8 z-50">
         <AccountDropdown />
       </div>
       <div className="max-w-6xl mx-auto">{children}</div>

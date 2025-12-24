@@ -21,11 +21,11 @@ const SECTION_PATTERNS = {
 
 const DATE_PATTERNS = [
     // "Jan 2020 - Present", "January 2020 to Dec 2023"
-    /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{4}/gi,
+    /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{4}/i,
     // "2020 - 2023", "2020 to Present"
-    /\b(19|20)\d{2}\b/g,
+    /\b(19|20)\d{2}\b/,
     // "Present", "Current"
-    /\b(present|current|now)\b/gi,
+    /\b(present|current|now)\b/i,
 ];
 
 const BULLET_MARKERS = /^[\s]*[-•●○▪▸►◆★✓→]\s*/;
@@ -476,7 +476,7 @@ function calculateQualityScore(input: QualityInput): number {
     // Skills (25 points max)
     if (input.skills.length > 0) {
         score += Math.min(15, input.skills.length / 2); // Up to 15 for count
-        score += input.skills.length >= 10 ? 10 : input.skills.length; // Up to 10 for variety
+        score += Math.min(10, input.skills.length >= 10 ? 10 : input.skills.length); // Up to 10 for variety
     }
 
     // Education (15 points max)
@@ -487,9 +487,10 @@ function calculateQualityScore(input: QualityInput): number {
 
     // Summary (20 points max)
     if (input.summary) {
-        score += Math.min(10, input.summary.length / 50); // Length
-        if (input.summary.length >= 200) score += 5;
-        if (/\d+\+?\s*(years?|months?)/.test(input.summary)) score += 5; // Has experience mention
+        const lengthScore = Math.min(10, input.summary.length / 50); // Up to 10 for length
+        const lengthBonus = input.summary.length >= 200 ? 5 : 0; // Up to 5 for sufficient length
+        const experienceMentionBonus = /\d+\+?\s*(years?|months?)/.test(input.summary) ? 5 : 0; // Up to 5 for experience mention
+        score += Math.min(20, lengthScore + lengthBonus + experienceMentionBonus); // Cap at 20 total
     }
 
     return Math.min(1, score / maxScore);

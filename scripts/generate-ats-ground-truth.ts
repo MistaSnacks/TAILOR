@@ -46,24 +46,54 @@ function parseArgs(): Args {
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         switch (arg) {
-            case '--pairs':
-                args.pairs = parseInt(argv[++i], 10) || 3;
+            case '--pairs': {
+                const parsed = parseInt(argv[++i], 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    console.error(`❌ Invalid value for --pairs: must be a positive integer`);
+                    process.exit(1);
+                }
+                args.pairs = parsed;
                 break;
-            case '--resumes':
-                args.resumes = parseInt(argv[++i], 10) || 50;
+            }
+            case '--resumes': {
+                const parsed = parseInt(argv[++i], 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    console.error(`❌ Invalid value for --resumes: must be a positive integer`);
+                    process.exit(1);
+                }
+                args.resumes = parsed;
                 break;
-            case '--jds':
-                args.jds = parseInt(argv[++i], 10) || 100;
+            }
+            case '--jds': {
+                const parsed = parseInt(argv[++i], 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    console.error(`❌ Invalid value for --jds: must be a positive integer`);
+                    process.exit(1);
+                }
+                args.jds = parsed;
                 break;
+            }
             case '--output':
                 args.output = argv[++i] || args.output;
                 break;
-            case '--min-score':
-                args.minScore = parseInt(argv[++i], 10) || 0;
+            case '--min-score': {
+                const parsed = parseInt(argv[++i], 10);
+                if (isNaN(parsed) || parsed < 0) {
+                    console.error(`❌ Invalid value for --min-score: must be a non-negative integer`);
+                    process.exit(1);
+                }
+                args.minScore = parsed;
                 break;
-            case '--delay':
-                args.delay = parseInt(argv[++i], 10) || 100;
+            }
+            case '--delay': {
+                const parsed = parseInt(argv[++i], 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    console.error(`❌ Invalid value for --delay: must be a positive integer`);
+                    process.exit(1);
+                }
+                args.delay = parsed;
                 break;
+            }
         }
     }
 
@@ -124,4 +154,7 @@ async function main(): Promise<void> {
     }
 }
 
-main();
+main().catch((error) => {
+  console.error('Unhandled error:', error);
+  process.exit(1);
+});

@@ -19,14 +19,14 @@ export function Navbar({ onOpenAuth }: NavbarProps) {
         </Link>
         <div className="flex items-center gap-4 md:gap-6">
           <div className="hidden md:flex items-center gap-6">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               Home
             </Link>
-            <Link 
-              href="/pricing" 
+            <Link
+              href="/pricing"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               Pricing
@@ -35,6 +35,13 @@ export function Navbar({ onOpenAuth }: NavbarProps) {
 
           <div className="flex items-center gap-3 md:gap-4">
             <ThemeToggle />
+            {/* Mobile Pricing Link */}
+            <Link
+              href="/pricing"
+              className="md:hidden text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              Pricing
+            </Link>
             {user ? (
               <Link
                 href="/dashboard"

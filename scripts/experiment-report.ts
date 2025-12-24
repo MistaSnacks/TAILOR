@@ -45,20 +45,55 @@ function parseArgs(): Args {
         const arg = argv[i];
         switch (arg) {
             case '--id':
+                if (i + 1 >= argv.length) {
+                    console.error('Error: --id requires a value');
+                    console.error('\nUsage: npx tsx scripts/experiment-report.ts --id <experiment-id>');
+                    process.exit(1);
+                }
                 args.id = argv[++i];
                 break;
             case '--list':
                 args.list = true;
                 break;
             case '--create':
+                if (i + 1 >= argv.length) {
+                    console.error('Error: --create requires a value');
+                    console.error('\nUsage: npx tsx scripts/experiment-report.ts --create <template-name>');
+                    process.exit(1);
+                }
                 args.create = argv[++i];
                 break;
             case '--activate':
+                if (i + 1 >= argv.length) {
+                    console.error('Error: --activate requires a value');
+                    console.error('\nUsage: npx tsx scripts/experiment-report.ts --activate <experiment-id>');
+                    process.exit(1);
+                }
                 args.activate = argv[++i];
                 break;
             case '--complete':
+                if (i + 1 >= argv.length) {
+                    console.error('Error: --complete requires a value');
+                    console.error('\nUsage: npx tsx scripts/experiment-report.ts --complete <experiment-id>');
+                    process.exit(1);
+                }
                 args.complete = argv[++i];
                 break;
+            default:
+                if (arg.startsWith('--')) {
+                    console.error(`Error: Unknown flag: ${arg}`);
+                    console.error('\nAvailable options:');
+                    console.error('  --id ID         Experiment ID to report on');
+                    console.error('  --list          List all experiments');
+                    console.error('  --create NAME   Create a new experiment from template');
+                    console.error('  --activate ID   Activate an experiment');
+                    console.error('  --complete ID   Mark experiment as completed');
+                    process.exit(1);
+                } else {
+                    console.error(`Error: Unexpected argument: ${arg}`);
+                    console.error('\nUsage: npx tsx scripts/experiment-report.ts [options]');
+                    process.exit(1);
+                }
         }
     }
 
